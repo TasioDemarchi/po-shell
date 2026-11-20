@@ -1,0 +1,57 @@
+{
+  "name": "plain-harness",
+  "version": "0.1.0",
+  "description": "Plain — a deterministic harness for AI coding agents: task state machine, memory, policy gates, checks and frozen reviews.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "plain": "./bin/plain.js"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/plain.ts"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  },
+  "keywords": [
+    "pi-package",
+    "ai-agents",
+    "harness",
+    "coding-agent",
+    "agent-skills"
+  ],
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "scripts": {
+    "test": "PLAIN_SEMANTIC=off node --test test/*.test.js",
+    "plain": "node bin/plain.js",
+    "check": "node --check src/kernel.js && node --check src/policy.js && node --check src/indexer.js && node --check src/context.js && node --check src/checks.js && node --check src/cli.js && node --check src/shell.js && node --check src/util.js && node --check src/delegate.js && node --check src/subagent-policy.js && node --check src/tool-defaults.js && node --check scripts/measure-context.mjs && node --check bench/prepare.mjs && node --check bench/accept.mjs && node --experimental-strip-types --check extensions/plain.ts",
+    "measure": "node scripts/measure-context.mjs",
+    "bench:prepare": "node bench/prepare.mjs",
+    "bench:accept": "node bench/accept.mjs",
+    "test:semantic": "node scripts/semantic-smoke.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "extensions/",
+    "skills/",
+    "prompts/",
+    "scripts/",
+    "templates/",
+    "docs/",
+    "README.md",
+    "AGENTS.md",
+    "PROJECT.md"
+  ]
+}
