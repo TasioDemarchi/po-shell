@@ -3,6 +3,7 @@ import os from "node:os";
 import { applyChecks, suggestChecks } from "./checks.js";
 import { costSummary, formatCredits } from "./costs.js";
 import { checkIntegrity, createBackup, fixIntegrity, listBackups, restoreBackup } from "./backup.js";
+import { directorySize, formatSize, listScratch, sweepScratch } from "./scratch.js";
 import { activeDirectives, getContext, searchContext } from "./context.js";
 import { indexProject } from "./indexer.js";
 import { listProjectStates, projectInfo, pruneProjectStates } from "./project.js";
@@ -107,6 +108,7 @@ Uso:
   plain backup list [--all] [--json]
   plain restore <backup-dir> --yes [--no-db] [--global] [--json]
   plain integrity [--fix] [--json]
+  plain scratch [list|clean] [--force] [--json]
   plain index [--rebuild] [--json]
   plain context search "<query>" [--kind spec|memory] [--type <tipo>] [--limit N] [--all-projects] [--json]
   plain context get "<spec:path#ordinal|mem:key>" [--json]
@@ -510,6 +512,40 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
     } else {
       console.log(`Integridad FALLÓ · ${report.errors} errores · ${report.warnings} warnings`);
       process.exitCode = 1;
+    }
+    return;
+  }
+
+  if (command === "scratch") {
+    const { options, positional } = parseOptions(rest);
+    const action = positional[0] ?? "list";
+    if (action === "clean") {
+      const result = sweepScratch(process.env, { graceMs: options.force ? 0 : undefined });
+      if (json) return console.log(JSON.stringify(result, null, 2));
+      console.log(`Scratch removidos: ${result.removed.length}`);
+      for (const item of result.removed) console.log(`  ${item.ledger.scratchDir}`);
+      if (result.kept.length) {
+        console.log(`Conservados: ${result.kept.length}`);
+        for (const item of result.kept) {
+          console.log(`  ${item.ledger.scratchDir} · ${item.reason}`);
+        }
+      }
+      if (result.refused.length) {
+        console.log(`Rechazados: ${result.refused.length}`);
+        for (const item of result.refused) {
+          console.log(`  ${item.ledger.scratchDir} · ${item.reason}`);
+        }
+      }
+      return;
+    }
+    if (action !== "list") return fail("uso: plain scratch [list|clean] [--force]");
+    const records = listScratch(process.env);
+    if (json) return console.log(JSON.stringify(records, null, 2));
+    if (!records.length) return console.log("(sin scratch)");
+    for (const item of records) {
+      const size = item.valid && !item.live ? ` · ${formatSize(directorySize(item.ledger.scratchDir))}` : "";
+      const status = item.live ? "live" : item.valid ? "ended" : "invalid";
+      console.log(`${status.padEnd(7)} ${item.ledger.scratchDir}${size}`);
     }
     return;
   }

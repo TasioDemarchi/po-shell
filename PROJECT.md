@@ -77,6 +77,7 @@ AGENTS.md      manual operativo del agente en este repo
 docs/
   architecture.md                     arquitectura, componentes, memoria
   recovery.md                         backup, restore y runbook de recuperación
+  scratch.md                          temporales, cleanup y límites
   status.md                           estado, pendientes, pausados, descartado
   agents-md-y-skill-md-investigacion.md  criterios para instrucciones de agentes
 ```
@@ -87,7 +88,7 @@ docs/
 
 El detalle está en `docs/status.md`.
 
-- **Hecho:** kernel, CLI, launcher, policy, checks, review congelado, memoria, directivas, subagentes aislados, modelos fijos por rol, `doctor`, `checks suggest`, `projects prune`, ledger de costo, `backup`, `restore`, `integrity` y runbook de recuperación.
+- **Hecho:** kernel, CLI, launcher, policy, checks, review congelado, memoria, directivas, subagentes aislados, modelos fijos por rol, `doctor`, `checks suggest`, `projects prune`, ledger de costo, `backup`, `restore`, `integrity`, runbook de recuperación y scratch temporal por sesión/subagente.
 - **Pendiente:** MCP, sandbox, evals, scope `personal`, deduplicación, `checks set`.
 - **Pausado:** perfiles de subagentes, `AGENTS.md` por subagente, medición ampliada.
 - **Descartado:** router automático por fase, `.plain` dentro del repo, modelo frontera por defecto.

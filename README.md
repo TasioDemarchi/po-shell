@@ -118,6 +118,8 @@ plain backup              # snapshot de estado + SQLite + repo
 plain backup list
 plain restore <backup-dir> --yes
 plain integrity           # tareas, eventos, reviews, SQLite y memoria
+plain scratch list        # temporales de sesión y subagentes
+plain scratch clean       # limpia temporales terminados
 plain costs               # créditos por modelo, tarea y rol
 plain costs --days 7      # últimos 7 días
 plain costs --task <id>   # una tarea
@@ -292,6 +294,24 @@ plain integrity --fix
 ```
 
 `restore` mueve el estado anterior a `~/.plain/trash/` y requiere `--yes`. `integrity --fix` solo importa memorias Markdown que falten en SQLite; no sobrescribe filas existentes.
+
+## Scratch temporal
+
+El agente no elige dónde poner scripts descartables. El launcher crea un directorio privado por sesión y lo pasa como `TMPDIR`:
+
+```text
+~/.plain/tmp/plain-XXXXXX/
+```
+
+Cada subagente recibe su propio `plain-sub-XXXXXX` debajo. El runtime limpia al cerrar y barre sesiones muertas al iniciar.
+
+```bash
+plain scratch list
+plain scratch clean
+plain scratch clean --force
+```
+
+Si un script deja de ser temporal, se promueve a `test/` o `scripts/`. La política completa está en `docs/scratch.md`.
 
 ## Directivas de comportamiento
 
@@ -571,6 +591,7 @@ plain/
 ├── PROJECT.md             contexto humano y de proyecto: objetivo, alcance y estado
 ├── docs/architecture.md   arquitectura, componentes y memoria
 ├── docs/recovery.md       backup, restore y runbook de recuperación
+├── docs/scratch.md        política de temporales y cleanup
 ├── docs/status.md         estado, pendientes, pausados y descartado
 ├── docs/agents-md-y-skill-md-investigacion.md  criterios para instrucciones de agentes
 ├── bin/plain.js            dispatcher: agente o CLI
@@ -579,6 +600,8 @@ plain/
 ├── src/indexer.js         índice SQLite FTS5 de docs y memorias
 ├── src/context.js         búsqueda y lectura de secciones/memorias
 ├── src/backup.js          backup, restore e integrity
+├── src/scratch.js         scratch de sesión, subagentes y ledger
+├── src/scratch-guard.js   bloqueo de TMPDIR dentro del repo
 ├── src/costs.js           tarifas Nan, créditos y ledger
 ├── src/policy.js          deny paths/commands, gate
 ├── src/cli.js             parser de comandos
@@ -591,7 +614,7 @@ plain/
 ├── skills/feature-doc/          skill para crear docs/features/<slug>.md
 ├── docs/features/               documentos únicos por feature
 ├── templates/             AGENTS.md y TASK.md
-└── test/                  kernel (14) + project (5) + checks (4) + indexer (9) + context (7) + directives (3) + global (2) + cross-project (4) + delegate (7) + subagent policy (3) + tool defaults (2) + policy (3) + semantic (4) + skills (2) + search-cases (5) + costs (5) + backup (5) + shell (7)
+└── test/                  kernel (14) + project (5) + checks (4) + indexer (9) + context (7) + directives (3) + global (2) + cross-project (4) + delegate (8) + subagent policy (3) + tool defaults (2) + policy (3) + semantic (4) + skills (2) + search-cases (5) + costs (5) + backup (5) + scratch (6) + shell (8)
 ```
 
 ## Medir contexto

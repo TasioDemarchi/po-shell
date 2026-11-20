@@ -30,6 +30,8 @@ plain backup list
 plain restore <backup-dir> --yes
 plain integrity # validate tasks, events, reviews, SQLite and memory
 plain integrity --fix
+plain scratch list    # session/subagent temporary dirs
+plain scratch clean   # remove ended scratch
 plain where     # show the project's central state
 plain projects  # list projects with central state
 plain checks suggest   # suggest checks from the stack
@@ -53,6 +55,8 @@ src/kernel.js          tasks, phases, memory, checks, reviews
 src/project.js         project identity and central state
 src/indexer.js         SQLite FTS5 index of docs and memories
 src/backup.js          backup, restore and integrity
+src/scratch.js         session/subagent scratch, ledger and sweep
+src/scratch-guard.js   blocks TMPDIR inside the repo in tests
 src/context.js         context_search / context_get
 src/checks.js          check detection and suggestions
 src/policy.js          deny paths / deny commands / gate
@@ -68,6 +72,7 @@ templates/             AGENTS.md and TASK.md templates
 test/                  per-module tests
 docs/architecture.md   architecture, components and memory
 docs/recovery.md       backup, restore and recovery runbook
+docs/scratch.md        temporary files and cleanup policy
 docs/status.md         state, pending, paused, discarded
 docs/agents-md-y-skill-md-investigacion.md  reference research
 ```
@@ -81,6 +86,8 @@ docs/agents-md-y-skill-md-investigacion.md  reference research
 - **Do not break the CLI without updating `README.md` and `PROJECT.md`.**
 - **Do not add features that are not in this file or approved in conversation.**
 - **Do not store secrets** in code, tests, memory or logs.
+- **Temporary files stay out of the repo.** Use `PLAIN_TMP`/`TMPDIR`; cleanup belongs to the runtime.
+- **Promote durable tests.** A temporary script/test that must remain goes to `test/` or `scripts/` with a normal name.
 - **Do not add ADRs.** Decisions go in memory.
 - **Documentation:** if a section of this file exceeds ~150–200 lines, split it into `docs/`. Do not create a doc before it hurts.
 
@@ -130,11 +137,21 @@ The full memory and index design is in `docs/architecture.md`.
 2. Explore before editing.
 3. Implement one unit at a time.
 4. Run `npm test` and `npm run check`.
-5. Before a risky state change, migration or recovery test: `plain backup` and `plain integrity`.
-6. If the change is risky, freeze the review with `plain_review freeze`.
-6. Save memory if there is a durable conclusion.
-7. You may commit to save state. Push, PR and deploy are the human's decision.
-8. If recovery or state integrity changed, update `docs/recovery.md` and add tests.
+5. Put throwaway scripts and test data in `PLAIN_TMP`/`TMPDIR`, never in the repo.
+6. Before a risky state change, migration or recovery test: `plain backup` and `plain integrity`.
+7. If the change is risky, freeze the review with `plain_review freeze`.
+8. Save memory if there is a durable conclusion.
+9. You may commit to save state. Push, PR and deploy are the human's decision.
+10. If recovery or state integrity changed, update `docs/recovery.md` and add tests.
+
+## Temporary files
+
+- Session scratch is `PLAIN_TMP`, normally `~/.plain/tmp/plain-XXXXXX/`.
+- Subagents get `PLAIN_TMP/plain-sub-XXXXXX/`; the parent removes it.
+- Do not create `tmp/`, `.tmp/`, test fixtures or caches inside the repo.
+- Tests use `mktemp` outside the worktree; if scratch must live inside, use an ignored path and remove it before finishing.
+- `plain scratch list` inspects leftovers; `plain scratch clean` removes ended sessions.
+- If a temporary test becomes real, move it to `test/` and commit it.
 
 ## Recovery
 
@@ -155,7 +172,8 @@ A change is done when:
 - there are no secrets in the diff;
 - the diff can be reviewed without reading the whole repo;
 - any durable decision is in memory;
-- recovery behavior is covered by `docs/recovery.md` and tests if touched.
+- recovery behavior is covered by `docs/recovery.md` and tests if touched;
+- no scratch path or temporary artifact remains in the diff.
 
 ## Invariants
 

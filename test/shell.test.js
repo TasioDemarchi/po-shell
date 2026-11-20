@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildPiArgs, cleanPiEnv, providerDiagnostics, resolvePi, EXTENSION, SKILLS, PROTOCOL } from "../src/shell.js";
+import { buildPiArgs, cleanPiEnv, launch, providerDiagnostics, resolvePi, EXTENSION, SKILLS, PROTOCOL } from "../src/shell.js";
 
 test("buildPiArgs loads extension, skills and protocol", () => {
   const args = buildPiArgs();
@@ -75,4 +75,28 @@ test("cleanPiEnv supports an explicit agent dir and escape hatch", () => {
     cleanPiEnv({ PLAIN_KEEP_PI_ENV: "1", PI_MODEL: "x" }).PI_MODEL,
     "x",
   );
+});
+
+
+test("launch creates a session scratch, passes TMPDIR to Pi and cleans it", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-launch-"));
+  const home = path.join(dir, "home");
+  const out = path.join(dir, "tmpdir.txt");
+  const fake = path.join(dir, "fake-pi");
+  fs.writeFileSync(fake, `#!/bin/sh\nprintf '%s' "$TMPDIR" > "${out}"\n`);
+  fs.chmodSync(fake, 0o755);
+  const code = await launch({
+    cwd: dir,
+    env: {
+      ...process.env,
+      PLAIN_HOME: home,
+      PLAIN_CONTEXT_DB: path.join(dir, "context.db"),
+      PLAIN_TMP_ROOT: path.join(home, "tmp"),
+      PLAIN_PI_BIN: fake,
+    },
+  });
+  assert.equal(code, 0);
+  const childTmp = fs.readFileSync(out, "utf8");
+  assert.ok(childTmp.startsWith(path.join(home, "tmp")));
+  assert.equal(fs.existsSync(childTmp), false);
 });

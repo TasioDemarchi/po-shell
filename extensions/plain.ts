@@ -11,6 +11,7 @@ import path from "node:path";
 import { activeDirectives, getContext, searchContext } from "../src/context.js";
 import { buildSubagentArgs, runPiJson, usageTotal } from "../src/delegate.js";
 import { formatCredits, recordCost } from "../src/costs.js";
+import { createSubagentScratch } from "../src/scratch.js";
 import { memoryAction, taskAction } from "../src/tool-defaults.js";
 import { PACKAGE_ROOT } from "../src/shell.js";
 import { mutatingCommand } from "../src/policy.js";
@@ -525,12 +526,19 @@ export default function plainExtension(pi: ExtensionAPI) {
       });
       const timeoutMs = Math.max(10, Math.min(3600, params.timeout_seconds ?? 300)) * 1000;
       const started = Date.now();
+      let childScratch: any = null;
       try {
+        try {
+          childScratch = createSubagentScratch(process.env);
+        } catch {
+          // Sin scratch propio el hijo hereda el temp de la sesión.
+        }
         const result = await runPiJson(ctx.cwd, args, {
           signal: _signal,
           maxTokens: params.max_tokens,
           maxTurns: params.max_turns,
           timeoutMs,
+          tmpDir: childScratch?.dir,
         });
         const output = result.text.trim() || result.stderr.trim() || "(sin salida)";
         const runId = `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -605,6 +613,8 @@ export default function plainExtension(pi: ExtensionAPI) {
         };
       } catch (error) {
         return { ...text(`Plain delegate error: ${(error as Error).message}`), isError: true };
+      } finally {
+        if (childScratch) childScratch.cleanup();
       }
     },
   });

@@ -78,6 +78,21 @@ test("runPiJson accumulates usage across assistant messages", async () => {
   assert.equal(usageTotal(result.totalUsage), 45);
 });
 
+test("runPiJson passes an explicit child TMPDIR", async () => {
+  const dir = tempDir("plain-delegate-");
+  const out = path.join(dir, "tmpdir.txt");
+  const fake = fakePi(
+    dir,
+    `printf '%s' "$TMPDIR" > "${out}"`,
+  );
+  await runPiJson(dir, [], {
+    env: { ...envFor(fake), PLAIN_TEST_OUT: out },
+    tmpDir: path.join(dir, "child-tmp"),
+    timeoutMs: 5000,
+  });
+  assert.equal(fs.readFileSync(out, "utf8"), path.join(dir, "child-tmp"));
+});
+
 test("runPiJson keeps partial text when the stream ends without message_end", async () => {
   const dir = tempDir("plain-delegate-");
   const fake = fakePi(

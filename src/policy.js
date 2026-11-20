@@ -1,5 +1,6 @@
 import path from "node:path";
 import { expandHome } from "./util.js";
+import { testScratchViolation } from "./scratch-guard.js";
 
 export const DEFAULT_POLICY = {
   denyPaths: [
@@ -98,6 +99,11 @@ export function evaluateToolCall({ toolName, input = {}, cwd, policy, activeTask
     if (pattern) {
       return { block: true, reason: `Plain policy: path denied by ${pattern} (${file})` };
     }
+  }
+
+  const scratchViolation = testScratchViolation({ toolName, input, cwd });
+  if (scratchViolation) {
+    return { block: true, reason: `Plain policy: ${scratchViolation}` };
   }
 
   if (writes && policy.requireTaskForWrite && !activeTask) {

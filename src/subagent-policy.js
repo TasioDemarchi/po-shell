@@ -1,13 +1,18 @@
+import { testScratchViolation } from "./scratch-guard.js";
+
 const isMarkdown = (value) => /\.md$/i.test(String(value ?? "").replace(/\\/g, "/"));
 const isPlainState = (value) => {
   const p = String(value ?? "").replace(/\\/g, "/");
   return p === ".plain" || p.startsWith(".plain/") || p.includes("/.plain/");
 };
 
-export function subagentToolBlock(toolName, input = {}) {
+export function subagentToolBlock(toolName, input = {}, cwd = process.cwd()) {
   if (String(toolName).startsWith("plain_")) {
     return "Un subagente no puede usar tools de memoria, tareas, review ni estado de Plain.";
   }
+
+  const scratchViolation = testScratchViolation({ toolName, input, cwd });
+  if (scratchViolation) return `Subagente: ${scratchViolation}`;
 
   const file = input.path ?? input.file_path ?? input.filename ?? input.file;
   if ((toolName === "write" || toolName === "edit") && file != null) {

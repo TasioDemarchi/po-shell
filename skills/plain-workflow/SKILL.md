@@ -46,6 +46,15 @@ Rules:
 - Add the risky paths declared by the project's `AGENTS.md`.
 - `high` requires a plan + `plain_task action="approve"` before editing.
 
+## Temporary files
+
+- Put throwaway scripts and test data under `PLAIN_TMP` (the runtime's `TMPDIR`), never in the repo.
+- Subagents get their own scratch; the parent removes it. A child does not delete.
+- Tests use `mktemp` outside the worktree.
+- Before returning, check `git status --short`; no `tmp/`, `.tmp/`, caches or fixtures may remain.
+- If a temporary test becomes durable, promote it to `test/` or `scripts/`.
+- `plain scratch list` shows leftovers; `plain scratch clean` removes ended sessions.
+
 ## Before a risky state change
 
 - If the change touches migrations, SQLite, backups, restore, reviews or `~/.plain`: run `plain backup` and `plain integrity` first.

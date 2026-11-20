@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { init, isInitialized, plainPath } from "./kernel.js";
 import { readJson } from "./util.js";
 import { semanticConfig } from "./semantic.js";
+import { cleanupSessionScratch, createSessionScratch, sweepScratch } from "./scratch.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -215,20 +216,46 @@ export async function launch({ cwd = process.cwd(), env = process.env, args = []
     }
   }
 
+  let scratch = null;
+  try {
+    sweepScratch(env);
+    scratch = createSessionScratch(env, { cwd });
+  } catch (error) {
+    console.error(`plain: no se pudo crear el scratch de sesión: ${error.message}`);
+  }
+
   return await new Promise((resolve) => {
-    const child = spawn(pi.command, [...pi.prefix, ...piArgs], {
-      cwd,
-      stdio: "inherit",
-      env: { ...cleanPiEnv(env), PLAIN_SHELL: "1" },
-      shell: process.platform === "win32",
-    });
+    let settled = false;
+    let child;
+    const finish = (code) => {
+      if (settled) return;
+      settled = true;
+      if (scratch) cleanupSessionScratch(scratch);
+      resolve(code);
+    };
+
+    try {
+      child = spawn(pi.command, [...pi.prefix, ...piArgs], {
+        cwd,
+        stdio: "inherit",
+        env: {
+          ...cleanPiEnv(env),
+          ...(scratch?.env ?? {}),
+          PLAIN_SHELL: "1",
+        },
+        shell: process.platform === "win32",
+      });
+    } catch (error) {
+      console.error(`plain: no se pudo iniciar Pi: ${error.message}`);
+      return finish(1);
+    }
 
     child.on("error", (error) => {
       console.error(`plain: no se pudo iniciar Pi: ${error.message}`);
-      resolve(1);
+      finish(1);
     });
     child.on("exit", (code, signal) => {
-      resolve(code ?? (signal ? 1 : 0));
+      finish(code ?? (signal ? 1 : 0));
     });
   });
 }

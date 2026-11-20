@@ -12,6 +12,7 @@ const CLI_COMMANDS = new Set([
   "backup",
   "restore",
   "integrity",
+  "scratch",
   "index",
   "context",
   "ask",

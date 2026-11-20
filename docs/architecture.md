@@ -46,6 +46,8 @@ plain doctor          # chequea Node, Pi, git y extensión
 | `indexer.js` | Índice SQLite FTS5 de docs por sección y memorias |
 | `context.js` | `context_search` / `context_get` sobre el índice |
 | `backup.js` | Backup, restore e integrity del estado central |
+| `scratch.js` | Scratch de sesión y subagentes, ledger y sweep |
+| `scratch-guard.js` | Bloqueo de tests que meten `TMPDIR` en el repo |
 | `costs.js` | Tarifas Nan, cálculo de créditos y ledger en SQLite |
 | `policy.js` | Deny paths/commands, gate determinista |
 | `cli.js` | Comandos para humanos y scripts |

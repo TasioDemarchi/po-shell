@@ -35,6 +35,8 @@ repo.bundle          historial Git, si el proyecto es un repo
 
 `repo.bundle` incluye commits, no archivos sin trackear ni cambios sin commitear. Hacé commit antes de un backup importante.
 
+El scratch efímero (`~/.plain/tmp/`) no se incluye: no es estado durable.
+
 El directorio del backup se crea con permisos `0700` en sistemas POSIX.
 
 ## Comandos

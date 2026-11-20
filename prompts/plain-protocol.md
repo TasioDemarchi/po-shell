@@ -189,6 +189,14 @@ Delegate only for a named reason:
 
 The subagent starts without your context. Give it a closed mission, a budget (`max_tokens`, `max_turns`) and verify its result. Artifacts live in `~/.plain/projects/<id>/agents/`.
 
+## Temporary files
+
+Disposable scripts, tests and test data go under `PLAIN_TMP` / `TMPDIR`, outside the repository.
+Never create `tmp/`, `.tmp/` or caches inside the worktree.
+Each subagent gets its own scratch; the parent removes it after the child ends.
+Before finishing, check `git status --short`: no scratch path may remain.
+If a temporary test becomes durable, move it to `test/` or `scripts/` and commit it.
+
 ## Recovery
 
 Before a destructive, migration, backup/restore or state-integrity change:
@@ -219,4 +227,5 @@ You may commit to save state. Push, PR, deploy and credentials are the human's d
 - [ ] Review is frozen if risk is high.
 - [ ] Memory is saved if the decision is durable.
 - [ ] Commit is allowed to save state; push, PR and deploy are the human's decision.
+- [ ] No scratch path or temporary artifact remains in git status.
 - [ ] If state or recovery was touched, `plain integrity` passes and `docs/recovery.md` is current.

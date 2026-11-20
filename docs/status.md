@@ -9,7 +9,7 @@
 - CLI.
 - Extensión de Pi con 7 tools y 6 hooks.
 - Skill `plain-workflow`.
-- 91 tests (kernel 14, project 5, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 7, subagent policy 3, tool defaults 2, policy 3, semantic 4, skills 2, search-cases 5, costs 5, backup 5, shell 7), todos pasando.
+- 99 tests (kernel 14, project 5, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 8, subagent policy 3, tool defaults 2, policy 3, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 8), todos pasando.
 - Extensión validada en una sesión real de Pi.
 - Launcher `plain`: **implementado** y validado en una sesión real de Pi.
 
@@ -65,7 +65,7 @@
 - Snapshots operativos `state`, `feature` y `session`; memoria primero, feature doc como fuente precisa.
 - Checkpoint automático antes/después de compactación; se reinyecta como contexto.
 - Búsqueda híbrida: FTS + `qwen3-embedding` + `rerank`, con fallback exacto.
-- 91 tests y bench de 3 tareas.
+- 99 tests y bench de 3 tareas.
 
 ### v0.6 — recuperación
 
@@ -75,6 +75,15 @@
 - `plain integrity` valida tareas, eventos, hashes de reviews, SQLite y espejos de memoria.
 - `plain integrity --fix` importa memorias Markdown faltantes sin pisar las existentes.
 - Runbook completo en `docs/recovery.md`.
+
+### v0.7 — scratch temporal
+
+- El launcher crea `~/.plain/tmp/plain-XXXXXX/` por sesión y lo expone como `TMPDIR`, `PLAIN_TMP` y `PLAIN_SCRATCH_ID`.
+- Cada subagente recibe `plain-sub-XXXXXX` debajo del scratch de la sesión; el padre lo borra.
+- Ledger atómico en `~/.plain/tmp/ledger/`; barrido de procesos muertos con una hora de gracia.
+- `plain scratch list` y `plain scratch clean [--force]`.
+- `scratch-guard` bloquea tests que apunten `TMPDIR` dentro del repo.
+- Política documentada en `docs/scratch.md`.
 
 ### Pendiente
 
@@ -86,6 +95,10 @@
 | Scope `personal` | Tercer scope además de `project` y `global`. |
 | Deduplicación y `topic_key` | Evitar memorias repetidas y actualizar por tema. |
 | `plain checks set "<comando>"` | Agregar checks sin editar JSON a mano. |
+| Artefactos de scratch | Registrar clones/worktrees creados por la sesión y limpiarlos con confirmación. |
+| Quarantine de subagentes | Token de inicio de proceso para no confundir PID reutilizado. |
+| Guard de `TMPDIR` en bash | Detectar `TMPDIR=...` dentro del repo también en comandos, no solo en tests. |
+| Scratch en Windows | Validar permisos, locks y rutas largas con más casos reales. |
 
 ### Pausado
 

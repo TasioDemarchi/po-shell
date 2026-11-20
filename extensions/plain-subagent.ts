@@ -7,8 +7,8 @@
 import { subagentToolBlock } from "../src/subagent-policy.js";
 
 export default function plainSubagent(pi: ExtensionAPI) {
-  pi.on("tool_call", (event) => {
-    const reason = subagentToolBlock(event.toolName, event.input ?? {});
+  pi.on("tool_call", (event, ctx) => {
+    const reason = subagentToolBlock(event.toolName, event.input ?? {}, ctx.cwd);
     return reason ? { block: true, reason } : undefined;
   });
 }
