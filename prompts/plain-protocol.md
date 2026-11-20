@@ -189,6 +189,18 @@ Delegate only for a named reason:
 
 The subagent starts without your context. Give it a closed mission, a budget (`max_tokens`, `max_turns`) and verify its result. Artifacts live in `~/.plain/projects/<id>/agents/`.
 
+## Recovery
+
+Before a destructive, migration, backup/restore or state-integrity change:
+
+1. Run `plain backup`.
+2. Run `plain integrity`.
+3. If integrity reports an ERROR, stop and follow `docs/recovery.md`.
+
+Never delete `~/.plain`, `context.db`, task files or reviews to fix a problem.
+`plain restore` requires `--yes` and is a human decision unless explicitly requested.
+`plain integrity --fix` only imports missing memory rows; it does not overwrite existing memories.
+
 ## Delivery
 
 You may commit to save state. Push, PR, deploy and credentials are the human's decision: never push on your own.
@@ -207,3 +219,4 @@ You may commit to save state. Push, PR, deploy and credentials are the human's d
 - [ ] Review is frozen if risk is high.
 - [ ] Memory is saved if the decision is durable.
 - [ ] Commit is allowed to save state; push, PR and deploy are the human's decision.
+- [ ] If state or recovery was touched, `plain integrity` passes and `docs/recovery.md` is current.

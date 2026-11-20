@@ -45,6 +45,7 @@ plain doctor          # chequea Node, Pi, git y extensión
 | `project.js` | Identidad estable del proyecto y resolución del estado central |
 | `indexer.js` | Índice SQLite FTS5 de docs por sección y memorias |
 | `context.js` | `context_search` / `context_get` sobre el índice |
+| `backup.js` | Backup, restore e integrity del estado central |
 | `costs.js` | Tarifas Nan, cálculo de créditos y ledger en SQLite |
 | `policy.js` | Deny paths/commands, gate determinista |
 | `cli.js` | Comandos para humanos y scripts |

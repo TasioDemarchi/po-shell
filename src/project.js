@@ -68,7 +68,9 @@ export function projectInfo(cwd = process.cwd(), env = process.env) {
     name: meta?.name ?? identity.name,
     root: meta?.root ?? identity.root,
     stateDir,
-    contextDb: path.join(plainHome(env), "context.db"),
+    contextDb: env.PLAIN_CONTEXT_DB
+      ? expandHome(env.PLAIN_CONTEXT_DB)
+      : path.join(plainHome(env), "context.db"),
     initialized: fs.existsSync(path.join(stateDir, "config.json")),
     updatedAt: meta?.updatedAt ?? null,
   };

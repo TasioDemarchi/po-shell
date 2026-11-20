@@ -2,6 +2,7 @@ import path from "node:path";
 import os from "node:os";
 import { applyChecks, suggestChecks } from "./checks.js";
 import { costSummary, formatCredits } from "./costs.js";
+import { checkIntegrity, createBackup, fixIntegrity, listBackups, restoreBackup } from "./backup.js";
 import { activeDirectives, getContext, searchContext } from "./context.js";
 import { indexProject } from "./indexer.js";
 import { listProjectStates, projectInfo, pruneProjectStates } from "./project.js";
@@ -102,6 +103,10 @@ Uso:
   plain policy test --tool write --path .env
   plain events [n]
   plain costs [--project <id>|--all-projects] [--task <id>] [--model <id>] [--days N] [--json]
+  plain backup [--output <dir>] [--json]
+  plain backup list [--all] [--json]
+  plain restore <backup-dir> --yes [--no-db] [--global] [--json]
+  plain integrity [--fix] [--json]
   plain index [--rebuild] [--json]
   plain context search "<query>" [--kind spec|memory] [--type <tipo>] [--limit N] [--all-projects] [--json]
   plain context get "<spec:path#ordinal|mem:key>" [--json]
@@ -448,6 +453,65 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
     }
 
     return fail("uso: plain context search|get ...");
+  }
+
+  if (command === "backup") {
+    const { options, positional } = parseOptions(rest);
+    if (positional[0] === "list") {
+      const info = projectInfo(cwd);
+      const backups = listBackups(process.env, options.all ? {} : { projectId: info.id });
+      if (json) return console.log(JSON.stringify(backups, null, 2));
+      if (!backups.length) return console.log("(sin backups)");
+      for (const item of backups) {
+        console.log(`${item.manifest.createdAt}  ${item.path}`);
+      }
+      return;
+    }
+    const result = createBackup(cwd, { output: options.output });
+    if (json) return console.log(JSON.stringify(result, null, 2));
+    console.log(`Backup: ${result.path}`);
+    if (result.manifest.warnings.length) {
+      for (const warning of result.manifest.warnings) console.log(`WARN: ${warning}`);
+    }
+    return;
+  }
+
+  if (command === "restore") {
+    const { options, positional } = parseOptions(rest);
+    const source = positional[0];
+    if (!source) return fail("uso: plain restore <backup-dir> --yes");
+    if (!options.yes) return fail("restore requiere --yes");
+    const result = restoreBackup(cwd, source, {
+      yes: true,
+      db: options["no-db"] !== true,
+      global: options.global === true,
+    });
+    if (json) return console.log(JSON.stringify(result, null, 2));
+    console.log(`Restaurado en: ${result.restoredTo}`);
+    console.log(`Estado anterior: ${result.trashDir}`);
+    for (const warning of result.warnings) console.log(`WARN: ${warning}`);
+    console.log("Verificá con: plain integrity");
+    return;
+  }
+
+  if (command === "integrity") {
+    const { options } = parseOptions(rest);
+    const result = options.fix ? fixIntegrity(cwd) : checkIntegrity(cwd);
+    const report = options.fix ? result.integrity : result;
+    if (json) return console.log(JSON.stringify(result, null, 2));
+    for (const check of report.checks) {
+      if (check.ok) continue;
+      console.log(`${check.level === "error" ? "ERROR" : "WARN "} ${check.name}: ${check.detail}`);
+    }
+    if (report.ok) {
+      console.log(
+        `Integridad OK · ${report.checks.length} checks · ${report.warnings} warnings`,
+      );
+    } else {
+      console.log(`Integridad FALLÓ · ${report.errors} errores · ${report.warnings} warnings`);
+      process.exitCode = 1;
+    }
+    return;
   }
 
   if (command === "index") {

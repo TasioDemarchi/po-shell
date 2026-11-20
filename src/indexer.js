@@ -456,7 +456,7 @@ function indexMemories(db, project, cwd, options = {}) {
       .all(projectId)
       .map((row) => [row.memory_key, row]),
   );
-  if (existing.size > 0) {
+  if (existing.size > 0 && !options.missingOnly) {
     return { total: existing.size, updated: 0, unchanged: existing.size, removed: 0, imported: false };
   }
   const seen = new Set();
@@ -482,7 +482,7 @@ function indexMemories(db, project, cwd, options = {}) {
     const content = fs.readFileSync(file, "utf8");
     const hash = sha256(content);
     const previous = existing.get(key);
-    if (previous && previous.hash === hash) {
+    if (previous) {
       unchanged += 1;
       continue;
     }
@@ -529,10 +529,12 @@ function indexMemories(db, project, cwd, options = {}) {
   }
 
   let removed = 0;
-  for (const [key, row] of existing) {
-    if (seen.has(key)) continue;
-    db.prepare("DELETE FROM memories WHERE rowid = ?").run(row.rowid);
-    removed += 1;
+  if (!options.missingOnly) {
+    for (const [key, row] of existing) {
+      if (seen.has(key)) continue;
+      db.prepare("DELETE FROM memories WHERE rowid = ?").run(row.rowid);
+      removed += 1;
+    }
   }
 
   const total = db
@@ -543,13 +545,38 @@ function indexMemories(db, project, cwd, options = {}) {
 }
 
 
-function indexGlobalMemories(db, env = process.env) {
+function indexGlobalMemories(db, env = process.env, options = {}) {
   const home = plainHome(env);
   return indexMemories(db, { id: GLOBAL_PROJECT_ID }, home, {
     dir: path.join(home, "memory"),
     projectId: GLOBAL_PROJECT_ID,
     scopeDefault: "global",
+    missingOnly: options.missingOnly === true,
   });
+}
+
+export function importMissingMemories(cwd = process.cwd(), options = {}) {
+  const env = options.env ?? process.env;
+  const dbPath = options.dbPath ?? contextDbPath(env);
+  const project = projectIdentity(cwd);
+  const db = openContextDb(dbPath);
+  try {
+    db.exec("BEGIN");
+    try {
+      const memories = indexMemories(db, project, project.root, {
+        dir: path.join(projectStateDir(project.root, env), "memory"),
+        missingOnly: true,
+      });
+      const globalMemories = indexGlobalMemories(db, env, { missingOnly: true });
+      db.exec("COMMIT");
+      return { dbPath, project, memories, globalMemories };
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  } finally {
+    db.close();
+  }
 }
 
 export function indexProject(cwd = process.cwd(), options = {}) {

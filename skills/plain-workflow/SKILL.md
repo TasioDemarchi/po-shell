@@ -46,6 +46,13 @@ Rules:
 - Add the risky paths declared by the project's `AGENTS.md`.
 - `high` requires a plan + `plain_task action="approve"` before editing.
 
+## Before a risky state change
+
+- If the change touches migrations, SQLite, backups, restore, reviews or `~/.plain`: run `plain backup` and `plain integrity` first.
+- Do not delete `~/.plain`, task JSON, reviews or `context.db` to “fix” state.
+- If `plain integrity` reports an ERROR: stop and follow `docs/recovery.md`.
+- `plain restore` requires `--yes`; do not restore without an explicit human request.
+
 ## During work
 
 - One unit of behavior at a time.
@@ -69,6 +76,14 @@ Rules:
 3. If risk is `high`, ask for an independent reviewer (`plain_delegate` with `role: "reviewer"`).
 4. One bounded correction. If it fails again, `plain_ask`.
 5. You may commit to save state; push/PR are the human's decision.
+
+## Recovery
+
+- `plain integrity` is the first diagnostic.
+- `plain integrity --fix` imports missing memory mirrors; it does not overwrite existing rows.
+- `plain backup` includes state, SQLite snapshot, global memory and a Git bundle.
+- Read `docs/recovery.md` before restoring or editing central state.
+- After recovery: `plain integrity`, `plain status`, `plain index`, then run checks.
 
 ## At close
 

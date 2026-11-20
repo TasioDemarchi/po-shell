@@ -114,6 +114,10 @@ plain context search "idempotencia"
 plain context search "idempotencia" --project plain
 plain ask "¿cómo manejamos uploads?" --project plain
 plain context get "mem:arch-upload"
+plain backup              # snapshot de estado + SQLite + repo
+plain backup list
+plain restore <backup-dir> --yes
+plain integrity           # tareas, eventos, reviews, SQLite y memoria
 plain costs               # créditos por modelo, tarea y rol
 plain costs --days 7      # últimos 7 días
 plain costs --task <id>   # una tarea
@@ -269,6 +273,25 @@ Por defecto muestra solo el proyecto actual. `--all-projects` suma todos los pro
 El reporte agrupa por modelo, tarea y rol. **No calcula el saldo de tu suscripción Nan**: solo muestra lo que consumió Plain. Si usás Nan en otros lados, ese consumo no aparece acá.
 
 Si un modelo no tiene tarifa, el evento se registra con `0` créditos y el reporte lo marca como desconocido. Las tarifas viven en `src/costs.js`.
+
+## Recuperación
+
+Antes de una operación riesgosa:
+
+```bash
+plain backup
+plain integrity
+```
+
+`plain backup` guarda el estado del proyecto, un snapshot de SQLite, la memoria global si existe y un bundle de Git. El runbook completo está en `docs/recovery.md`.
+
+```bash
+plain backup list
+plain restore <backup-dir> --yes
+plain integrity --fix
+```
+
+`restore` mueve el estado anterior a `~/.plain/trash/` y requiere `--yes`. `integrity --fix` solo importa memorias Markdown que falten en SQLite; no sobrescribe filas existentes.
 
 ## Directivas de comportamiento
 
@@ -547,6 +570,7 @@ plain/
 ├── AGENTS.md              manual operativo del agente en el repo
 ├── PROJECT.md             contexto humano y de proyecto: objetivo, alcance y estado
 ├── docs/architecture.md   arquitectura, componentes y memoria
+├── docs/recovery.md       backup, restore y runbook de recuperación
 ├── docs/status.md         estado, pendientes, pausados y descartado
 ├── docs/agents-md-y-skill-md-investigacion.md  criterios para instrucciones de agentes
 ├── bin/plain.js            dispatcher: agente o CLI
@@ -554,6 +578,7 @@ plain/
 ├── src/project.js         identidad de proyecto y estado central
 ├── src/indexer.js         índice SQLite FTS5 de docs y memorias
 ├── src/context.js         búsqueda y lectura de secciones/memorias
+├── src/backup.js          backup, restore e integrity
 ├── src/costs.js           tarifas Nan, créditos y ledger
 ├── src/policy.js          deny paths/commands, gate
 ├── src/cli.js             parser de comandos
@@ -566,7 +591,7 @@ plain/
 ├── skills/feature-doc/          skill para crear docs/features/<slug>.md
 ├── docs/features/               documentos únicos por feature
 ├── templates/             AGENTS.md y TASK.md
-└── test/                  kernel (14) + project (5) + checks (4) + indexer (9) + context (7) + directives (3) + global (2) + cross-project (4) + delegate (7) + subagent policy (3) + tool defaults (2) + policy (3) + semantic (4) + skills (2) + search-cases (5) + costs (5) + shell (7)
+└── test/                  kernel (14) + project (5) + checks (4) + indexer (9) + context (7) + directives (3) + global (2) + cross-project (4) + delegate (7) + subagent policy (3) + tool defaults (2) + policy (3) + semantic (4) + skills (2) + search-cases (5) + costs (5) + backup (5) + shell (7)
 ```
 
 ## Medir contexto

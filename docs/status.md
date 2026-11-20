@@ -9,7 +9,7 @@
 - CLI.
 - Extensión de Pi con 7 tools y 6 hooks.
 - Skill `plain-workflow`.
-- 86 tests (kernel 14, project 5, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 7, subagent policy 3, tool defaults 2, policy 3, semantic 4, skills 2, search-cases 5, costs 5, shell 7), todos pasando.
+- 91 tests (kernel 14, project 5, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 7, subagent policy 3, tool defaults 2, policy 3, semantic 4, skills 2, search-cases 5, costs 5, backup 5, shell 7), todos pasando.
 - Extensión validada en una sesión real de Pi.
 - Launcher `plain`: **implementado** y validado en una sesión real de Pi.
 
@@ -65,7 +65,16 @@
 - Snapshots operativos `state`, `feature` y `session`; memoria primero, feature doc como fuente precisa.
 - Checkpoint automático antes/después de compactación; se reinyecta como contexto.
 - Búsqueda híbrida: FTS + `qwen3-embedding` + `rerank`, con fallback exacto.
-- 86 tests y bench de 3 tareas.
+- 91 tests y bench de 3 tareas.
+
+### v0.6 — recuperación
+
+- `plain backup` guarda estado, snapshot SQLite, memoria global y bundle Git.
+- `plain backup list` lista snapshots por proyecto.
+- `plain restore` mueve el estado anterior a `~/.plain/trash` y requiere `--yes`.
+- `plain integrity` valida tareas, eventos, hashes de reviews, SQLite y espejos de memoria.
+- `plain integrity --fix` importa memorias Markdown faltantes sin pisar las existentes.
+- Runbook completo en `docs/recovery.md`.
 
 ### Pendiente
 

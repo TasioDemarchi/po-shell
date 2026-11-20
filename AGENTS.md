@@ -16,7 +16,8 @@ Human-facing documentation, project scope and status live in `PROJECT.md`. Archi
 1. Run `npm test`.
 2. Run `npm run check`.
 3. If a task is active, check `plain status`.
-4. If you are changing behavior, search for an existing decision or error with `plain context search`.
+4. Run `plain integrity` if the project already has central state.
+5. If you are changing behavior, search for an existing decision or error with `plain context search`.
 
 ## Commands
 
@@ -24,6 +25,11 @@ Human-facing documentation, project scope and status live in `PROJECT.md`. Archi
 npm test        # kernel, indexer and launcher tests
 npm run check   # syntax for src/ and the extension
 plain index     # index docs and memories into SQLite FTS5
+plain backup    # snapshot state + SQLite + repo bundle
+plain backup list
+plain restore <backup-dir> --yes
+plain integrity # validate tasks, events, reviews, SQLite and memory
+plain integrity --fix
 plain where     # show the project's central state
 plain projects  # list projects with central state
 plain checks suggest   # suggest checks from the stack
@@ -46,6 +52,7 @@ bin/plain.js            CLI entry point
 src/kernel.js          tasks, phases, memory, checks, reviews
 src/project.js         project identity and central state
 src/indexer.js         SQLite FTS5 index of docs and memories
+src/backup.js          backup, restore and integrity
 src/context.js         context_search / context_get
 src/checks.js          check detection and suggestions
 src/policy.js          deny paths / deny commands / gate
@@ -60,6 +67,7 @@ skills/feature-doc/          skill for docs/features/<slug>.md
 templates/             AGENTS.md and TASK.md templates
 test/                  per-module tests
 docs/architecture.md   architecture, components and memory
+docs/recovery.md       backup, restore and recovery runbook
 docs/status.md         state, pending, paused, discarded
 docs/agents-md-y-skill-md-investigacion.md  reference research
 ```
@@ -122,9 +130,19 @@ The full memory and index design is in `docs/architecture.md`.
 2. Explore before editing.
 3. Implement one unit at a time.
 4. Run `npm test` and `npm run check`.
-5. If the change is risky, freeze the review with `plain_review freeze`.
+5. Before a risky state change, migration or recovery test: `plain backup` and `plain integrity`.
+6. If the change is risky, freeze the review with `plain_review freeze`.
 6. Save memory if there is a durable conclusion.
 7. You may commit to save state. Push, PR and deploy are the human's decision.
+8. If recovery or state integrity changed, update `docs/recovery.md` and add tests.
+
+## Recovery
+
+- Never delete `~/.plain`, `context.db`, task JSON or reviews to "fix" an error.
+- Stop and run `plain integrity` before editing recovery state.
+- Follow `docs/recovery.md`; do not improvise a restore.
+- `plain restore` requires `--yes` and is a human decision unless explicitly requested.
+- `plain integrity --fix` only imports missing memory rows; it does not overwrite existing ones.
 
 ## Definition of done
 
@@ -136,7 +154,8 @@ A change is done when:
 - `README.md` or `PROJECT.md` was updated if usage or scope changed;
 - there are no secrets in the diff;
 - the diff can be reviewed without reading the whole repo;
-- any durable decision is in memory.
+- any durable decision is in memory;
+- recovery behavior is covered by `docs/recovery.md` and tests if touched.
 
 ## Invariants
 
