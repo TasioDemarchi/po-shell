@@ -194,19 +194,22 @@ export function createTask(cwd, { title, risk = "medium", scope = "", outOfScope
 export function updateTask(cwd, id, patch = {}) {
   const task = id ? getTask(cwd, id) : activeTask(cwd);
   if (!task) throw new Error("no active task");
-  if (patch.phase && !PHASES.includes(patch.phase)) {
+  const cleanPatch = Object.fromEntries(
+    Object.entries(patch).filter(([, value]) => value !== undefined),
+  );
+  if (cleanPatch.phase && !PHASES.includes(cleanPatch.phase)) {
     throw new Error(`phase must be one of ${PHASES.join(", ")}`);
   }
-  if (patch.risk && !RISKS.includes(patch.risk)) {
+  if (cleanPatch.risk && !RISKS.includes(cleanPatch.risk)) {
     throw new Error(`risk must be one of ${RISKS.join(", ")}`);
   }
   const next = {
     ...task,
-    ...patch,
+    ...cleanPatch,
     id: task.id,
     createdAt: task.createdAt,
     updatedAt: nowIso(),
-    evidence: patch.evidence ?? task.evidence,
+    evidence: cleanPatch.evidence ?? task.evidence,
   };
   if (
     next.risk === "high" &&
@@ -230,7 +233,7 @@ export function updateTask(cwd, id, patch = {}) {
     }
   }
   writeJson(path.join(tasksDir(cwd), `${task.id}.json`), next);
-  appendEvent(cwd, "task.updated", { id: task.id, phase: next.phase, patch });
+  appendEvent(cwd, "task.updated", { id: task.id, phase: next.phase, patch: cleanPatch });
   return next;
 }
 

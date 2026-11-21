@@ -222,6 +222,21 @@ test("freezeReview refuses an empty candidate", () => {
 });
 
 
+test("updateTask keeps fields that are omitted", () => {
+  const dir = tempRepo();
+  const task = createTask(dir, { title: "Preserve fields", risk: "medium", scope: "old" });
+  const updated = updateTask(dir, task.id, {
+    phase: undefined,
+    risk: undefined,
+    scope: "new",
+    next: undefined,
+  });
+  assert.equal(updated.phase, "authorized");
+  assert.equal(updated.risk, "medium");
+  assert.equal(updated.title, "Preserve fields");
+  assert.equal(updated.scope, "new");
+});
+
 test("ready requires passing check evidence", () => {
   const dir = tempRepo();
   const task = createTask(dir, { title: "Ship", risk: "low" });
