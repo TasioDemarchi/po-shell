@@ -166,7 +166,7 @@ export function activeTask(cwd) {
   return listTasks(cwd)[0] ?? null;
 }
 
-export function createTask(cwd, { title, risk = "medium", scope = "", outOfScope = "", acceptance = [] }) {
+export function createTask(cwd, { title, risk = "medium", scope = "", outOfScope = "", acceptance = [], plan = "" }) {
   if (!title || !String(title).trim()) throw new Error("task title is required");
   if (!RISKS.includes(risk)) throw new Error(`risk must be one of ${RISKS.join(", ")}`);
   init(cwd);
@@ -179,6 +179,7 @@ export function createTask(cwd, { title, risk = "medium", scope = "", outOfScope
     planApproved: risk !== "high",
     scope: String(scope ?? ""),
     outOfScope: String(outOfScope ?? ""),
+    plan: String(plan ?? ""),
     acceptance: Array.isArray(acceptance) ? acceptance : [],
     evidence: [],
     next: "",

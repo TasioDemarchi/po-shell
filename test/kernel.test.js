@@ -222,6 +222,19 @@ test("freezeReview refuses an empty candidate", () => {
 });
 
 
+test("createTask stores the plan and updateTask preserves it", () => {
+  const dir = tempRepo();
+  const task = createTask(dir, {
+    title: "Plan task",
+    risk: "high",
+    plan: "1. Migrar\n2. Validar\n3. Rollback",
+  });
+  assert.match(task.plan, /Migrar/);
+  const updated = updateTask(dir, task.id, { next: "revisar plan" });
+  assert.match(updated.plan, /Rollback/);
+  assert.equal(updated.next, "revisar plan");
+});
+
 test("updateTask keeps fields that are omitted", () => {
   const dir = tempRepo();
   const task = createTask(dir, { title: "Preserve fields", risk: "medium", scope: "old" });

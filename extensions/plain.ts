@@ -67,6 +67,8 @@ function taskSummary(task: any) {
     `título: ${task.title}`,
     task.scope ? `scope: ${task.scope}` : "",
     task.outOfScope ? `out of scope: ${task.outOfScope}` : "",
+    task.plan ? `plan:
+${task.plan}` : "",
     task.next ? `próximo paso: ${task.next}` : "",
     `evidencia: ${(task.evidence ?? []).length}`,
   ]
@@ -130,7 +132,7 @@ export default function plainExtension(pi: ExtensionAPI) {
     name: "plain_task",
     label: "Plain task",
     description:
-      "Manage the deterministic work state. Actions: new (title, risk, scope, out_of_scope), phase (id?, phase), approve (id?, high-risk plan), list, show (id?). Risk: low=local reversible/docs; medium=normal behavior; high=auth/permissions/secrets, payments, migrations, public contracts, infra/deploy, concurrency or irreversible actions. High-risk tasks require human plan approval before editing.",
+      "Manage the deterministic work state. Actions: new (title, risk, scope, out_of_scope, plan), phase (id?, phase), approve (id?, high-risk plan), list, show (id?). Risk: low=local reversible/docs; medium=normal behavior; high=auth/permissions/secrets, payments, migrations, public contracts, infra/deploy, concurrency or irreversible actions. High-risk tasks require a saved plan and human approval before editing.",
     parameters: Type.Object({
       action: Type.Optional(
         Type.Union([
@@ -148,6 +150,7 @@ export default function plainExtension(pi: ExtensionAPI) {
       risk: Type.Optional(Type.Union([Type.Literal("low"), Type.Literal("medium"), Type.Literal("high")])),
       scope: Type.Optional(Type.String()),
       out_of_scope: Type.Optional(Type.String()),
+      plan: Type.Optional(Type.String()),
       next: Type.Optional(Type.String()),
       acceptance: Type.Optional(Type.Array(Type.String())),
     }),
@@ -164,6 +167,14 @@ export default function plainExtension(pi: ExtensionAPI) {
           if (task.planApproved === true) {
             return text(`La tarea ${task.id} ya tiene el plan aprobado.`);
           }
+          if (!String(task.plan ?? "").trim()) {
+            return {
+              ...text(
+                `La tarea ${task.id} no tiene plan guardado. Guardalo con plain_task action="update" plan="..." y mostralo antes de pedir aprobación.`,
+              ),
+              isError: true,
+            };
+          }
           if (!ctx.hasUI) {
             return {
               ...text("No hay UI para aprobar el plan. La tarea queda bloqueada."),
@@ -171,7 +182,7 @@ export default function plainExtension(pi: ExtensionAPI) {
             };
           }
           const choice = await ctx.ui.select(
-            `Aprobar el plan de la tarea de alto riesgo: ${task.title}`,
+            `Aprobar el plan de la tarea de alto riesgo: ${task.title}\n\n${task.plan}`,
             ["Aprobar plan", "Rechazar plan"],
           );
           if (choice !== "Aprobar plan") {
@@ -197,6 +208,7 @@ export default function plainExtension(pi: ExtensionAPI) {
             scope: params.scope ?? "",
             outOfScope: params.out_of_scope ?? "",
             acceptance: params.acceptance ?? [],
+            plan: params.plan ?? "",
           });
           snapshotTask(cwd, task);
           const next =
@@ -218,6 +230,7 @@ export default function plainExtension(pi: ExtensionAPI) {
             phase: params.phase,
             risk: params.risk,
             scope: params.scope,
+            plan: params.plan,
             next: params.next,
           });
           snapshotTask(cwd, task);

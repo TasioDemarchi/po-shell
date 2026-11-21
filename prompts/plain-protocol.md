@@ -64,9 +64,10 @@ The feature doc describes one slice. It must not replace the project-level goal 
 1. Check state: `plain_status`.
 2. If `PROJECT.md` exists, read it before deciding scope. If this is a new project and it does not exist, follow "Project bootstrap".
 3. If the task is substantial, create or resume it with `plain_task`.
-   If `risk: high`, show the plan and call `plain_task` with `action: "approve"`.
+   If `risk: high`, save a concise plan in `plain_task`'s `plan` field, show a 5–10 line summary in chat, and only then call `plain_task` with `action: "approve"`.
    Do not edit until the human approves.
    Do not ask for approval in prose: the `approve` selector is the approval.
+   Do not hide the plan inside `scope`; the approval dialog reads `plan`.
 4. Search prior decisions and errors with `context_search`.
 5. If a result matters, fetch it with `context_get`; do not load all results.
 6. Do not read all docs by default.

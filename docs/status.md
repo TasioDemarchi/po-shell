@@ -9,7 +9,7 @@
 - CLI.
 - Extensión de Pi con 9 tools y 6 hooks.
 - Skill `plain-workflow`.
-- 102 tests (kernel 15, project 5, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 8, subagent policy 3, tool defaults 2, policy 3, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10), todos pasando.
+- 103 tests (kernel 16, project 5, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 8, subagent policy 3, tool defaults 2, policy 3, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10), todos pasando.
 - Extensión validada en una sesión real de Pi.
 - Launcher `plain`: **implementado** y validado en una sesión real de Pi.
 
@@ -65,7 +65,7 @@
 - Snapshots operativos `state`, `feature` y `session`; memoria primero, feature doc como fuente precisa.
 - Checkpoint automático antes/después de compactación; se reinyecta como contexto.
 - Búsqueda híbrida: FTS + `qwen3-embedding` + `rerank`, con fallback exacto.
-- 102 tests y bench de 3 tareas.
+- 103 tests y bench de 3 tareas.
 
 ### v0.6 — recuperación
 
@@ -93,6 +93,7 @@
 - Las advertencias reparables se arreglan con `fixIntegrity`; el resto se informa.
 - `plain init` e `plain integrity` siguen disponibles para uso explícito.
 - `updateTask` ignora campos `undefined`, así un update parcial no borra fase, riesgo, scope ni next.
+- Las tareas high-risk guardan un `plan` explícito; el diálogo de aprobación lo muestra y rechaza un plan vacío.
 
 ### Pendiente
 

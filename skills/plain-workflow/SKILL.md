@@ -68,8 +68,8 @@ Rules:
 - One unit of behavior at a time.
 - Test first when a deterministic test is possible.
 - If the change touches auth, payments, migrations, shared contracts or concurrency: `risk: "high"`.
-- If the task is `high`, show the plan and use `plain_task` with `action: "approve"`; do not edit until the human approves.
-- Do not ask for approval in chat: the `approve` selector is the approval.
+- If the task is `high`, save a concise plan in `plain_task`'s `plan` field, show a 5–10 line summary in chat, and use `plain_task` with `action: "approve"`; do not edit until the human approves.
+- Do not ask for approval in chat: the `approve` selector is the approval. The selector shows the saved plan, so an empty plan is rejected.
 - If the forecast exceeds ~400 lines: split into reviewable commits/units.
 
 ## Before saying "done"
