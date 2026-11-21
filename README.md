@@ -90,6 +90,8 @@ Para conservar todo el entorno heredado: `PLAIN_KEEP_PI_ENV=1`.
 > Si además instalás el paquete con `pi install ./plain`, vas a cargarla dos veces.
 > Elegí uno: `plain` (launcher) o `pi install` (uso desde un Pi normal).
 
+`plain` crea el estado central si falta y corre `plain integrity` antes de abrir Pi. `plain init` e `plain integrity` quedan como comandos explícitos, pero no son necesarios para arrancar.
+
 Configurá tus checks en `~/.plain/projects/<id>/config.json`:
 
 ```json
@@ -101,7 +103,7 @@ Configurá tus checks en `~/.plain/projects/<id>/config.json`:
 ## Uso
 
 ```bash
-plain                     # agente
+plain                     # agente: crea estado y valida integridad solo
 plain shell -- --model X  # agente con argumentos para Pi
 plain where               # muestra id, root y estado central del proyecto
 plain projects            # lista proyectos con estado central (oculta huérfanos)
@@ -614,7 +616,7 @@ plain/
 ├── skills/feature-doc/          skill para crear docs/features/<slug>.md
 ├── docs/features/               documentos únicos por feature
 ├── templates/             AGENTS.md, PROJECT.md y TASK.md
-└── test/                  kernel (14) + project (5) + checks (4) + indexer (9) + context (7) + directives (3) + global (2) + cross-project (4) + delegate (8) + subagent policy (3) + tool defaults (2) + policy (3) + semantic (4) + skills (2) + search-cases (5) + costs (5) + backup (5) + scratch (6) + shell (8)
+└── test/                  kernel (14) + project (5) + checks (4) + indexer (9) + context (7) + directives (3) + global (2) + cross-project (4) + delegate (8) + subagent policy (3) + tool defaults (2) + policy (3) + semantic (4) + skills (2) + search-cases (5) + costs (5) + backup (5) + scratch (6) + shell (10)
 ```
 
 ## Medir contexto

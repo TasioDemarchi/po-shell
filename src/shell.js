@@ -8,6 +8,7 @@ import { init, isInitialized, plainPath } from "./kernel.js";
 import { readJson } from "./util.js";
 import { semanticConfig } from "./semantic.js";
 import { cleanupSessionScratch, createSessionScratch, sweepScratch } from "./scratch.js";
+import { checkIntegrity, fixIntegrity } from "./backup.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -189,6 +190,64 @@ export function doctor({ cwd = process.cwd(), env = process.env } = {}) {
   return failed ? 1 : 0;
 }
 
+function formatIntegrity(report) {
+  return report.checks
+    .filter((check) => !check.ok)
+    .map((check) => `  ${check.level === "error" ? "ERROR" : "WARN "} ${check.name}: ${check.detail}`)
+    .join("\n");
+}
+
+export function ensureProject(cwd = process.cwd(), env = process.env) {
+  const wasInitialized = isInitialized(cwd, env);
+  if (!wasInitialized) {
+    try {
+      const result = init(cwd, env);
+      console.error(`Plain inicializado en ${result.root}`);
+      if (result.migratedFrom) {
+        console.error(`  estado anterior migrado desde ${result.migratedFrom}`);
+      }
+    } catch (error) {
+      return {
+        ok: false,
+        initialized: false,
+        report: {
+          ok: false,
+          errors: 1,
+          warnings: 0,
+          checks: [{ name: "init", level: "error", ok: false, detail: error.message }],
+        },
+      };
+    }
+  }
+
+  let report;
+  try {
+    report = checkIntegrity(cwd, { env });
+  } catch (error) {
+    return {
+      ok: false,
+      initialized: !wasInitialized,
+      report: {
+        ok: false,
+        errors: 1,
+        warnings: 0,
+        checks: [{ name: "integrity", level: "error", ok: false, detail: error.message }],
+      },
+    };
+  }
+
+  if (report.errors === 0 && report.warnings > 0) {
+    try {
+      const fixed = fixIntegrity(cwd, { env });
+      report = fixed.integrity;
+    } catch {
+      // Las advertencias que no se pueden reparar quedan visibles.
+    }
+  }
+
+  return { ok: report.errors === 0, initialized: !wasInitialized, report };
+}
+
 export async function launch({ cwd = process.cwd(), env = process.env, args = [] } = {}) {
   const pi = resolvePi(env);
   if (!pi) {
@@ -204,16 +263,17 @@ export async function launch({ cwd = process.cwd(), env = process.env, args = []
     return 0;
   }
 
-  if (!isInitialized(cwd, env)) {
-    try {
-      const result = init(cwd, env);
-      console.error(`Plain inicializado en ${result.root}`);
-      if (result.migratedFrom) {
-        console.error(`  estado anterior migrado desde ${result.migratedFrom}`);
-      }
-    } catch (error) {
-      console.error(`plain: no se pudo inicializar el estado central: ${error.message}`);
-    }
+  const project = ensureProject(cwd, env);
+  if (!project.ok) {
+    console.error("plain: el estado del proyecto no está sano; no abro el chat.");
+    const detail = formatIntegrity(project.report);
+    if (detail) console.error(detail);
+    console.error("  Corregí con: plain integrity --fix, o restaurá un backup con plain restore.");
+    return 1;
+  }
+  if (project.report.warnings > 0) {
+    const detail = formatIntegrity(project.report);
+    if (detail) console.error(detail);
   }
 
   let scratch = null;

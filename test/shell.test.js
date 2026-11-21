@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildPiArgs, cleanPiEnv, launch, providerDiagnostics, resolvePi, EXTENSION, SKILLS, PROTOCOL } from "../src/shell.js";
+import { buildPiArgs, cleanPiEnv, ensureProject, launch, providerDiagnostics, resolvePi, EXTENSION, SKILLS, PROTOCOL } from "../src/shell.js";
 
 test("buildPiArgs loads extension, skills and protocol", () => {
   const args = buildPiArgs();
@@ -99,4 +99,34 @@ test("launch creates a session scratch, passes TMPDIR to Pi and cleans it", asyn
   const childTmp = fs.readFileSync(out, "utf8");
   assert.ok(childTmp.startsWith(path.join(home, "tmp")));
   assert.equal(fs.existsSync(childTmp), false);
+});
+
+
+test("ensureProject initializes state automatically and leaves it healthy", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-ensure-"));
+  const env = {
+    ...process.env,
+    PLAIN_HOME: path.join(dir, "home"),
+    PLAIN_CONTEXT_DB: path.join(dir, "context.db"),
+  };
+  const result = ensureProject(dir, env);
+  assert.equal(result.ok, true);
+  assert.equal(result.initialized, true);
+  assert.equal(result.report.errors, 0);
+  assert.ok(fs.existsSync(path.join(dir, "home", "projects", result.report.project.id, "config.json")));
+});
+
+test("ensureProject refuses an invalid task before opening the chat", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-ensure-bad-"));
+  const env = {
+    ...process.env,
+    PLAIN_HOME: path.join(dir, "home"),
+    PLAIN_CONTEXT_DB: path.join(dir, "context.db"),
+  };
+  const first = ensureProject(dir, env);
+  const tasks = path.join(dir, "home", "projects", first.report.project.id, "tasks");
+  fs.writeFileSync(path.join(tasks, "bad.json"), "{not json");
+  const result = ensureProject(dir, env);
+  assert.equal(result.ok, false);
+  assert.ok(result.report.errors >= 1);
 });

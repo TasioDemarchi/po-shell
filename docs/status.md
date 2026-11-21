@@ -9,7 +9,7 @@
 - CLI.
 - Extensión de Pi con 7 tools y 6 hooks.
 - Skill `plain-workflow`.
-- 99 tests (kernel 14, project 5, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 8, subagent policy 3, tool defaults 2, policy 3, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 8), todos pasando.
+- 101 tests (kernel 14, project 5, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 8, subagent policy 3, tool defaults 2, policy 3, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10), todos pasando.
 - Extensión validada en una sesión real de Pi.
 - Launcher `plain`: **implementado** y validado en una sesión real de Pi.
 
@@ -65,7 +65,7 @@
 - Snapshots operativos `state`, `feature` y `session`; memoria primero, feature doc como fuente precisa.
 - Checkpoint automático antes/después de compactación; se reinyecta como contexto.
 - Búsqueda híbrida: FTS + `qwen3-embedding` + `rerank`, con fallback exacto.
-- 99 tests y bench de 3 tareas.
+- 101 tests y bench de 3 tareas.
 
 ### v0.6 — recuperación
 
@@ -84,6 +84,14 @@
 - `plain scratch list` y `plain scratch clean [--force]`.
 - `scratch-guard` bloquea tests que apunten `TMPDIR` dentro del repo.
 - Política documentada en `docs/scratch.md`.
+
+### v0.8 — arranque sin comandos previos
+
+- `plain` crea el estado central automáticamente si falta.
+- `plain` corre `plain integrity` antes de abrir el chat.
+- Si hay errores de integridad, no abre Pi y muestra el detalle.
+- Las advertencias reparables se arreglan con `fixIntegrity`; el resto se informa.
+- `plain init` e `plain integrity` siguen disponibles para uso explícito.
 
 ### Pendiente
 
