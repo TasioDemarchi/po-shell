@@ -7,7 +7,7 @@
 - Kernel con tareas, fases, memoria, checks y reviews.
 - Policy de paths y comandos.
 - CLI.
-- Extensión de Pi con 7 tools y 6 hooks.
+- Extensión de Pi con 9 tools y 6 hooks.
 - Skill `plain-workflow`.
 - 102 tests (kernel 15, project 5, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 8, subagent policy 3, tool defaults 2, policy 3, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10), todos pasando.
 - Extensión validada en una sesión real de Pi.

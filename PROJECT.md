@@ -1,6 +1,6 @@
 ---
 status: confirmed
-updated: 2026-11-19
+updated: 2026-11-21
 source: conversation
 ---
 
@@ -35,7 +35,7 @@ Objetivos concretos:
 - **No** ser un sandbox del sistema operativo (todavía).
 - **No** tener una UI visual en la primera etapa.
 - **No** reescribir la TUI de Pi ni construir una terminal propia.
-- **No** agregar una base de datos antes de que la búsqueda por archivos duela.
+- **No** agregar otra base de datos mientras SQLite/FTS alcancen.
 - **No** meter todas las memorias en el contexto.
 - **No** leer todos los docs por defecto.
 
@@ -78,6 +78,7 @@ docs/
   architecture.md                     arquitectura, componentes, memoria
   recovery.md                         backup, restore y runbook de recuperación
   scratch.md                          temporales, cleanup y límites
+  self-hosting.md                     cómo usar Plain para mejorar Plain
   status.md                           estado, pendientes, pausados, descartado
   agents-md-y-skill-md-investigacion.md  criterios para instrucciones de agentes
 ```

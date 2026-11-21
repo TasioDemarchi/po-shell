@@ -22,7 +22,7 @@ Human-facing documentation, project scope and status live in `PROJECT.md`. Archi
 ## Commands
 
 ```bash
-npm test        # kernel, indexer and launcher tests
+npm test        # kernel, indexer, backup, scratch and launcher tests
 npm run check   # syntax for src/ and the extension
 plain index     # index docs and memories into SQLite FTS5
 plain backup    # snapshot state + SQLite + repo bundle
@@ -73,6 +73,7 @@ test/                  per-module tests
 docs/architecture.md   architecture, components and memory
 docs/recovery.md       backup, restore and recovery runbook
 docs/scratch.md        temporary files and cleanup policy
+docs/self-hosting.md   dogfooding and self-modification rules
 docs/status.md         state, pending, paused, discarded
 docs/agents-md-y-skill-md-investigacion.md  reference research
 ```

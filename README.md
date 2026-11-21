@@ -37,8 +37,8 @@ No es un prompt, no es un kit de `.md`, no es un wrapper de chat: es un runtime 
 
 ## Estado
 
-v0.1: kernel, CLI, policy, checks, review, extensión de Pi y launcher `plain`.
-El launcher está probado con un Pi simulado; falta validarlo en una sesión real.
+Estado: **alpha usable**. Kernel, CLI, policy, checks, review, memoria, subagentes, ledger de costo, backup/integrity y scratch temporal.
+El launcher fue validado en sesiones reales; quedan pendientes MCP, sandbox y evals amplias.
 
 ## Instalación
 
@@ -576,9 +576,11 @@ Plain está diseñado para convivir con esa barrera, no para reemplazarla.
 | **0.3** | `plain_delegate` con presupuesto y artefactos (hecho) |
 | **0.4** | Onboarding: doctor de providers, checks suggest y projects prune (hecho) |
 | **0.5** | Ledger de costo (hecho) + perfiles de subagentes |
-| **0.6** | Servidor MCP para usar el kernel desde Claude Code/Codex |
-| **0.7** | Sandbox integrado (bubblewrap/seatbelt) + egress allowlist |
-| **0.8** | Evals del arnés: 20 tareas, medir aceptación/tiempo/tokens |
+| **0.6** | Backup, restore e integrity (hecho) |
+| **0.7** | Scratch temporal de sesión y subagentes (hecho) |
+| **0.8** | Arranque automático sin `plain init` (hecho) |
+| **0.9** | Servidor MCP para usar el kernel desde Claude Code/Codex |
+| **1.0** | Sandbox integrado + evals amplias |
 
 ### Backlog
 
@@ -594,6 +596,7 @@ plain/
 ├── docs/architecture.md   arquitectura, componentes y memoria
 ├── docs/recovery.md       backup, restore y runbook de recuperación
 ├── docs/scratch.md        política de temporales y cleanup
+├── docs/self-hosting.md   cómo usar Plain para mejorar Plain
 ├── docs/status.md         estado, pendientes, pausados y descartado
 ├── docs/agents-md-y-skill-md-investigacion.md  criterios para instrucciones de agentes
 ├── bin/plain.js            dispatcher: agente o CLI

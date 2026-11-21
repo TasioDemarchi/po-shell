@@ -11,7 +11,7 @@ Adaptador (extensions/plain.ts)
    │
 Kernel (src/kernel.js)
    │
-Almacenamiento (~/.plain/projects/<id>/ + ~/.plain/context.db)
+Almacenamiento (~/.plain/projects/<id>/ + ~/.plain/context.db + ~/.plain/tmp/)
 ```
 
 | Capa | Responsabilidad |
@@ -35,7 +35,7 @@ plain doctor          # chequea Node, Pi, git y extensión
 - `plain <subcomando>` = CLI.
 - El launcher carga la extensión y las skills, e inyecta el protocolo del orquestador.
 - No crea un home aislado por defecto: usa el home de Pi para que auth y modelos funcionen.
-- `plain --home <dir>` puede aislar el entorno más adelante.
+- `PLAIN_PI_AGENT_DIR` permite usar un agent dir propio; un `--home` completo no está implementado.
 
 ### Componentes
 
@@ -49,6 +49,8 @@ plain doctor          # chequea Node, Pi, git y extensión
 | `scratch.js` | Scratch de sesión y subagentes, ledger y sweep |
 | `scratch-guard.js` | Bloqueo de tests que meten `TMPDIR` en el repo |
 | `costs.js` | Tarifas Nan, cálculo de créditos y ledger en SQLite |
+| `delegate.js` | Subagentes en procesos Pi aislados |
+| `semantic.js` | Embeddings y rerank con fallback FTS |
 | `policy.js` | Deny paths/commands, gate determinista |
 | `cli.js` | Comandos para humanos y scripts |
 | `extensions/plain.ts` | Tools + hooks para Pi |
@@ -78,7 +80,7 @@ Si Nan no está disponible, cae a FTS exacto con variantes singular/plural y fal
 
 Dentro de Pi, `/semantic on|off` cambia el modo para la sesión actual.
 
-Una sola tool:
+Una sola herramienta de contexto:
 
 ```text
 context_search({ query, project, kinds: ["spec", "memory"], limit: 5 })
