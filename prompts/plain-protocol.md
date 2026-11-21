@@ -46,17 +46,31 @@ For substantial, risky or multi-session work, use the `feature-doc` skill and cr
 - State lives in the feature doc; memory may hold a fast `state` snapshot.
 - `Tasks`, `State` and `Log` are not indexed; the rest is.
 
+## Project bootstrap
+
+When the repository is new, empty or has no `PROJECT.md`, do not jump straight to a feature doc.
+
+1. Inspect the repository root and existing docs.
+2. Draft a short `PROJECT.md` with goal, MVP, non-goals, stack, constraints and current state. Use `templates/PROJECT.md` as a starting point.
+3. Ask the human to confirm scope before implementation.
+4. Only then create `docs/features/<slug>.md` for the first feature.
+
+`PROJECT.md` is not required for a throwaway one-session experiment. It is required for a multi-session product, even a personal one.
+
+The feature doc describes one slice. It must not replace the project-level goal and non-goals.
+
 ## Before working
 
 1. Check state: `plain_status`.
-2. If the task is substantial, create or resume it with `plain_task`.
+2. If `PROJECT.md` exists, read it before deciding scope. If this is a new project and it does not exist, follow "Project bootstrap".
+3. If the task is substantial, create or resume it with `plain_task`.
    If `risk: high`, show the plan and call `plain_task` with `action: "approve"`.
    Do not edit until the human approves.
    Do not ask for approval in prose: the `approve` selector is the approval.
-3. Search prior decisions and errors with `context_search`.
-4. If a result matters, fetch it with `context_get`; do not load all results.
-5. Do not read all docs by default.
-6. For lessons from other projects, use `context_search` with `all_projects: true`. It only crosses memories; never bring foreign specs.
+4. Search prior decisions and errors with `context_search`.
+5. If a result matters, fetch it with `context_get`; do not load all results.
+6. Do not read all docs by default.
+7. For lessons from other projects, use `context_search` with `all_projects: true`. It only crosses memories; never bring foreign specs.
 
 ## Directives
 

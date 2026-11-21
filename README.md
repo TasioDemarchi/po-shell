@@ -613,7 +613,7 @@ plain/
 ├── skills/skill-md-authoring/   skill para escribir SKILL.md
 ├── skills/feature-doc/          skill para crear docs/features/<slug>.md
 ├── docs/features/               documentos únicos por feature
-├── templates/             AGENTS.md y TASK.md
+├── templates/             AGENTS.md, PROJECT.md y TASK.md
 └── test/                  kernel (14) + project (5) + checks (4) + indexer (9) + context (7) + directives (3) + global (2) + cross-project (4) + delegate (8) + subagent policy (3) + tool defaults (2) + policy (3) + semantic (4) + skills (2) + search-cases (5) + costs (5) + backup (5) + scratch (6) + shell (8)
 ```
 

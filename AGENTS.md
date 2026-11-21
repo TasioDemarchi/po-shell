@@ -68,7 +68,7 @@ skills/plain-workflow/  agent procedure
 skills/agents-md-authoring/  skill for writing AGENTS.md
 skills/skill-md-authoring/   skill for writing SKILL.md
 skills/feature-doc/          skill for docs/features/<slug>.md
-templates/             AGENTS.md and TASK.md templates
+templates/             AGENTS.md, PROJECT.md and TASK.md templates
 test/                  per-module tests
 docs/architecture.md   architecture, components and memory
 docs/recovery.md       backup, restore and recovery runbook
@@ -133,16 +133,17 @@ The full memory and index design is in `docs/architecture.md`.
 
 ## Workflow
 
-1. If the task is substantial, create a task with `plain_task`.
-2. Explore before editing.
-3. Implement one unit at a time.
-4. Run `npm test` and `npm run check`.
-5. Put throwaway scripts and test data in `PLAIN_TMP`/`TMPDIR`, never in the repo.
-6. Before a risky state change, migration or recovery test: `plain backup` and `plain integrity`.
-7. If the change is risky, freeze the review with `plain_review freeze`.
-8. Save memory if there is a durable conclusion.
-9. You may commit to save state. Push, PR and deploy are the human's decision.
-10. If recovery or state integrity changed, update `docs/recovery.md` and add tests.
+1. If this is a new project without `PROJECT.md`, draft it and get human approval before feature docs or code.
+2. If the task is substantial, create a task with `plain_task`.
+3. Explore before editing.
+4. Implement one unit at a time.
+5. Run `npm test` and `npm run check`.
+6. Put throwaway scripts and test data in `PLAIN_TMP`/`TMPDIR`, never in the repo.
+7. Before a risky state change, migration or recovery test: `plain backup` and `plain integrity`.
+8. If the change is risky, freeze the review with `plain_review freeze`.
+9. Save memory if there is a durable conclusion.
+10. You may commit to save state. Push, PR and deploy are the human's decision.
+11. If recovery or state integrity changed, update `docs/recovery.md` and add tests.
 
 ## Temporary files
 

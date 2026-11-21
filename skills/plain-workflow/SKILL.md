@@ -20,12 +20,13 @@ description: Use the Plain harness for non-trivial code work. Activate when the 
 ## Before touching code
 
 1. `plain_status` to see the active task.
-2. If there is no task and the change is substantial: `plain_task` with `action: "new"`, `title`, `risk`, `scope`, `out_of_scope`.
-3. If the task exists: move it to `exploring` or `implementing`.
-4. If it is substantial or multi-session, follow the `feature-doc` skill and create `docs/features/<slug>.md`.
-5. If it is small, do not create a feature doc.
-6. `context_search` before re-deciding something that may already be recorded.
-7. On resume, search memory first; if there is no hit or it is stale, read the feature doc.
+2. If this is a new project without `PROJECT.md`, draft `PROJECT.md` first (goal, MVP, non-goals, stack, constraints) and ask for approval before creating a feature doc or code.
+3. If there is no task and the change is substantial: `plain_task` with `action: "new"`, `title`, `risk`, `scope`, `out_of_scope`.
+4. If the task exists: move it to `exploring` or `implementing`.
+5. If it is substantial or multi-session, follow the `feature-doc` skill and create `docs/features/<slug>.md`.
+6. If it is small, do not create a feature doc.
+7. `context_search` before re-deciding something that may already be recorded.
+8. On resume, search memory first; if there is no hit or it is stale, read the feature doc.
 
 ## Risk classification
 

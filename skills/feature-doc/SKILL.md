@@ -7,6 +7,14 @@ description: Create and maintain the single feature document at docs/features/<s
 
 A feature doc is the only file for a feature. It is not SDD, not a form and not a separate plan.
 
+## Project first
+
+Before creating a feature doc in a new project, check for `PROJECT.md`.
+
+- If it exists, read it and keep the feature inside its scope.
+- If it does not exist and the project is multi-session, draft `PROJECT.md` first and get human approval.
+- A feature doc describes one slice; it does not replace project-level goals and non-goals.
+
 ## When to use
 
 - The work is substantial, risky or multi-session.
