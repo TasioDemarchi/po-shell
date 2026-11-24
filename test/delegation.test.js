@@ -83,3 +83,18 @@ test("the state files stay writable in both profiles", () => {
   });
   assert.equal(verdict.block, false);
 });
+
+test("the plan summary is stored separately from the detailed plan", () => {
+  const dir = tempProject();
+  const task = createTask(dir, {
+    title: "con resumen",
+    risk: "high",
+    plan: "1. Primero\n2. Segundo",
+    planSummary: "  Dos pasos: primero y segundo.  ",
+  });
+  assert.equal(task.planSummary, "Dos pasos: primero y segundo.");
+  assert.match(renderContext(dir), /plan_summary: Dos pasos: primero y segundo\./);
+
+  const long = createTask(dir, { title: "largo", planSummary: "x".repeat(600) });
+  assert.equal(long.planSummary.length, 400);
+});

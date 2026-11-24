@@ -9,7 +9,7 @@
 import { Type } from "typebox";
 import path from "node:path";
 import { activeDirectives, getContext, searchContext } from "../src/context.js";
-import { confirmDestructive } from "../src/confirm.js";
+import { confirmDestructive, planApprovalTitle, PLAN_APPROVE, PLAN_REJECT } from "../src/confirm.js";
 import { buildSubagentArgs, capReport, runPiJson, usageTotal } from "../src/delegate.js";
 import { formatCredits, recordCost } from "../src/costs.js";
 import { createSubagentScratch } from "../src/scratch.js";
@@ -68,6 +68,7 @@ function taskSummary(task: any) {
     `título: ${task.title}`,
     task.scope ? `scope: ${task.scope}` : "",
     task.outOfScope ? `out of scope: ${task.outOfScope}` : "",
+    task.planSummary ? `resumen: ${task.planSummary}` : "",
     task.plan ? `plan:
 ${task.plan}` : "",
     `delegación: ${task.delegation ?? "inline"}`,
@@ -134,7 +135,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
     name: "po_shell_task",
     label: "po-shell task",
     description:
-      "Manage the deterministic work state. Actions: new (title, risk, scope, out_of_scope, plan), phase (id?, phase), approve (id?, high-risk plan), list, show (id?). Risk: low=local reversible/docs; medium=normal behavior; high=auth/permissions/secrets, payments, migrations, public contracts, infra/deploy, concurrency or irreversible actions. High-risk tasks require a saved plan and human approval before editing. Delegation profile: inline (default, the parent implements) or delegate-writes (the parent decides, explores, writes docs/features and commits; every code mutation goes to a bounded worker with surfaces).",
+      "Manage the deterministic work state. Actions: new (title, risk, scope, out_of_scope, plan), phase (id?, phase), approve (id?, high-risk plan), list, show (id?). Risk: low=local reversible/docs; medium=normal behavior; high=auth/permissions/secrets, payments, migrations, public contracts, infra/deploy, concurrency or irreversible actions. High-risk tasks require a saved plan and human approval before editing: `plan` carries the detailed plan you explain in your reply, `plan_summary` is one or two lines for the approval dialogue. Delegation profile: inline (default, the parent implements) or delegate-writes (the parent decides, explores, writes docs/features and commits; every code mutation goes to a bounded worker with surfaces).",
     parameters: Type.Object({
       action: Type.Optional(
         Type.Union([
@@ -153,6 +154,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
       scope: Type.Optional(Type.String()),
       out_of_scope: Type.Optional(Type.String()),
       plan: Type.Optional(Type.String()),
+      plan_summary: Type.Optional(Type.String()),
       next: Type.Optional(Type.String()),
       acceptance: Type.Optional(Type.Array(Type.String())),
       delegation: Type.Optional(
@@ -186,11 +188,8 @@ export default function poShellExtension(pi: ExtensionAPI) {
               isError: true,
             };
           }
-          const choice = await ctx.ui.select(
-            `Aprobar el plan de la tarea de alto riesgo: ${task.title}\n\n${task.plan}`,
-            ["Aprobar plan", "Rechazar plan"],
-          );
-          if (choice !== "Aprobar plan") {
+          const choice = await ctx.ui.select(planApprovalTitle(task), [PLAN_APPROVE, PLAN_REJECT]);
+          if (choice !== PLAN_APPROVE) {
             const blocked = updateTask(cwd, task.id, {
               phase: "blocked",
               next: "Plan rechazado por el humano.",
@@ -214,6 +213,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
             outOfScope: params.out_of_scope ?? "",
             acceptance: params.acceptance ?? [],
             plan: params.plan ?? "",
+            planSummary: params.plan_summary,
             delegation: params.delegation,
           });
           snapshotTask(cwd, task);
@@ -237,6 +237,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
             risk: params.risk,
             scope: params.scope,
             plan: params.plan,
+            planSummary: params.plan_summary,
             delegation: params.delegation,
             next: params.next,
           });

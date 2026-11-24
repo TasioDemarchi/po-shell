@@ -9,7 +9,7 @@
 - CLI.
 - Extensión de Pi con 9 tools y 6 hooks.
 - Skill `po-shell-workflow`.
-- 154 tests (kernel 17, project 11, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 12, subagent policy 7, delegation 5, tool defaults 2, policy 10, destructive 8, confirm 4, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10, state env 2, install 10), todos pasando.
+- 156 tests (kernel 17, project 11, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 12, subagent policy 7, delegation 6, tool defaults 2, policy 10, destructive 8, confirm 5, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10, state env 2, install 10), todos pasando.
 - Extensión validada en una sesión real de Pi.
 - Launcher `po-shell`: **implementado** y validado en una sesión real de Pi.
 
@@ -65,7 +65,7 @@
 - Snapshots operativos `state`, `feature` y `session`; memoria primero, feature doc como fuente precisa.
 - Checkpoint automático antes/después de compactación; se reinyecta como contexto.
 - Búsqueda híbrida: FTS + `qwen3-embedding` + `rerank`, con fallback exacto.
-- 154 tests y bench de 3 tareas.
+- 156 tests y bench de 3 tareas.
 - Aislamiento de env en el kernel: un `env` explícito nunca escribe en el home real; `projects prune` también considera huérfano un estado cuyo root ya no existe.
 
 ### v0.6 — recuperación
@@ -113,6 +113,13 @@
 - La cache de identidad se indexa por home + root, así dos `PO_SHELL_HOME` no se pisan.
 - 3 tests nuevos: adopción, no-adopción cuando el id calculado existe, y aislamiento entre homes.
 - Procedimiento manual en `docs/recovery.md` (escenario 8) y regla en `docs/self-hosting.md`.
+
+### v0.12.1 — diálogos con título
+
+- El selector de aprobación mostraba el plan completo (duplicado de la prosa) y sin título propio. Ahora muestra `Aprobar plan · <tarea>` y una línea: `plan_summary`, un campo nuevo de la tarea. El detalle queda en `plan` y en la respuesta del agente.
+- La confirmación destructiva muestra qué va a pasar en palabras (`Permitir comando destructivo · borrado recursivo · build/`) y el comando como contexto; nunca la clave interna del guard (`rmRecursive`).
+- `planApprovalTitle` y `destructiveTitle` son funciones puras en `src/confirm.js`, así que el texto de cada diálogo se testea sin UI.
+- 2 tests nuevos. Total 156.
 
 ### v0.12 — delegación real y perfil full delegation
 

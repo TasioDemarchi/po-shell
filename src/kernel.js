@@ -179,7 +179,7 @@ export function activeTask(cwd, env = process.env) {
 
 export function createTask(
   cwd,
-  { title, risk = "medium", scope = "", outOfScope = "", acceptance = [], plan = "", delegation },
+  { title, risk = "medium", scope = "", outOfScope = "", acceptance = [], plan = "", planSummary = "", delegation },
   env = process.env,
 ) {
   if (!title || !String(title).trim()) throw new Error("task title is required");
@@ -197,6 +197,8 @@ export function createTask(
     scope: String(scope ?? ""),
     outOfScope: String(outOfScope ?? ""),
     plan: String(plan ?? ""),
+    // One or two lines for the approval dialogue; the detail lives in `plan`.
+    planSummary: String(planSummary ?? "").trim().slice(0, 400),
     acceptance: Array.isArray(acceptance) ? acceptance : [],
     evidence: [],
     delegation: mode,
@@ -771,6 +773,7 @@ export function renderContext(cwd = process.cwd(), env = process.env) {
       lines.push(`plan_approved: ${t.planApproved === true ? "yes" : "no"}`);
     }
     if (t.scope) lines.push(`scope: ${t.scope}`);
+    if (t.planSummary) lines.push(`plan_summary: ${t.planSummary}`);
     if (t.next) lines.push(`next: ${t.next}`);
   } else {
     lines.push("task: none");

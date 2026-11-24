@@ -447,12 +447,17 @@ El agente debe mostrar el plan y pedir aprobación humana con:
 po_shell_task action="approve"
 ```
 
-Eso abre un selector:
+Eso abre un selector que muestra **título y una línea de resumen**, no el plan entero:
 
 ```text
-Aprobar plan
-Rechazar plan
+Aprobar plan · Delegación real
+5 unidades: roles, superficies, cap, perfil y docs.
+  Aprobar
+  Rechazar
 ```
+
+El detalle va en la respuesta del agente (`plan`); el selector lee `plan_summary`. Si falta, cae a la
+primera línea del plan. Así el plan no se lee dos veces con el mismo nivel de detalle.
 
 Hasta que se apruebe:
 
@@ -632,7 +637,7 @@ La policy de po-shell es **determinista pero no es un sandbox**. Bloquea paths y
 
 Claves: `rmRecursive`, `findDelete`, `gitResetHard`, `gitCleanForce`, `gitCheckoutOverwrite`, `gitBranchDelete`, `gitRebase`, `gitStashDrop`, `gitPushForce`, `destructiveSql`, `diskWrite`.
 
-3. **Confirmación con salida**: `confirm` abre un selector *Permitir esta vez / Denegar* con el comando y sus targets. Sin UI (print, JSON, subagente) se niega por defecto: fail closed. Un `hard deny` (borrado recursivo de `/`, `/dev` o la raíz de la home) no se puede confirmar nunca. Los subagentes no ejecutan ninguna forma destructiva, ni siquiera las confirmables.
+3. **Confirmación con salida**: `confirm` abre un selector con título propio — `Permitir comando destructivo · <qué va a pasar> · <targets>` y el comando abajo — y las opciones *Permitir esta vez / Denegar*. Nunca muestra la clave interna del guard. Sin UI (print, JSON, subagente) se niega por defecto: fail closed. Un `hard deny` (borrado recursivo de `/`, `/dev` o la raíz de la home) no se puede confirmar nunca. Los subagentes no ejecutan ninguna forma destructiva, ni siquiera las confirmables.
 
 Probá la policy sin ejecutar nada:
 
