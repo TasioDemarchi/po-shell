@@ -9,7 +9,7 @@
 - CLI.
 - Extensión de Pi con 9 tools y 6 hooks.
 - Skill `po-shell-workflow`.
-- 156 tests (kernel 17, project 11, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 12, subagent policy 7, delegation 6, tool defaults 2, policy 10, destructive 8, confirm 5, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10, state env 2, install 10), todos pasando.
+- 157 tests (kernel 17, project 11, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 12, subagent policy 7, delegation 6, tool defaults 2, policy 10, destructive 8, confirm 5, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10, state env 2, install 11), todos pasando.
 - Extensión validada en una sesión real de Pi.
 - Launcher `po-shell`: **implementado** y validado en una sesión real de Pi.
 
@@ -65,7 +65,7 @@
 - Snapshots operativos `state`, `feature` y `session`; memoria primero, feature doc como fuente precisa.
 - Checkpoint automático antes/después de compactación; se reinyecta como contexto.
 - Búsqueda híbrida: FTS + `qwen3-embedding` + `rerank`, con fallback exacto.
-- 156 tests y bench de 3 tareas.
+- 157 tests y bench de 3 tareas.
 - Aislamiento de env en el kernel: un `env` explícito nunca escribe en el home real; `projects prune` también considera huérfano un estado cuyo root ya no existe.
 
 ### v0.6 — recuperación
@@ -113,6 +113,13 @@
 - La cache de identidad se indexa por home + root, así dos `PO_SHELL_HOME` no se pisan.
 - 3 tests nuevos: adopción, no-adopción cuando el id calculado existe, y aislamiento entre homes.
 - Procedimiento manual en `docs/recovery.md` (escenario 8) y regla en `docs/self-hosting.md`.
+
+### v0.12.2 — probar la rama sin tocar main
+
+- `sh scripts/install.sh --alias po-shell-test` crea un segundo comando que corre ese checkout (esta rama o un worktree). Nunca corre `npm link`, así que el `po-shell` global sigue donde estaba.
+- Sirve para dogfooding: `po-shell-test` arranca Pi con la extensión, skills y protocolo del checkout donde se creó el alias.
+- El estado central es compartido entre checkouts del mismo repo: mismas tareas, memoria y reviews.
+- 1 test nuevo (`--help` documenta el flag, opción desconocida falla, el script no enlaza la rama sobre main). Total 157.
 
 ### v0.12.1 — diálogos con título
 

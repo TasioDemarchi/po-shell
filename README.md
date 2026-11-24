@@ -60,6 +60,25 @@ po-shell doctor          # el detalle de cada chequeo
 po-shell                 # inicia el agente con po-shell cargado
 ```
 
+### Probar una rama sin tocar `main`
+
+`--alias` crea un segundo comando que corre **este checkout**, sin re-apuntar el `po-shell` global:
+
+```bash
+cd ../po-shell-delegation          # tu rama o worktree
+sh scripts/install.sh --alias po-shell-test
+po-shell-test                      # sesión con el código de esta rama
+po-shell-test doctor               # verifica qué checkout está usando
+```
+
+`--alias` nunca corre `npm link`: eso movería el `po-shell` de `main` a la rama. El comando nuevo
+es un symlink a `bin/po-shell.js` de este directorio, así que sesión, extensión, skills y protocolo
+salen de acá. Para borrarlo: `rm "$(dirname "$(command -v po-shell)")/po-shell-test"`.
+
+El estado central es **compartido entre checkouts del mismo repo**: las tareas, la memoria y los
+reviews son los mismos para `po-shell` y `po-shell-test`. No corras dos sesiones escribiendo estado a
+la vez.
+
 Cuando el paquete esté publicado:
 
 ```bash

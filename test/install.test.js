@@ -154,3 +154,18 @@ test("postinstallReport returns the report without printing a secret", () => {
   assert.ok(!serialized.includes("nan_secret"));
   assert.deepEqual(fs.readdirSync(stateHome), []);
 });
+
+test("install.sh documents the alias flag and never links a branch over main", () => {
+  const script = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "scripts", "install.sh");
+  const help = spawnSync("sh", [script, "--help"], { encoding: "utf8" });
+  assert.equal(help.status, 0, help.stderr);
+  assert.match(help.stdout, /--alias <nombre>/);
+
+  const unknown = spawnSync("sh", [script, "--nope"], { encoding: "utf8" });
+  assert.equal(unknown.status, 1);
+  assert.match(unknown.stderr, /opción desconocida/);
+
+  const source = fs.readFileSync(script, "utf8");
+  assert.match(source, /--alias no corre npm link/);
+  assert.match(source, /ln -sf "\$root\/bin\/po-shell\.js"/);
+});

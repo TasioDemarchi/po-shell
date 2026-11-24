@@ -42,6 +42,7 @@ po-shell context search "<topic>"   # search specs + memories
 po-shell remember "<rule>" ...      # behavior directive
 po-shell directives                # show active directives
 sh scripts/install.sh   # from a checkout: verify Node/Pi, npm link, doctor
+sh scripts/install.sh --alias po-shell-test   # run this checkout without moving the global po-shell
 po-shell install        # verify the install; never installs anything
 po-shell update [--yes]     # show or run the update for npm/pnpm/link
 po-shell uninstall [--yes]  # uninstall the package; never touches ~/.po-shell
