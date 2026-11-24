@@ -39,6 +39,10 @@ po-shell projects prune --dry-run  # show orphan states
 po-shell context search "<topic>"   # search specs + memories
 po-shell remember "<rule>" ...      # behavior directive
 po-shell directives                # show active directives
+sh scripts/install.sh   # from a checkout: verify Node/Pi, npm link, doctor
+po-shell install        # verify the install; never installs anything
+po-shell update [--yes]     # show or run the update for npm/pnpm/link
+po-shell uninstall [--yes]  # uninstall the package; never touches ~/.po-shell
 npm link        # put `po-shell` on PATH
 po-shell doctor     # check Node, Pi, git, extension, providers
 po-shell            # start the agent
@@ -62,12 +66,15 @@ src/checks.js          check detection and suggestions
 src/policy.js          deny paths / deny commands / gate
 src/cli.js             command parser
 src/shell.js           launcher: resolves Pi and loads extension, skills and protocol
+src/install.js         install report, method detection, update/uninstall plans
 src/util.js            helpers
 extensions/po-shell.ts     tools + hooks for Pi
 skills/po-shell-workflow/  agent procedure
 skills/agents-md-authoring/  skill for writing AGENTS.md
 skills/skill-md-authoring/   skill for writing SKILL.md
 skills/feature-doc/          skill for docs/features/<slug>.md
+scripts/install.mjs         installer entry: verify, never install
+scripts/install.sh          checkout bootstrap: Node/Pi checks, npm link, doctor
 templates/             AGENTS.md, PROJECT.md and TASK.md templates
 test/                  per-module tests
 docs/architecture.md   architecture, components and memory

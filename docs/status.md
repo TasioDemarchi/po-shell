@@ -9,7 +9,7 @@
 - CLI.
 - Extensión de Pi con 9 tools y 6 hooks.
 - Skill `po-shell-workflow`.
-- 107 tests (kernel 17, project 6, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 8, subagent policy 3, tool defaults 2, policy 3, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10, state env 2), todos pasando.
+- 117 tests (kernel 17, project 6, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 8, subagent policy 3, tool defaults 2, policy 3, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10, state env 2, install 10), todos pasando.
 - Extensión validada en una sesión real de Pi.
 - Launcher `po-shell`: **implementado** y validado en una sesión real de Pi.
 
@@ -65,7 +65,7 @@
 - Snapshots operativos `state`, `feature` y `session`; memoria primero, feature doc como fuente precisa.
 - Checkpoint automático antes/después de compactación; se reinyecta como contexto.
 - Búsqueda híbrida: FTS + `qwen3-embedding` + `rerank`, con fallback exacto.
-- 107 tests y bench de 3 tareas.
+- 117 tests y bench de 3 tareas.
 - Aislamiento de env en el kernel: un `env` explícito nunca escribe en el home real; `projects prune` también considera huérfano un estado cuyo root ya no existe.
 
 ### v0.6 — recuperación
@@ -96,11 +96,21 @@
 - `updateTask` ignora campos `undefined`, así un update parcial no borra fase, riesgo, scope ni next.
 - Las tareas high-risk guardan un `plan` explícito; el diálogo de aprobación lo muestra y rechaza un plan vacío.
 
+### v0.9 — instalador propio (alcance A)
+
+- `doctor` y el instalador comparten `diagnostics()`: una sola definición de "puede arrancar".
+- `scripts/install.mjs` verifica Node 22+, git, Pi, extensión, skills, protocolo y el bin en PATH; acepta `--json` y `--dry-run`; nunca instala nada.
+- `postinstall` corre el verificador en modo silencioso y siempre sale 0: nunca rompe una instalación.
+- `po-shell install` reporta qué falta y el comando exacto; no instala Node ni Pi por su cuenta.
+- `po-shell update` y `po-shell uninstall` detectan npm, pnpm o `npm link`; muestran el comando y solo lo ejecutan con `--yes`.
+- `po-shell uninstall` nunca toca `~/.po-shell`: imprime dónde vive el estado y sale.
+- `scripts/install.sh` hace el bootstrap del checkout: valida Node 22+ y git, avisa si falta Pi, corre `npm link` y termina con `po-shell doctor`.
+- 10 tests nuevos en `test/install.test.js`.
+
 ### Pendiente
 
 | Item | Descripción |
 |---|---|
-| Instalador propio | `npm i -g po-shell` real, `po-shell install/update/uninstall` y bootstrap que verifique Node y Pi. Hoy se instala con `npm link` desde el checkout. |
 | Servidor MCP | Exponer el kernel a Claude Code/Codex y otros clientes. |
 | Sandbox del SO | bubblewrap/seatbelt/contenedor + egress allowlist. |
 | Evals del arnés | Set más amplio que el bench de 3 tareas. |

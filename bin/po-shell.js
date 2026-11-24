@@ -24,6 +24,9 @@ const CLI_COMMANDS = new Set([
   "review",
   "policy",
   "config",
+  "install",
+  "update",
+  "uninstall",
   "help",
 ]);
 

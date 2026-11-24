@@ -1,12 +1,14 @@
 import path from "node:path";
 import os from "node:os";
+import { spawnSync } from "node:child_process";
 import { applyChecks, suggestChecks } from "./checks.js";
 import { costSummary, formatCredits } from "./costs.js";
+import { formatCommand, installMethod, installReport, renderInstallReport, uninstallPlan, updatePlan } from "./install.js";
 import { checkIntegrity, createBackup, fixIntegrity, listBackups, restoreBackup } from "./backup.js";
 import { directorySize, formatSize, listScratch, sweepScratch } from "./scratch.js";
 import { activeDirectives, getContext, searchContext } from "./context.js";
 import { indexProject } from "./indexer.js";
-import { listProjectStates, projectInfo, pruneProjectStates } from "./project.js";
+import { listProjectStates, poShellHome, projectInfo, pruneProjectStates } from "./project.js";
 import {
   PHASES,
   RISKS,
@@ -81,6 +83,9 @@ function help() {
 Uso:
   po-shell                     inicia el agente (Pi) con po-shell cargado
   po-shell doctor              chequea Node, Pi, git y archivos
+  po-shell install [--json]    verifica la instalación (no instala nada)
+  po-shell update [--yes] [--json]     muestra o ejecuta la actualización
+  po-shell uninstall [--yes] [--json]  desinstala el paquete, nunca tu estado
   po-shell shell [args...]     inicia el agente con argumentos para Pi
   po-shell init
   po-shell where [--json]
@@ -171,6 +176,64 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
         `${item.id.padEnd(width)}  ${String(item.name).padEnd(24)}  ${item.root ?? "(sin root)"}`,
       );
     }
+    return;
+  }
+
+  if (command === "install") {
+    const report = installReport({ cwd });
+    if (json) return console.log(JSON.stringify(report, null, 2));
+    const code = renderInstallReport(report);
+    if (code !== 0) process.exitCode = code;
+    return;
+  }
+
+  if (command === "update" || command === "uninstall") {
+    const { options } = parseOptions(rest);
+    const detected = installMethod();
+    const plan = command === "update" ? updatePlan(detected.method) : uninstallPlan(detected.method);
+    const payload = { action: command, method: detected.method, bin: detected.bin, plan, executed: false };
+
+    if (!plan) {
+      if (json) return console.log(JSON.stringify({ ...payload, executed: false }, null, 2));
+      console.log("No encontré una instalación global de po-shell.");
+      console.log(`El estado central queda intacto: ${poShellHome(process.env)}`);
+      return;
+    }
+
+    if (!json) {
+      console.log(`método de instalación: ${detected.method}${detected.bin ? ` (${detected.bin})` : ""}`);
+      console.log(`comando: ${formatCommand(plan)}${plan.cwd ? `  (en ${plan.cwd})` : ""}`);
+      if (command === "update" && detected.method === "link") {
+        console.log("antes actualizá el checkout: git pull --ff-only");
+      }
+      if (command === "uninstall") {
+        console.log(`el estado central NO se toca: ${poShellHome(process.env)}`);
+      }
+    }
+
+    if (!options.yes) {
+      if (json) return console.log(JSON.stringify(payload, null, 2));
+      console.log(`No se ejecutó nada. Para ejecutarlo: po-shell ${command} --yes`);
+      return;
+    }
+
+    const result = spawnSync(plan.command, plan.args, {
+      stdio: json ? "pipe" : "inherit",
+      cwd: plan.cwd,
+      encoding: "utf8",
+      env: process.env,
+    });
+    const status = result.status ?? 1;
+    if (json) {
+      console.log(
+        JSON.stringify(
+          { ...payload, executed: true, status, stdout: result.stdout ?? "", stderr: result.stderr ?? "" },
+          null,
+          2,
+        ),
+      );
+    }
+    if (status !== 0) process.exitCode = status;
     return;
   }
 

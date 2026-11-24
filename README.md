@@ -44,16 +44,35 @@ El launcher fue validado en sesiones reales; quedan pendientes MCP, sandbox y ev
 
 Requisitos: Node 22+ y Pi.
 
+Desde el checkout:
+
+```bash
+sh scripts/install.sh     # valida Node/Pi, corre npm link y po-shell doctor
+```
+
+O a mano:
+
 ```bash
 cd po-shell
 npm link                 # deja `po-shell` en el PATH
-po-shell doctor              # verifica Node, Pi, git y archivos
-po-shell                     # inicia el agente con po-shell cargado
+po-shell install         # verifica Node, Pi, extensión, skills y bin
+po-shell doctor          # el detalle de cada chequeo
+po-shell                 # inicia el agente con po-shell cargado
 ```
 
-Hoy la instalación es desde el checkout con `npm link`; el paquete todavía no está publicado.
-Cuando se publique, el mismo comando será `npm i -g po-shell`.
-Un instalador propio (`po-shell install`, bootstrap que verifique Node y Pi) está pendiente y es el próximo paso del proyecto.
+Cuando el paquete esté publicado:
+
+```bash
+npm i -g po-shell        # el postinstall verifica el entorno
+po-shell install         # lo mismo, explícito y con --json
+```
+
+`po-shell install` no instala nada: reporta qué falta y el comando exacto
+(por ejemplo `npm i -g @earendil-works/pi-coding-agent` si no hay Pi).
+`po-shell update` y `po-shell uninstall` detectan si venís de npm, pnpm o
+`npm link`, muestran el comando y solo lo ejecutan con `--yes`.
+Desinstalar el paquete nunca borra tu estado: `~/.po-shell` queda intacto
+y el comando imprime su ruta.
 
 `po-shell` inicializa el estado central del proyecto en `~/.po-shell/projects/<id>/`.
 El repo **no** recibe una carpeta `.po-shell/`: solo los `.md` del proyecto.
@@ -108,6 +127,12 @@ Configurá tus checks en `~/.po-shell/projects/<id>/config.json`:
 
 ```bash
 po-shell                     # agente: crea estado y valida integridad solo
+po-shell install             # verifica la instalación (no instala nada)
+po-shell install --json      # el mismo reporte en JSON
+po-shell update              # muestra el comando de actualización
+po-shell update --yes        # lo ejecuta con el gestor detectado
+po-shell uninstall           # muestra el comando de desinstalación
+po-shell uninstall --yes     # desinstala el paquete; ~/.po-shell queda intacto
 po-shell shell -- --model X  # agente con argumentos para Pi
 po-shell where               # muestra id, root y estado central del proyecto
 po-shell projects            # lista proyectos con estado central (oculta huérfanos)

@@ -97,10 +97,13 @@ export function providerDiagnostics(env = process.env) {
   };
 }
 
-export function doctor({ cwd = process.cwd(), env = process.env } = {}) {
+export function diagnostics({ cwd = process.cwd(), env = process.env, packageRoot = PACKAGE_ROOT } = {}) {
   const effectiveEnv = cleanPiEnv(env);
   const checks = [];
   const add = (name, ok, detail, warn = false) => checks.push({ name, ok, detail, warn });
+  const extension = path.join(packageRoot, "extensions", "po-shell.ts");
+  const protocol = path.join(packageRoot, "prompts", "po-shell-protocol.md");
+  const skills = SKILLS;
 
   const nodeMajor = Number(process.versions.node.split(".")[0]);
   add("Node 22+", nodeMajor >= 22, process.version);
@@ -122,14 +125,14 @@ export function doctor({ cwd = process.cwd(), env = process.env } = {}) {
       : "no encontrado. Instalá Pi o definí PO_SHELL_PI_BIN",
   );
 
-  add("extensión", fs.existsSync(EXTENSION), EXTENSION);
-  const missingSkills = SKILLS.filter((skill) => !fs.existsSync(skill));
+  add("extensión", fs.existsSync(extension), extension);
+  const missingSkills = skills.filter((skill) => !fs.existsSync(skill));
   add(
     "skills",
     missingSkills.length === 0,
-    missingSkills.length ? `faltan: ${missingSkills.join(", ")}` : SKILLS.join(", "),
+    missingSkills.length ? `faltan: ${missingSkills.join(", ")}` : skills.join(", "),
   );
-  add("protocolo", fs.existsSync(PROTOCOL), PROTOCOL);
+  add("protocolo", fs.existsSync(protocol), protocol);
   const semantic = semanticConfig(effectiveEnv);
   add(
     "semantic",
@@ -181,13 +184,20 @@ export function doctor({ cwd = process.cwd(), env = process.env } = {}) {
     true,
   );
 
-  for (const check of checks) {
+  const failed = checks.some((check) => !check.ok && !check.warn);
+  return { ok: !failed, failed, checks, pi: piExists ? pi : null, context: { cwd, packageRoot } };
+}
+
+export function renderDiagnostics(report) {
+  for (const check of report.checks) {
     const label = check.ok ? "OK  " : check.warn ? "WARN" : "FAIL";
     console.log(`${label} ${check.name}: ${check.detail}`);
   }
+  return report.ok ? 0 : 1;
+}
 
-  const failed = checks.some((check) => !check.ok && !check.warn);
-  return failed ? 1 : 0;
+export function doctor({ cwd = process.cwd(), env = process.env } = {}) {
+  return renderDiagnostics(diagnostics({ cwd, env }));
 }
 
 function formatIntegrity(report) {

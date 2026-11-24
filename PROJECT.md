@@ -61,7 +61,7 @@ Objetivos concretos:
 
 - **Presupuesto:** $0. Sin servicios pagos.
 - **Runtime:** Node 22+; cero dependencias de runtime.
-- **Instalación:** hoy `npm link` desde el checkout (el paquete no está publicado); después `npm i -g po-shell`. El instalador propio está pendiente. Pi se detecta en el `PATH` o se configura con `PO_SHELL_PI_BIN`.
+- **Instalación:** `sh scripts/install.sh` desde el checkout o `npm i -g po-shell` cuando el paquete esté publicado. El `postinstall` verifica el entorno y `po-shell install` reporta qué falta; `update`/`uninstall` detectan npm/pnpm/link y solo ejecutan con `--yes`. Pi se detecta en el `PATH` o se configura con `PO_SHELL_PI_BIN`.
 - **Almacenamiento:** local; SQLite cuando haga falta, sin servidor. `node:sqlite` (experimental) o un binario chico si falta FTS5.
 - **Adapter principal:** Pi. MCP y otros clientes, después.
 - **Portabilidad:** Linux y macOS primero.
@@ -80,6 +80,7 @@ docs/
   scratch.md                          temporales, cleanup y límites
   self-hosting.md                     cómo usar po-shell para mejorar po-shell
   status.md                           estado, pendientes, pausados, descartado
+  features/                           un archivo por feature sustancial
   agents-md-y-skill-md-investigacion.md  criterios para instrucciones de agentes
 ```
 
@@ -89,8 +90,8 @@ docs/
 
 El detalle está en `docs/status.md`.
 
-- **Hecho:** kernel, CLI, launcher, policy, checks, review congelado, memoria, directivas, subagentes aislados, modelos fijos por rol, `doctor`, `checks suggest`, `projects prune`, ledger de costo, `backup`, `restore`, `integrity`, runbook de recuperación y scratch temporal por sesión/subagente.
-- **Pendiente:** instalador propio, MCP, sandbox, evals, scope `personal`, deduplicación, `checks set`.
+- **Hecho:** kernel, CLI, launcher, policy, checks, review congelado, memoria, directivas, subagentes aislados, modelos fijos por rol, `doctor`, `checks suggest`, `projects prune`, ledger de costo, `backup`, `restore`, `integrity`, runbook de recuperación, scratch temporal por sesión/subagente e instalador propio (verificación, `install`/`update`/`uninstall` y bootstrap).
+- **Pendiente:** MCP, sandbox, evals, scope `personal`, deduplicación, `checks set`.
 - **Pausado:** perfiles de subagentes, `AGENTS.md` por subagente, medición ampliada.
 - **Descartado:** router automático por fase, `.po-shell` dentro del repo, modelo frontera por defecto.
 

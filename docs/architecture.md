@@ -53,6 +53,8 @@ po-shell doctor          # chequea Node, Pi, git y extensión
 | `semantic.js` | Embeddings y rerank con fallback FTS |
 | `policy.js` | Deny paths/commands, gate determinista |
 | `cli.js` | Comandos para humanos y scripts |
+| `install.js` | Reporte de instalación, detección npm/pnpm/link y planes de update/uninstall |
+| `scripts/install.mjs` | Verificador de instalación (también corre como `postinstall`) |
 | `extensions/po-shell.ts` | Tools + hooks para Pi |
 | `skills/po-shell-workflow` | Procedimiento para el agente |
 | `src/shell.js` | Launcher: resuelve Pi, carga extensión y skill, inicia la TUI |
