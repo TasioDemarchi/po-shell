@@ -59,12 +59,26 @@ function adoptStateId(root, computed, env) {
   } catch {
     return computed;
   }
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const meta = readJson(path.join(projectsDir, entry.name, "project.json"), null);
-    if (meta?.root === root) return entry.name;
+  const states = entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => ({ id: entry.name, meta: readJson(path.join(projectsDir, entry.name, "project.json"), null) }));
+  for (const state of states) {
+    if (state.meta?.root === root) return state.id;
+  }
+  // A worktree has a different root but the same repository: it must see the
+  // same state, never an empty one (docs/self-hosting.md).
+  const common = gitCommonDir(root);
+  if (!common) return computed;
+  for (const state of states) {
+    if (typeof state.meta?.root === "string" && gitCommonDir(state.meta.root) === common) return state.id;
   }
   return computed;
+}
+
+function gitCommonDir(dir) {
+  const result = spawnSync("git", ["-C", dir, "rev-parse", "--git-common-dir"], { encoding: "utf8" });
+  if (result.status !== 0 || !result.stdout.trim()) return null;
+  return path.resolve(dir, result.stdout.trim());
 }
 
 export function projectStateDir(cwd = process.cwd(), env = process.env) {

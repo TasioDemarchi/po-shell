@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { init } from "../src/kernel.js";
 import { listProjectStates, projectIdentity, projectInfo, projectStateDir, pruneProjectStates } from "../src/project.js";
 import { sha256 } from "../src/util.js";
@@ -129,4 +130,46 @@ test("adoption never crosses state homes", () => {
   const identity = projectIdentity(dir, env);
   assert.equal(identity.id, sha256(dir).slice(0, 16));
   assert.ok(!fs.existsSync(path.join(otherHome, "projects")));
+});
+
+function gitIn(dir, args) {
+  const proc = spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+  assert.equal(proc.status, 0, proc.stderr);
+  return proc.stdout;
+}
+
+function repoWithCommit() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-wt-repo-"));
+  gitIn(dir, ["init", "-q"]);
+  gitIn(dir, ["config", "user.email", "test@example.test"]);
+  gitIn(dir, ["config", "user.name", "test"]);
+  fs.writeFileSync(path.join(dir, "README.md"), "# repo\n");
+  gitIn(dir, ["add", "README.md"]);
+  gitIn(dir, ["commit", "-q", "-m", "init"]);
+  return dir;
+}
+
+test("a worktree of the same repo adopts the main checkout state", () => {
+  const dir = repoWithCommit();
+  init(dir);
+  const mainId = projectIdentity(dir).id;
+  const meta = JSON.parse(fs.readFileSync(path.join(process.env.PO_SHELL_HOME, "projects", mainId, "project.json"), "utf8"));
+  assert.equal(meta.root, dir);
+
+  const worktree = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-wt-checkout-"));
+  fs.rmdirSync(worktree);
+  gitIn(dir, ["worktree", "add", "-q", "-b", "test/wt", worktree]);
+
+  const identity = projectIdentity(worktree);
+  assert.equal(identity.id, mainId);
+  assert.equal(identity.root, worktree);
+  assert.equal(projectStateDir(worktree), path.join(process.env.PO_SHELL_HOME, "projects", mainId));
+});
+
+test("an unrelated repository never adopts another repo state", () => {
+  const one = repoWithCommit();
+  const two = repoWithCommit();
+  init(one);
+  assert.notEqual(projectIdentity(two).id, projectIdentity(one).id);
+  assert.equal(fs.existsSync(projectStateDir(two)), false);
 });
