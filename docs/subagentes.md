@@ -142,14 +142,27 @@ E es el de mejor relación costo/beneficio: reusa el hook que ya bloquea escritu
 no toca prompts, y convierte "el padre no implementa" en una regla del kernel. Depende de A y B para
 que delegar sea barato en contexto y seguro en tiempo.
 
-## Backlog de portes (decidido: documentar, no escribir)
+## Implementado (v0.12)
+
+| Pieza | Dónde | Qué hace |
+|---|---|---|
+| Contratos por rol | `prompts/subagents/{explore,worker,reviewer,planner}.md` | ~30 líneas por rol: qué puede tocar, qué nunca, qué devuelve. El hijo recibe el protocolo común + su contrato (`--append-system-prompt` repetido) |
+| Superficies de escritura | `surfaces` en `po_shell_delegate`, `src/subagent-policy.js` | un `worker` sin superficies no arranca; el guard del hijo rechaza `write`/`edit` fuera y también redirecciones de shell (`>`, `tee`, `sed -i`, `cp`/`mv`) |
+| Cap del reporte | `capReport` en `src/delegate.js`, `reportMaxBytes` | 16 KiB por defecto, cabeza + cola + puntero al artefacto; un reporte JSON nunca se corta |
+| Perfil full delegation | `delegation` en la tarea, gate en `checkPolicy` | `delegate-writes`: el padre decide, explora, escribe `docs/features/` y commitea; toda mutación de código va a un worker. Aplicado por el kernel, no por el prompt |
+| Regla de exploración | `prompts/po-shell-protocol.md`, `skills/po-shell-workflow/SKILL.md` | área desconocida o tercera llamada de descubrimiento → `explorer` obligatorio |
+
+Las letras A, E, F del backlog de abajo quedaron cubiertas. Lo que sigue pendiente es B (presupuesto
+de silencio renovable: hoy el timeout sigue siendo absoluto), D (`po_shell_agents` list/result) y G
+(evidencia de quién verificó).
+
+## Backlog de portes (lo que falta)
 
 | # | Porte | Por qué | Costo |
 |---|---|---|---|
-| A | **Cap del reporte** (`report_max_bytes`, cabeza+cola, puntero al artefacto) | hoy el texto del hijo entra entero al contexto del padre y se queda toda la sesión | ~50 L + tests |
 | B | **Presupuesto de silencio renovable** | el timeout absoluto castiga al hijo que trabaja y no detecta al que se colgó | ~40 L + tests |
-| C | **Superficies de escritura** (`delegate` acepta `surfaces: []`, el guard del hijo rechaza fuera) | convierte "no toques de más" en código determinista | ~70 L + tests |
-| D | **`po_shell_agents` list/result** | leer estado y resultado sin re-ejecutar; pareja natural de A | ~60 L |
+| D | **`po_shell_agents` list/result** | leer estado y resultado sin re-ejecutar | ~60 L |
+| G | **Evidencia de quién verificó** | hoy `po_shell_check` no distingue si corrió el padre o se confió en el hijo | ~40 L |
 
 ## Qué no se porta
 

@@ -9,7 +9,7 @@
 - CLI.
 - Extensión de Pi con 9 tools y 6 hooks.
 - Skill `po-shell-workflow`.
-- 140 tests (kernel 17, project 9, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 8, subagent policy 4, tool defaults 2, policy 10, destructive 8, confirm 4, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10, state env 2, install 10), todos pasando.
+- 154 tests (kernel 17, project 11, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 12, subagent policy 7, delegation 5, tool defaults 2, policy 10, destructive 8, confirm 4, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10, state env 2, install 10), todos pasando.
 - Extensión validada en una sesión real de Pi.
 - Launcher `po-shell`: **implementado** y validado en una sesión real de Pi.
 
@@ -65,7 +65,7 @@
 - Snapshots operativos `state`, `feature` y `session`; memoria primero, feature doc como fuente precisa.
 - Checkpoint automático antes/después de compactación; se reinyecta como contexto.
 - Búsqueda híbrida: FTS + `qwen3-embedding` + `rerank`, con fallback exacto.
-- 140 tests y bench de 3 tareas.
+- 154 tests y bench de 3 tareas.
 - Aislamiento de env en el kernel: un `env` explícito nunca escribe en el home real; `projects prune` también considera huérfano un estado cuyo root ya no existe.
 
 ### v0.6 — recuperación
@@ -113,6 +113,15 @@
 - La cache de identidad se indexa por home + root, así dos `PO_SHELL_HOME` no se pisan.
 - 3 tests nuevos: adopción, no-adopción cuando el id calculado existe, y aislamiento entre homes.
 - Procedimiento manual en `docs/recovery.md` (escenario 8) y regla en `docs/self-hosting.md`.
+
+### v0.12 — delegación real y perfil full delegation
+
+- Contratos por rol en `prompts/subagents/`: `explore`, `worker`, `reviewer`, `planner` (~30 líneas cada uno). El hijo recibe protocolo común + contrato del rol, condensados de los `.md` de gentle-shell.
+- `worker` exige `surfaces`: el guard del hijo rechaza `write`/`edit` fuera y las escrituras por shell (`>`, `tee`, `sed -i`, `cp`/`mv`).
+- El reporte del hijo entra capado (16 KiB, cabeza + cola + puntero al artefacto); un JSON nunca se corta.
+- Perfil `delegation: inline | delegate-writes` como dato de la tarea, visible en `po-shell status` y en `<po_shell_state>`. En `delegate-writes` el kernel bloquea la escritura de código del padre y deja `docs/features/`, commits, checks y estado.
+- Regla de exploración: área desconocida o tercera llamada de descubrimiento → `explorer` obligatorio.
+- 14 tests nuevos (4 delegate, 3 subagente, 5 delegación, 2 de worktree). Total 154.
 
 ### v0.11 — guard léxico, rutas sensibles en bash y confirmación
 

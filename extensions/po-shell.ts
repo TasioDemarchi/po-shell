@@ -10,7 +10,7 @@ import { Type } from "typebox";
 import path from "node:path";
 import { activeDirectives, getContext, searchContext } from "../src/context.js";
 import { confirmDestructive } from "../src/confirm.js";
-import { buildSubagentArgs, runPiJson, usageTotal } from "../src/delegate.js";
+import { buildSubagentArgs, capReport, runPiJson, usageTotal } from "../src/delegate.js";
 import { formatCredits, recordCost } from "../src/costs.js";
 import { createSubagentScratch } from "../src/scratch.js";
 import { memoryAction, taskAction } from "../src/tool-defaults.js";
@@ -70,6 +70,7 @@ function taskSummary(task: any) {
     task.outOfScope ? `out of scope: ${task.outOfScope}` : "",
     task.plan ? `plan:
 ${task.plan}` : "",
+    `delegación: ${task.delegation ?? "inline"}`,
     task.next ? `próximo paso: ${task.next}` : "",
     `evidencia: ${(task.evidence ?? []).length}`,
   ]
@@ -133,7 +134,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
     name: "po_shell_task",
     label: "po-shell task",
     description:
-      "Manage the deterministic work state. Actions: new (title, risk, scope, out_of_scope, plan), phase (id?, phase), approve (id?, high-risk plan), list, show (id?). Risk: low=local reversible/docs; medium=normal behavior; high=auth/permissions/secrets, payments, migrations, public contracts, infra/deploy, concurrency or irreversible actions. High-risk tasks require a saved plan and human approval before editing.",
+      "Manage the deterministic work state. Actions: new (title, risk, scope, out_of_scope, plan), phase (id?, phase), approve (id?, high-risk plan), list, show (id?). Risk: low=local reversible/docs; medium=normal behavior; high=auth/permissions/secrets, payments, migrations, public contracts, infra/deploy, concurrency or irreversible actions. High-risk tasks require a saved plan and human approval before editing. Delegation profile: inline (default, the parent implements) or delegate-writes (the parent decides, explores, writes docs/features and commits; every code mutation goes to a bounded worker with surfaces).",
     parameters: Type.Object({
       action: Type.Optional(
         Type.Union([
@@ -154,6 +155,9 @@ export default function poShellExtension(pi: ExtensionAPI) {
       plan: Type.Optional(Type.String()),
       next: Type.Optional(Type.String()),
       acceptance: Type.Optional(Type.Array(Type.String())),
+      delegation: Type.Optional(
+        Type.Union([Type.Literal("inline"), Type.Literal("delegate-writes")]),
+      ),
     }),
     async execute(_id, params, _signal, _onUpdate, ctx) {
       const cwd = ctx.cwd;
@@ -210,6 +214,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
             outOfScope: params.out_of_scope ?? "",
             acceptance: params.acceptance ?? [],
             plan: params.plan ?? "",
+            delegation: params.delegation,
           });
           snapshotTask(cwd, task);
           const next =
@@ -232,6 +237,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
             risk: params.risk,
             scope: params.scope,
             plan: params.plan,
+            delegation: params.delegation,
             next: params.next,
           });
           snapshotTask(cwd, task);
@@ -487,12 +493,18 @@ export default function poShellExtension(pi: ExtensionAPI) {
 
   const subagentGuard = path.join(PACKAGE_ROOT, "extensions", "po-shell-subagent.ts");
   const subagentPrompt = path.join(PACKAGE_ROOT, "prompts", "po-shell-subagent.md");
+  const rolePrompts: Record<string, string> = {
+    explorer: path.join(PACKAGE_ROOT, "prompts", "subagents", "explore.md"),
+    planner: path.join(PACKAGE_ROOT, "prompts", "subagents", "planner.md"),
+    worker: path.join(PACKAGE_ROOT, "prompts", "subagents", "worker.md"),
+    reviewer: path.join(PACKAGE_ROOT, "prompts", "subagents", "reviewer.md"),
+  };
 
   pi.registerTool({
     name: "po_shell_delegate",
     label: "po-shell delegate",
     description:
-      "Run one bounded subagent in a separate Pi process with a fresh, isolated context. The child gets only the mission prompt, allowed tools, a role model and a minimal subagent protocol: no global AGENTS.md, no po-shell memory/task tools, and no writes to .md or the central po-shell state. Supports token/turn budgets, timeout and audit artifacts under the central po-shell state directory. Returns the child's final text; the parent must verify it, not trust it.",
+      "Run one bounded subagent in a separate Pi process with a fresh, isolated context. The child gets a common protocol plus a short role contract, the allowed tools, a model for its role, and no access to po-shell memory, tasks or central state. A worker must declare `surfaces` (repo-relative paths or globs) and the child guard refuses writes outside them; a markdown or central-state write is refused for every role. Exploration of an area you do not know is delegation, not a few greps. Supports token/turn budgets, a renewable silence budget, a capped report (full text stays in the artifact) and audit artifacts under the central po-shell state directory. Returns the child's final text; the parent must verify it, not trust it.",
     parameters: Type.Object({
       role: Type.Union([
         Type.Literal("explorer"),
@@ -501,6 +513,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
         Type.Literal("reviewer"),
       ]),
       task: Type.String(),
+      surfaces: Type.Optional(Type.Array(Type.String())),
       tools: Type.Optional(Type.Array(Type.String())),
       model: Type.Optional(Type.String()),
       timeout_seconds: Type.Optional(Type.Number()),
@@ -514,6 +527,15 @@ export default function poShellExtension(pi: ExtensionAPI) {
         reviewer: ["read", "grep", "find", "ls"],
         worker: ["read", "bash", "edit", "write", "grep", "find", "ls"],
       };
+      const surfaces = (params.surfaces ?? []).map((value: string) => String(value).trim()).filter(Boolean);
+      if (params.role === "worker" && surfaces.length === 0) {
+        return {
+          ...text(
+            "po_shell_delegate: un worker necesita `surfaces` (paths o globs repo-relativos). Sin superficies declaradas no hay límite de escritura y el kernel no lo acepta.",
+          ),
+          isError: true,
+        };
+      }
       const tools = params.tools?.length ? params.tools : defaults[params.role] ?? defaults.worker;
       let model = params.model;
       if (!model) {
@@ -524,17 +546,16 @@ export default function poShellExtension(pi: ExtensionAPI) {
         }
       }
       const prompt = [
-        `You are a po-shell subagent with role: ${params.role}.`,
-        "Work on exactly the mission below. Do not expand scope.",
-        "Do not commit, push, deploy, or change credentials.",
-        "Return a compact result: what you did, evidence, files touched, open questions.",
-        "",
-        "MISSION:",
+        `MISSION (role: ${params.role}):`,
         params.task,
-      ].join("\n");
+        surfaces.length ? `\nEDIT SURFACES (the only paths you may write):\n${surfaces.map((s: string) => `- ${s}`).join("\n")}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
       const args = buildSubagentArgs({
         guardPath: subagentGuard,
         promptPath: subagentPrompt,
+        rolePath: rolePrompts[params.role],
         tools,
         model,
         mission: prompt,
@@ -554,6 +575,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
           maxTurns: params.max_turns,
           timeoutMs,
           tmpDir: childScratch?.dir,
+          surfaces,
         });
         const output = result.text.trim() || result.stderr.trim() || "(sin salida)";
         const runId = `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -569,6 +591,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
                 task: params.task.slice(0, 4000),
                 model: model ?? null,
                 tools,
+                surfaces,
                 status: result.status,
                 exitCode: result.code,
                 ms: Date.now() - started,
@@ -586,6 +609,17 @@ export default function poShellExtension(pi: ExtensionAPI) {
             // El artefacto es auditoría; no debe tumbar la delegación.
           }
         }
+        const config = (() => {
+          try {
+            return loadConfig(ctx.cwd);
+          } catch {
+            return null;
+          }
+        })();
+        const capped = capReport(output, {
+          maxBytes: Number(config?.reportMaxBytes) || undefined,
+          artifactPath: artifact?.resultPath,
+        });
         const usage = result.totalUsage ?? result.usage ?? {};
         const total = usageTotal(usage);
         const costModel = model ?? (ctx.model as any)?.id ?? (ctx.model as any)?.name ?? "unknown";
@@ -619,9 +653,10 @@ export default function poShellExtension(pi: ExtensionAPI) {
               `credits: ${subagentCost ? formatCredits(subagentCost.credits) : "n/a"}`,
               `model: ${costModel || "(default)"}`,
               `budget: max_tokens=${params.max_tokens ?? 0} max_turns=${params.max_turns ?? 0}`,
+              capped.truncated ? `report: ${capped.deliveredBytes} of ${capped.bytes} bytes (full text in the artifact)` : "",
               `artifact: ${artifact ? artifact.resultPath : "(no guardado)"}`,
               "",
-              output.slice(-40_000),
+              capped.text,
             ].join("\n"),
           ),
           isError: result.status !== "ok",

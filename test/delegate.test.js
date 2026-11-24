@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildSubagentArgs, runPiJson, usageTotal } from "../src/delegate.js";
+import { buildSubagentArgs, capReport, runPiJson, usageTotal } from "../src/delegate.js";
 import { init, saveAgentArtifact } from "../src/kernel.js";
 
 process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-delegate-home-"));
@@ -165,4 +165,48 @@ test("saveAgentArtifact writes meta, result and events", () => {
   assert.ok(fs.existsSync(artifact.eventsPath));
   assert.match(fs.readFileSync(artifact.resultPath, "utf8"), /resultado del subagente/);
   assert.equal(JSON.parse(fs.readFileSync(artifact.metaPath, "utf8")).role, "explorer");
+});
+
+test("the child receives a common protocol plus its role contract", () => {
+  const base = buildSubagentArgs({ guardPath: "guard", promptPath: "base.md", tools: ["read"], mission: "m" });
+  const prompts = base.flatMap((arg, index) => (arg === "--append-system-prompt" ? [base[index + 1]] : []));
+  assert.deepEqual(prompts, ["base.md"]);
+
+  const withRole = buildSubagentArgs({
+    guardPath: "guard",
+    promptPath: "base.md",
+    rolePath: "prompts/subagents/explore.md",
+    tools: ["read"],
+    mission: "m",
+  });
+  const rolePrompts = withRole.flatMap((arg, index) => (arg === "--append-system-prompt" ? [withRole[index + 1]] : []));
+  assert.deepEqual(rolePrompts, ["base.md", "prompts/subagents/explore.md"]);
+});
+
+test("a report that fits is delivered unchanged", () => {
+  const capped = capReport("short report", { maxBytes: 1024 });
+  assert.equal(capped.text, "short report");
+  assert.equal(capped.truncated, false);
+  assert.equal(capped.deliveredBytes, capped.bytes);
+});
+
+test("a long report keeps head and tail and points at the artifact", () => {
+  const head = "HEAD-LINE\n".repeat(800);
+  const tail = "TAIL-CONCLUSION\n";
+  const capped = capReport(`${head}${tail}`, { maxBytes: 4096, artifactPath: "/state/agents/run-1/result.md" });
+  assert.equal(capped.truncated, true);
+  assert.ok(capped.deliveredBytes <= 4096 + 400);
+  assert.match(capped.text, /^HEAD-LINE/);
+  assert.match(capped.text, /\[po-shell\] report truncated: \d+ of \d+ bytes delivered\./);
+  assert.match(capped.text, /\/state\/agents\/run-1\/result\.md/);
+  assert.match(capped.text, /TAIL-CONCLUSION/);
+  assert.ok(!capped.text.includes("\uFFFD"));
+});
+
+test("a JSON report is never cut", () => {
+  const json = JSON.stringify({ findings: Array.from({ length: 2000 }, (_, index) => ({ index, text: "x" })) });
+  assert.ok(json.length > 4096);
+  const capped = capReport(json, { maxBytes: 4096 });
+  assert.equal(capped.truncated, false);
+  assert.equal(capped.text, json);
 });

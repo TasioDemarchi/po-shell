@@ -107,9 +107,18 @@ Only for a named reason:
 
 | Reason | Role |
 |---|---|
-| You need a repo map | `explorer` |
-| There are 2+ independent units | `worker` (in parallel) |
+| You do not know the area, repo or file cluster | `explorer` — **mandatory** |
+| You are about to do a third discovery call | `explorer` |
+| There are 2+ independent units | `worker` (one per unit, with `surfaces`) |
 | The session is running out of context | `worker` |
 | The change is high risk | `reviewer` |
 
 Never delegate "because it is large". Size is not a reason.
+
+A `worker` must declare `surfaces` (repo-relative paths or globs): the child guard blocks writes
+outside them, both from `edit`/`write` and from shell redirection. The report comes back capped and
+the full text stays in the artifact.
+
+In the `delegate-writes` profile the parent does not implement at all: it decides, explores, writes
+`docs/features/` and commits, and every code mutation goes to a worker. The kernel blocks the rest;
+the profile lives in the task's `delegation` field, not in this table.

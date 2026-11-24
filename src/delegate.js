@@ -33,7 +33,7 @@ function assistantText(message) {
     .trim();
 }
 
-export function buildSubagentArgs({ guardPath, promptPath, tools, model, mission }) {
+export function buildSubagentArgs({ guardPath, promptPath, rolePath, tools, model, mission }) {
   const args = [
     "--mode",
     "json",
@@ -47,12 +47,81 @@ export function buildSubagentArgs({ guardPath, promptPath, tools, model, mission
     "--no-context-files",
     "--append-system-prompt",
     promptPath,
-    "--tools",
-    tools.join(","),
   ];
+  // The role contract is a second, short prompt: one contract per role beats
+  // one long prompt for every child.
+  if (rolePath) args.push("--append-system-prompt", rolePath);
+  args.push("--tools", tools.join(","));
   if (model) args.push("--model", model);
   args.push(mission);
   return args;
+}
+
+/* ------------------------------ report cap ------------------------------ */
+
+export const DEFAULT_REPORT_MAX_BYTES = 16_384;
+const REPORT_TAIL_BYTES = 2_048;
+const LINE_WINDOW_BYTES = 512;
+
+/** Cut `text` at a byte budget without splitting a character; prefer a line break. */
+function cutAt(text, budget) {
+  if (budget <= 0) return "";
+  let body = Buffer.from(text, "utf8").subarray(0, budget).toString("utf8");
+  if (body.includes("\uFFFD")) body = body.slice(0, body.lastIndexOf("\uFFFD"));
+  const lastBreak = body.lastIndexOf("\n");
+  if (lastBreak > 0 && body.length - lastBreak <= LINE_WINDOW_BYTES) body = body.slice(0, lastBreak);
+  return body;
+}
+
+function tailAt(text, budget) {
+  if (budget <= 0) return "";
+  const bytes = Buffer.from(text, "utf8");
+  let body = bytes.subarray(Math.max(0, bytes.length - budget)).toString("utf8");
+  const fffd = body.indexOf("\uFFFD");
+  if (fffd >= 0) body = body.slice(fffd + 1);
+  const firstBreak = body.indexOf("\n");
+  if (firstBreak >= 0 && firstBreak <= LINE_WINDOW_BYTES) body = body.slice(firstBreak + 1);
+  return body;
+}
+
+function looksLikeJson(text) {
+  const trimmed = text.trim();
+  if (!trimmed || !["{", "["].includes(trimmed[0])) return false;
+  try {
+    JSON.parse(trimmed);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Bound the copy of a child report that enters the parent's context.
+ * The stored artifact keeps every byte; this only decides what is delivered.
+ * A JSON report is never cut, and a report that fits is delivered unchanged.
+ */
+export function capReport(text, { maxBytes = DEFAULT_REPORT_MAX_BYTES, artifactPath } = {}) {
+  const value = String(text ?? "");
+  const bytes = Buffer.byteLength(value, "utf8");
+  if (!value || bytes <= maxBytes || looksLikeJson(value)) {
+    return { text: value, truncated: false, bytes, deliveredBytes: bytes };
+  }
+  const tailBudget = Math.min(REPORT_TAIL_BYTES, Math.floor(maxBytes / 4));
+  const head = cutAt(value, maxBytes - tailBudget);
+  const tail = tailAt(value, tailBudget);
+  const pointer = [
+    "",
+    `[po-shell] report truncated: ${Buffer.byteLength(head, "utf8") + Buffer.byteLength(tail, "utf8")} of ${bytes} bytes delivered.`,
+    artifactPath ? `Full text: ${artifactPath}` : "Full text: ask the parent for the artifact path.",
+    "",
+  ].join("\n");
+  const capped = `${head}${pointer}${tail}`;
+  return {
+    text: capped,
+    truncated: true,
+    bytes,
+    deliveredBytes: Buffer.byteLength(capped, "utf8"),
+  };
 }
 
 export function runPiJson(cwd, args, options = {}) {
@@ -81,6 +150,9 @@ export function runPiJson(cwd, args, options = {}) {
     }
 
     const childEnv = { ...env, PO_SHELL_SUBAGENT: "1" };
+    if (Array.isArray(options.surfaces) && options.surfaces.length) {
+      childEnv.PO_SHELL_SUBAGENT_SURFACES = options.surfaces.join(",");
+    }
     if (options.tmpDir) {
       childEnv.TMPDIR = options.tmpDir;
       if (process.platform === "win32") {

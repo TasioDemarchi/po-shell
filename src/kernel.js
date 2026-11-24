@@ -13,6 +13,7 @@ import {
   writeJson,
 } from "./util.js";
 import { DEFAULT_POLICY, evaluateToolCall, deniedCommand, deniedPath } from "./policy.js";
+import { shellWriteTargets, withinSurfaces } from "./subagent-policy.js";
 import { GLOBAL_PROJECT_ID, contextDbPath, openContextDb } from "./indexer.js";
 import { costSummary, formatCredits } from "./costs.js";
 import {
@@ -34,12 +35,19 @@ export const PHASES = [
 ];
 export const RISKS = ["low", "medium", "high"];
 
+// What the orchestrator may do itself. `delegate-writes` keeps decisions,
+// exploration, the feature doc and commits, and hands every code mutation to a
+// bounded child. It is data, not prompt text: the tool gate enforces it.
+export const DELEGATIONS = ["inline", "delegate-writes"];
+
 const DEFAULT_CONFIG = {
   version: 1,
   checks: [],
   policy: DEFAULT_POLICY,
   maxChangedLines: 400,
   models: {},
+  delegation: "inline",
+  reportMaxBytes: 16_384,
 };
 
 export function poShellPath(cwd = process.cwd(), env = process.env) {
@@ -171,12 +179,14 @@ export function activeTask(cwd, env = process.env) {
 
 export function createTask(
   cwd,
-  { title, risk = "medium", scope = "", outOfScope = "", acceptance = [], plan = "" },
+  { title, risk = "medium", scope = "", outOfScope = "", acceptance = [], plan = "", delegation },
   env = process.env,
 ) {
   if (!title || !String(title).trim()) throw new Error("task title is required");
   if (!RISKS.includes(risk)) throw new Error(`risk must be one of ${RISKS.join(", ")}`);
   init(cwd, env);
+  const mode = delegation ?? loadConfig(cwd, env).delegation ?? "inline";
+  if (!DELEGATIONS.includes(mode)) throw new Error(`delegation must be one of ${DELEGATIONS.join(", ")}`);
   const id = `${slugify(title)}-${Date.now().toString(36)}`;
   const task = {
     id,
@@ -189,6 +199,7 @@ export function createTask(
     plan: String(plan ?? ""),
     acceptance: Array.isArray(acceptance) ? acceptance : [],
     evidence: [],
+    delegation: mode,
     next: "",
     createdAt: nowIso(),
     updatedAt: nowIso(),
@@ -210,6 +221,9 @@ export function updateTask(cwd, id, patch = {}, env = process.env) {
   }
   if (cleanPatch.risk && !RISKS.includes(cleanPatch.risk)) {
     throw new Error(`risk must be one of ${RISKS.join(", ")}`);
+  }
+  if (cleanPatch.delegation && !DELEGATIONS.includes(cleanPatch.delegation)) {
+    throw new Error(`delegation must be one of ${DELEGATIONS.join(", ")}`);
   }
   const next = {
     ...task,
@@ -713,6 +727,7 @@ export function renderStatus(cwd = process.cwd(), env = process.env) {
       `Tarea: ${t.id} · ${t.phase} · riesgo ${t.risk} · evidencia ${(t.evidence ?? []).length}`,
       `Título: ${t.title}`,
     );
+    lines.push(`Delegación: ${t.delegation ?? "inline"}`);
     if (t.risk === "high") {
       lines.push(`Plan: ${t.planApproved === true ? "aprobado" : "pendiente de aprobación"}`);
     }
@@ -750,6 +765,7 @@ export function renderContext(cwd = process.cwd(), env = process.env) {
       `risk: ${t.risk}`,
       `title: ${t.title}`,
       `evidence_count: ${(t.evidence ?? []).length}`,
+      `delegation: ${t.delegation ?? "inline"}`,
     );
     if (t.risk === "high") {
       lines.push(`plan_approved: ${t.planApproved === true ? "yes" : "no"}`);
@@ -773,15 +789,55 @@ export function renderContext(cwd = process.cwd(), env = process.env) {
 
 /* ------------------------------ policy API ------------------------------ */
 
+// In `delegate-writes` the parent keeps decisions, exploration, the feature doc
+// and commits; code mutations belong to a bounded child. Only these paths stay
+// writable by the orchestrator itself.
+const PARENT_WRITE_SURFACES = ["docs/features/"];
+
+export function delegationMode(cwd, env = process.env) {
+  const config = loadConfig(cwd, env);
+  return activeTask(cwd, env)?.delegation ?? config.delegation ?? "inline";
+}
+
+// Central state and scratch live outside the project root: those writes are
+// never "code", so the profile does not restrict them.
+function outsideProject(file, cwd) {
+  const relative = path.relative(path.resolve(cwd), path.resolve(cwd, String(file ?? "")));
+  return relative.startsWith("..") || path.isAbsolute(relative);
+}
+
+function parentWriteBlock(toolName, input = {}, cwd) {
+  if (toolName === "write" || toolName === "edit") {
+    const file = input.path ?? input.file_path ?? input.file;
+    if (file == null) return null;
+    if (outsideProject(file, cwd)) return null;
+    if (withinSurfaces(file, PARENT_WRITE_SURFACES, cwd)) return null;
+    return `po-shell policy: delegate-writes. El padre no escribe código (${file}); delegá con po_shell_delegate role=worker y sus superficies. Solo docs/features/ queda en manos del orquestador.`;
+  }
+  if (toolName === "bash" && typeof input.command === "string") {
+    const outside = shellWriteTargets(input.command).find(
+      (target) => !outsideProject(target, cwd) && !withinSurfaces(target, PARENT_WRITE_SURFACES, cwd),
+    );
+    if (!outside) return null;
+    return `po-shell policy: delegate-writes. El padre no muta archivos (${outside}); delegá esa escritura a un worker. Commit, checks y docs/features/ siguen permitidos.`;
+  }
+  return null;
+}
+
 export function checkPolicy(cwd, toolName, input, env = process.env) {
   const config = loadConfig(cwd, env);
-  return evaluateToolCall({
+  const task = activeTask(cwd, env);
+  const verdict = evaluateToolCall({
     toolName,
     input,
     cwd,
     policy: config.policy,
-    activeTask: activeTask(cwd, env),
+    activeTask: task,
   });
+  if (verdict.block || verdict.confirm) return verdict;
+  if ((task?.delegation ?? config.delegation ?? "inline") !== "delegate-writes") return verdict;
+  const blocked = parentWriteBlock(toolName, input, cwd);
+  return blocked ? { block: true, reason: blocked } : verdict;
 }
 
 export { evaluateToolCall, deniedPath, deniedCommand };

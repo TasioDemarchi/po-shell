@@ -29,3 +29,28 @@ test("blocks destructive shell commands in children, confirmed or not", () => {
   assert.equal(subagentToolBlock("bash", { command: "rm build/tmp.txt" }), null);
   assert.equal(subagentToolBlock("bash", { command: "git status" }), null);
 });
+
+test("a writer is confined to its declared surfaces", () => {
+  const cwd = "/repo";
+  const surfaces = ["src/", "test/helpers.js", "docs/*.md"];
+  assert.equal(subagentToolBlock("write", { path: "src/app.js" }, cwd, { surfaces }), null);
+  assert.equal(subagentToolBlock("write", { path: "src/deep/nested.js" }, cwd, { surfaces }), null);
+  assert.equal(subagentToolBlock("edit", { path: "/repo/test/helpers.js" }, cwd, { surfaces }), null);
+  assert.match(subagentToolBlock("write", { path: "lib/other.js" }, cwd, { surfaces }), /fuera/);
+  assert.match(subagentToolBlock("write", { path: "/repo/package.json" }, cwd, { surfaces }), /fuera/);
+  assert.match(subagentToolBlock("edit", { path: "../outside.txt" }, cwd, { surfaces }), /fuera|superficies/);
+});
+
+test("shell writes outside the surfaces are refused too", () => {
+  const cwd = "/repo";
+  const surfaces = ["src/"];
+  assert.equal(subagentToolBlock("bash", { command: "npm test" }, cwd, { surfaces }), null);
+  assert.equal(subagentToolBlock("bash", { command: "echo x > src/a.js" }, cwd, { surfaces }), null);
+  assert.match(subagentToolBlock("bash", { command: "echo x >> lib/b.js" }, cwd, { surfaces }), /fuera/);
+  assert.match(subagentToolBlock("bash", { command: "sed -i 's/a/b/' tools/c.sh" }, cwd, { surfaces }), /fuera/);
+});
+
+test("without surfaces nothing new is blocked", () => {
+  assert.equal(subagentToolBlock("write", { path: "src/app.js" }, "/repo", {}), null);
+  assert.equal(subagentToolBlock("bash", { command: "echo x > anywhere.txt" }, "/repo"), null);
+});

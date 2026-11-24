@@ -31,6 +31,7 @@ po-shell restore <backup-dir> --yes
 po-shell integrity # validate tasks, events, reviews, SQLite and memory
 po-shell integrity --fix
 po-shell policy test --tool bash --command "rm -rf build/"  # BLOQUEADO (2) | CONFIRMARÍA (3) | PERMITIDO (0)
+po-shell policy test --tool write --path src/app.js         # refleja el perfil delegation de la tarea activa
 po-shell scratch list    # session/subagent temporary dirs
 po-shell scratch clean   # remove ended scratch
 po-shell where     # show the project's central state
@@ -66,11 +67,17 @@ src/context.js         context_search / context_get
 src/checks.js          check detection and suggestions
 src/policy.js          deny paths / guards (allow|confirm|block) / gate
 src/destructive.js     lexical recognizer for destructive shell commands
+src/confirm.js         destructive-command confirmation, UI-agnostic and fail-closed
+src/delegate.js        subagent args per role, budget, report cap
+src/subagent-policy.js child guard: no state, no .md, declared write surfaces
 src/cli.js             command parser
 src/shell.js           launcher: resolves Pi and loads extension, skills and protocol
 src/install.js         install report, method detection, update/uninstall plans
 src/util.js            helpers
 extensions/po-shell.ts     tools + hooks for Pi
+prompts/po-shell-protocol.md   orchestrator protocol (global)
+prompts/po-shell-subagent.md   common subagent contract
+prompts/subagents/<role>.md    short role contracts: explore, planner, worker, reviewer
 skills/po-shell-workflow/  agent procedure
 skills/agents-md-authoring/  skill for writing AGENTS.md
 skills/skill-md-authoring/   skill for writing SKILL.md

@@ -195,14 +195,34 @@ The technical design for memory and indexing is in `docs/architecture.md`.
 
 ## Delegation
 
-Delegate only for a named reason:
+Delegate for a named reason, and exploration is one:
 
-- explore an unknown repo;
-- two or more independent units;
-- the session is running out of context;
-- review a high-risk change.
+- **an area, repository or file cluster you do not know** → `explorer`. This is not optional:
+  if you are about to make a third discovery call to understand something, delegate it instead.
+  Reading one known file is inline; mapping an unknown area is a child;
+- two or more independent units → `worker` per unit, with its own surfaces;
+- the session is running out of context → the role that fits the next unit;
+- review a high-risk change → `reviewer`, independent of whoever wrote it.
 
-The subagent starts without your context. Give it a closed mission, a budget (`max_tokens`, `max_turns`) and verify its result. Artifacts live in `~/.po-shell/projects/<id>/agents/`.
+Never delegate "because it is large". Size is not a reason.
+
+Every child starts without your context. Give it a closed mission, the files or symbols you already
+know, a budget (`max_tokens`, `max_turns`, `timeout_seconds`) and verify its result. A `worker` must
+declare `surfaces`: the child guard refuses writes outside them, so an undeclared surface is a
+mission bug, not a suggestion. Artifacts live in `~/.po-shell/projects/<id>/agents/`; the report
+that comes back is capped, and the full text is always in the artifact.
+
+### Profiles: inline and delegate-writes
+
+The active task carries a profile in its `delegation` field, and the state block tells you which
+one is on. It is enforced by the kernel, not by this text:
+
+- `inline` (default): you implement. Delegate by the reasons above.
+- `delegate-writes`: the parent decides, explores, writes `docs/features/` and commits. Every code
+  mutation goes to a `worker` with `surfaces`. `edit`/`write` on code and shell writes inside the
+  repo are blocked; do not look for a way around it, delegate instead.
+
+The profile is data: `po_shell_task` with `delegation` changes it and the next tool call obeys.
 
 ## Temporary files
 

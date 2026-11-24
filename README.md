@@ -462,7 +462,8 @@ Hasta que se apruebe:
 
 ## Delegación
 
-`po_shell_delegate` lanza un subagente en otro proceso Pi con contexto limpio.
+`po_shell_delegate` lanza un subagente en otro proceso Pi con contexto limpio. Cada rol recibe un
+contrato corto (`prompts/subagents/*.md`) además del protocolo común.
 
 ```json
 {
@@ -473,6 +474,36 @@ Hasta que se apruebe:
   "timeout_seconds": 300
 }
 ```
+
+| Rol | Puede | No puede |
+|---|---|---|
+| `explorer` | leer, buscar, mapear | editar, mutar, arreglar |
+| `planner` | leer y planificar | implementar |
+| `worker` | editar **solo** las `surfaces` declaradas, correr los checks de la misión | commit, push, delegar, salir de sus superficies |
+| `reviewer` | leer y probar por su cuenta | editar, repetir la suite del escritor |
+
+Un `worker` sin `surfaces` no arranca: el guard del hijo rechaza `write`/`edit` fuera de ellas y
+también las redirecciones de shell hacia afuera.
+
+El reporte que entra al contexto del padre está **capado** (16 KiB por defecto, `reportMaxBytes` en
+la config): cabeza + cola + el path del artefacto con el texto completo. Un reporte JSON nunca se
+corta.
+
+### Perfil de delegación
+
+La tarea lleva un perfil en su campo `delegation`, y el bloque `<po_shell_state>` muestra cuál está
+activo. Se aplica en el kernel, no en el prompt:
+
+- `inline` (default): implementa el padre.
+- `delegate-writes`: el padre decide, explora, escribe `docs/features/` y commitea. Toda mutación de
+  código va a un `worker` con `surfaces`; `edit`/`write` sobre código y las escrituras de shell dentro
+  del repo quedan bloqueadas.
+
+```bash
+po_shell_task action=new title="..." risk=medium delegation=delegate-writes
+```
+
+`po-shell policy test --tool write --path src/app.js` refleja el perfil activo.
 
 Devuelve:
 
