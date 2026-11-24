@@ -117,7 +117,7 @@ La sesión nueva debe abrir, crear su scratch y mostrar el estado del proyecto.
 
 ## Límites conocidos
 
-- Sin sandbox del SO: la policy no contiene comandos arbitrarios.
+- Sin sandbox del SO: la policy reconoce formas destructivas conocidas y no es un intérprete de shell.
 - El cambio de la extensión no se aplica a la sesión que ya está corriendo.
 - El estado central puede compartirse entre worktrees.
 - `repo.bundle` del backup guarda commits, no archivos sin trackear.

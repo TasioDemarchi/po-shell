@@ -1,3 +1,4 @@
+import { recognizeDestructive } from "./destructive.js";
 import { testScratchViolation } from "./scratch-guard.js";
 
 const isMarkdown = (value) => /\.md$/i.test(String(value ?? "").replace(/\\/g, "/"));
@@ -34,6 +35,12 @@ export function subagentToolBlock(toolName, input = {}, cwd = process.cwd()) {
     }
     if (/(?:>>?|tee|sed\s+-i|perl\s+-pi)[^;&|]*\.po-shell(?:\/|\b)/i.test(command)) {
       return "Un subagente no puede tocar el estado central desde bash.";
+    }
+    // No human is watching a child: every destructive form is refused, even the
+    // ones the parent could confirm.
+    const destructive = recognizeDestructive(command);
+    if (destructive.length) {
+      return `Un subagente no puede ejecutar comandos destructivos (${destructive[0].key}); devolvé un plan más seguro al padre.`;
     }
   }
 

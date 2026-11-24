@@ -1,6 +1,7 @@
 import path from "node:path";
 import { expandHome } from "./util.js";
 import { testScratchViolation } from "./scratch-guard.js";
+import { recognizeDestructive } from "./destructive.js";
 
 export const DEFAULT_POLICY = {
   denyPaths: [
@@ -17,12 +18,11 @@ export const DEFAULT_POLICY = {
     "~/.config/gh/hosts.yml",
     "~/Library/Keychains/**",
   ],
+  // Destructive git and rm forms live in `guards`: they can be confirmed
+  // instead of hard-blocked, and their keys are stable identifiers.
   denyCommands: [
     "\\brm\\s+(-[a-z]*r[a-z]*f|-[a-z]*f[a-z]*r)\\s+(/|~|\\$HOME|\\.{1,2})(\\s|$)",
     "\\bsudo\\b",
-    "\\bgit\\s+push\\s+.*--force",
-    "\\bgit\\s+reset\\s+--hard",
-    "\\bgit\\s+clean\\s+-[a-z]*f",
     "\\b(chmod|chown)\\s+-R\\s+777",
     "\\bmkfs\\b",
     "\\bdd\\s+if=.*of=/dev/",
@@ -30,6 +30,21 @@ export const DEFAULT_POLICY = {
     "\\bwget[^|]*\\|\\s*(ba)?sh",
     "\\bnpm\\s+publish\\b",
   ],
+  // Destructive operations ask first; hard denies never get that far.
+  // Keys are stable identifiers (src/destructive.js GUARD_KEYS), not regexes.
+  guards: {
+    rmRecursive: "confirm",
+    findDelete: "confirm",
+    gitResetHard: "confirm",
+    gitCleanForce: "confirm",
+    gitCheckoutOverwrite: "confirm",
+    gitBranchDelete: "confirm",
+    gitRebase: "confirm",
+    gitStashDrop: "confirm",
+    destructiveSql: "confirm",
+    gitPushForce: "block",
+    diskWrite: "block",
+  },
   requireTaskForWrite: false,
   maxChangedLines: 400,
   allowNetwork: true,
@@ -71,6 +86,81 @@ export function deniedPath(file, policy, cwd) {
     if (matchesPath(file, pattern, cwd)) return pattern;
   }
   return null;
+}
+
+const WORD_RE = /(?:"(?:\\.|[^"\\])*"|'[^']*'|[^\s;&|()'"<>]+)/g;
+
+function commandWords(command) {
+  return [...String(command ?? "").matchAll(WORD_RE)].map((match) => match[0].replace(/^["']|["']$/g, ""));
+}
+
+/** A word is a path candidate when it can only be a path, not prose or an option name. */
+function looksLikePath(word) {
+  if (!word || word.length > 4096) return false;
+  if (/^[A-Za-z0-9_.-]+\.(?:env|pem|key|p12|pfx)$/i.test(word)) return true;
+  return word.startsWith("/") || word.startsWith("~") || word.startsWith(".") || word.includes("/");
+}
+
+function pathCandidates(word) {
+  const candidates = [word];
+  if (word.startsWith("@")) candidates.push(word.slice(1));
+  const equals = word.indexOf("=");
+  if (word.startsWith("-") && equals > 0) {
+    const value = word.slice(equals + 1);
+    candidates.push(value.startsWith("@") ? value.slice(1) : value);
+  }
+  return candidates;
+}
+
+/**
+ * First sensitive path mentioned by a shell command (`cat ~/.ssh/id_rsa`,
+ * `curl -d @.env`). The tool-level guard only sees `path` inputs, so a command
+ * that reads a secret directly would otherwise pass.
+ */
+export function sensitivePathInCommand(command, policy, cwd = process.cwd()) {
+  for (const word of commandWords(command)) {
+    for (const candidate of pathCandidates(word)) {
+      if (!looksLikePath(candidate)) continue;
+      const pattern = deniedPath(candidate, policy, cwd);
+      if (pattern) return { path: candidate, pattern };
+    }
+  }
+  return null;
+}
+
+/**
+ * Map recognized destructive commands to the policy guards.
+ * Returns undefined (nothing to say), a block, or a confirmation request.
+ */
+export function evaluateDestructiveCommand(command, policy = DEFAULT_POLICY) {
+  const matches = recognizeDestructive(command);
+  if (!matches.length) return undefined;
+  const hard = matches.find((match) => match.hardDeny);
+  if (hard) {
+    const targets = hard.targets?.length ? ` (${hard.targets.join(" ")})` : "";
+    return {
+      block: true,
+      reason: `po-shell policy: ${hard.key} on a protected target is never allowed${targets}`,
+    };
+  }
+  let pending;
+  for (const match of matches) {
+    const action = policy.guards?.[match.key] ?? DEFAULT_POLICY.guards[match.key] ?? "confirm";
+    if (action === "allow") continue;
+    if (action === "block") {
+      return { block: true, reason: `po-shell policy: command denied by guard ${match.key}` };
+    }
+    pending ??= match;
+  }
+  if (!pending) return undefined;
+  const targets = pending.targets?.length ? ` (${pending.targets.join(" ")})` : "";
+  return {
+    block: false,
+    confirm: true,
+    key: pending.key,
+    targets: pending.targets ?? [],
+    reason: `po-shell policy: ${pending.key} needs confirmation${targets}`,
+  };
 }
 
 export function deniedCommand(command, policy) {
@@ -125,6 +215,15 @@ export function evaluateToolCall({ toolName, input = {}, cwd, policy, activeTask
     if (pattern) {
       return { block: true, reason: `po-shell policy: command denied by /${pattern}/` };
     }
+    const sensitive = sensitivePathInCommand(command, policy, cwd);
+    if (sensitive) {
+      return {
+        block: true,
+        reason: `po-shell policy: sensitive path ${sensitive.path} denied by ${sensitive.pattern}`,
+      };
+    }
+    const destructive = evaluateDestructiveCommand(command, policy);
+    if (destructive) return destructive;
   }
 
   return { block: false };

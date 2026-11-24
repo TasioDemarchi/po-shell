@@ -618,6 +618,9 @@ export function freezeReview(cwd, { base = "HEAD" } = {}, env = process.env) {
   const deleted = numstat.reduce((n, f) => n + f.deleted, 0);
   const files = [...new Set([...numstat.map((f) => f.file), ...untracked])];
   const risk = riskFor(cwd, added + deleted, files, env);
+  const config = loadConfig(cwd, env);
+  const limit = Number(config.policy?.maxChangedLines ?? config.maxChangedLines) || 400;
+  const overLimit = added + deleted > limit;
   const hash = sha256(diff);
   const id = `review-${Date.now().toString(36)}`;
   const dir = path.join(poShellPath(cwd, env), "reviews", id);
@@ -632,6 +635,8 @@ export function freezeReview(cwd, { base = "HEAD" } = {}, env = process.env) {
     added,
     deleted,
     risk,
+    limit,
+    overLimit,
     status: "frozen",
     taskId: activeTask(cwd, env)?.id ?? null,
     createdAt: nowIso(),

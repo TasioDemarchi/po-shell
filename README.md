@@ -588,7 +588,32 @@ Si necesita contexto del proyecto, el orquestador debe pasarlo en la misión.
 
 ## Seguridad
 
-La policy de po-shell es **determinista pero no es un sandbox**. Bloquea paths y comandos conocidos; no impide que un binario arbitrario abra un socket. Para eso necesitás una barrera del sistema operativo:
+La policy de po-shell es **determinista pero no es un sandbox**. Bloquea paths y comandos conocidos; no impide que un binario arbitrario abra un socket.
+
+### Tres capas
+
+1. **Paths sensibles** (`denyPaths`): globs sobre el input `path` de cualquier tool **y** sobre los argumentos de un comando de shell, así `cat ~/.ssh/id_rsa` o `curl -d @.env` no pasan.
+2. **Guards por clave** (`policy.guards`): las operaciones destructivas se reconocen con un tokenizador propio (`src/destructive.js`), no con regex sobre el string. Cada clave vale `allow`, `confirm` o `block`:
+
+```json
+{ "policy": { "guards": { "rmRecursive": "confirm", "gitResetHard": "confirm", "gitPushForce": "block" } } }
+```
+
+Claves: `rmRecursive`, `findDelete`, `gitResetHard`, `gitCleanForce`, `gitCheckoutOverwrite`, `gitBranchDelete`, `gitRebase`, `gitStashDrop`, `gitPushForce`, `destructiveSql`, `diskWrite`.
+
+3. **Confirmación con salida**: `confirm` abre un selector *Permitir esta vez / Denegar* con el comando y sus targets. Sin UI (print, JSON, subagente) se niega por defecto: fail closed. Un `hard deny` (borrado recursivo de `/`, `/dev` o la raíz de la home) no se puede confirmar nunca. Los subagentes no ejecutan ninguna forma destructiva, ni siquiera las confirmables.
+
+Probá la policy sin ejecutar nada:
+
+```bash
+po-shell policy test --tool bash --command "rm -rf build/"   # CONFIRMARÍA (exit 3)
+po-shell policy test --tool bash --command "cat .env"        # BLOQUEADO (exit 2)
+po-shell policy test --tool write --path .env                # BLOQUEADO (exit 2)
+```
+
+`policy.maxChangedLines` se informa como aviso al congelar el review; no bloquea.
+
+Sigue sin ser un sandbox. Para una barrera real:
 
 - Linux: `bubblewrap` / contenedor
 - macOS: `sandbox-exec`

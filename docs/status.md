@@ -9,7 +9,7 @@
 - CLI.
 - Extensión de Pi con 9 tools y 6 hooks.
 - Skill `po-shell-workflow`.
-- 120 tests (kernel 17, project 9, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 8, subagent policy 3, tool defaults 2, policy 3, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10, state env 2, install 10), todos pasando.
+- 140 tests (kernel 17, project 9, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 8, subagent policy 4, tool defaults 2, policy 10, destructive 8, confirm 4, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10, state env 2, install 10), todos pasando.
 - Extensión validada en una sesión real de Pi.
 - Launcher `po-shell`: **implementado** y validado en una sesión real de Pi.
 
@@ -65,7 +65,7 @@
 - Snapshots operativos `state`, `feature` y `session`; memoria primero, feature doc como fuente precisa.
 - Checkpoint automático antes/después de compactación; se reinyecta como contexto.
 - Búsqueda híbrida: FTS + `qwen3-embedding` + `rerank`, con fallback exacto.
-- 120 tests y bench de 3 tareas.
+- 140 tests y bench de 3 tareas.
 - Aislamiento de env en el kernel: un `env` explícito nunca escribe en el home real; `projects prune` también considera huérfano un estado cuyo root ya no existe.
 
 ### v0.6 — recuperación
@@ -114,6 +114,15 @@
 - 3 tests nuevos: adopción, no-adopción cuando el id calculado existe, y aislamiento entre homes.
 - Procedimiento manual en `docs/recovery.md` (escenario 8) y regla en `docs/self-hosting.md`.
 
+### v0.11 — guard léxico, rutas sensibles en bash y confirmación
+
+- `src/destructive.js`: tokenizador propio en lugar de regex sobre el string. Segmentos reales, wrappers (`env`, `sudo`, `timeout`, `xargs`…), recursión acotada en `sh -c`, `eval`, `find -exec` y sustituciones. Reconoce `rm` recursivo, `find -delete`, git duro (`reset --hard`, `clean -f`, `push --force`, `branch -D`, `checkout --`), SQL destructivo y escrituras a dispositivo.
+- `policy.guards`: cada operación destructiva tiene una clave estable con `allow`, `confirm` o `block`. Los `hard deny` (`rm -rf /`, `/.`, `/*`, `mkfs`, `dd of=/dev/…`) no se pueden confirmar nunca.
+- Rutas sensibles dentro de comandos: `cat ~/.ssh/id_rsa`, `cat .env` y `curl -d @.env` ahora se bloquean igual que desde el tool de lectura.
+- Confirmación con salida: `src/confirm.js` es UI-agnóstico (probado con fakes) y abre un selector *Permitir esta vez / Denegar* con el comando y sus targets; sin UI falla cerrado. Los subagentes no ejecutan ninguna forma destructiva.
+- `policy.maxChangedLines` dejó de ser config muerta: se informa como aviso al congelar el review.
+- 23 tests nuevos (8 destructive, 7 policy, 4 confirm, 1 subagente y casos de hard deny). Total 140.
+
 ### Pendiente
 
 | Item | Descripción |
@@ -127,6 +136,7 @@
 | Artefactos de scratch | Registrar clones/worktrees creados por la sesión y limpiarlos con confirmación. |
 | Quarantine de subagentes | Token de inicio de proceso para no confundir PID reutilizado. |
 | Guard de `TMPDIR` en bash | Detectar `TMPDIR=...` dentro del repo también en comandos, no solo en tests. |
+| Portes de subagentes | Cap del reporte, presupuesto de silencio renovable, superficies de escritura y tool de estado. Análisis y costos en `docs/subagentes.md`. |
 | Scratch en Windows | Validar permisos, locks y rutas largas con más casos reales. |
 
 ### Pausado

@@ -30,6 +30,7 @@ po-shell backup list
 po-shell restore <backup-dir> --yes
 po-shell integrity # validate tasks, events, reviews, SQLite and memory
 po-shell integrity --fix
+po-shell policy test --tool bash --command "rm -rf build/"  # BLOQUEADO (2) | CONFIRMARÍA (3) | PERMITIDO (0)
 po-shell scratch list    # session/subagent temporary dirs
 po-shell scratch clean   # remove ended scratch
 po-shell where     # show the project's central state
@@ -63,7 +64,8 @@ src/scratch.js         session/subagent scratch, ledger and sweep
 src/scratch-guard.js   blocks TMPDIR inside the repo in tests
 src/context.js         context_search / context_get
 src/checks.js          check detection and suggestions
-src/policy.js          deny paths / deny commands / gate
+src/policy.js          deny paths / guards (allow|confirm|block) / gate
+src/destructive.js     lexical recognizer for destructive shell commands
 src/cli.js             command parser
 src/shell.js           launcher: resolves Pi and loads extension, skills and protocol
 src/install.js         install report, method detection, update/uninstall plans
@@ -81,6 +83,7 @@ docs/architecture.md   architecture, components and memory
 docs/recovery.md       backup, restore and recovery runbook
 docs/scratch.md        temporary files and cleanup policy
 docs/self-hosting.md   dogfooding and self-modification rules
+docs/subagentes.md     gentle-shell subagents vs po_shell_delegate, port backlog
 docs/status.md         state, pending, paused, discarded
 docs/agents-md-y-skill-md-investigacion.md  reference research
 ```

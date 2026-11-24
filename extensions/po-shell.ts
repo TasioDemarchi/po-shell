@@ -9,6 +9,7 @@
 import { Type } from "typebox";
 import path from "node:path";
 import { activeDirectives, getContext, searchContext } from "../src/context.js";
+import { confirmDestructive } from "../src/confirm.js";
 import { buildSubagentArgs, runPiJson, usageTotal } from "../src/delegate.js";
 import { formatCredits, recordCost } from "../src/costs.js";
 import { createSubagentScratch } from "../src/scratch.js";
@@ -444,6 +445,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
               `riesgo: ${meta.risk}`,
               `archivos: ${meta.files.length}`,
               `+${meta.added} / -${meta.deleted}`,
+              meta.overLimit ? `aviso: supera maxChangedLines (${meta.limit})` : "",
               `diff: ${path.join(poShellPath(ctx.cwd), "reviews", meta.id, "diff.patch")}`,
             ].join("\n"),
           );
@@ -637,6 +639,17 @@ export default function poShellExtension(pi: ExtensionAPI) {
     try {
       const verdict = checkPolicy(ctx.cwd, event.toolName, event.input ?? {});
       if (verdict.block) return { block: true, reason: verdict.reason };
+      if (verdict.confirm) {
+        const allowed = await confirmDestructive(ctx, verdict, event.input ?? {});
+        if (!allowed) {
+          return {
+            block: true,
+            reason:
+              `po-shell policy: ${verdict.key} sin confirmación. ` +
+              "Sin UI se niega por defecto: el humano lo corre a mano o cambia el guard en config.",
+          };
+        }
+      }
       const task = activeTask(ctx.cwd);
       if (task?.risk === "high" && task.planApproved !== true) {
         const writesFile = event.toolName === "edit" || event.toolName === "write";

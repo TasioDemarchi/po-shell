@@ -704,7 +704,17 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
     if (action === "freeze") {
       const meta = freezeReview(cwd, { base: options.base ?? "HEAD" });
       console.log(
-        `Review congelado: ${meta.id}\n  hash: ${meta.hash}\n  riesgo: ${meta.risk}\n  archivos: ${meta.files.length}\n  +${meta.added} / -${meta.deleted}\n  diff: ${path.join(poShellPath(cwd), "reviews", meta.id, "diff.patch")}`,
+        [
+          `Review congelado: ${meta.id}`,
+          `  hash: ${meta.hash}`,
+          `  riesgo: ${meta.risk}`,
+          `  archivos: ${meta.files.length}`,
+          `  +${meta.added} / -${meta.deleted}`,
+          meta.overLimit ? `  aviso: supera maxChangedLines (${meta.limit}); revisá que sea un cambio y no dos` : "",
+          `  diff: ${path.join(poShellPath(cwd), "reviews", meta.id, "diff.patch")}`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
       );
       return;
     }
@@ -730,8 +740,16 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
         : { path: options.path ?? "" };
     const result = checkPolicy(cwd, toolName, input);
     if (json) return console.log(JSON.stringify(result, null, 2));
-    console.log(result.block ? `BLOQUEADO: ${result.reason}` : "PERMITIDO");
-    process.exit(result.block ? 2 : 0);
+    if (result.block) {
+      console.log(`BLOQUEADO: ${result.reason}`);
+      process.exit(2);
+    }
+    if (result.confirm) {
+      console.log(`CONFIRMARÍA: ${result.key} · ${result.reason}`);
+      process.exit(3);
+    }
+    console.log("PERMITIDO");
+    process.exit(0);
   }
 
   if (command === "config") {

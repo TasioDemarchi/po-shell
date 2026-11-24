@@ -21,3 +21,11 @@ test("blocks shell writes to Markdown and po-shell state", () => {
   assert.ok(subagentToolBlock("bash", { command: "echo x > .po-shell/events.jsonl" }));
   assert.equal(subagentToolBlock("bash", { command: "grep hola README.md" }), null);
 });
+
+test("blocks destructive shell commands in children, confirmed or not", () => {
+  assert.match(subagentToolBlock("bash", { command: "rm -rf /" }), /destructivos/);
+  assert.match(subagentToolBlock("bash", { command: "rm -rf build/" }), /destructivos/);
+  assert.match(subagentToolBlock("bash", { command: 'sh -c "git reset --hard"' }), /destructivos/);
+  assert.equal(subagentToolBlock("bash", { command: "rm build/tmp.txt" }), null);
+  assert.equal(subagentToolBlock("bash", { command: "git status" }), null);
+});
