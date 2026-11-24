@@ -58,6 +58,21 @@ test("prunes orphan state directories into a backup", () => {
 });
 
 
+test("prunes a state whose project root no longer exists", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-project-stale-"));
+  init(dir);
+  const stateDir = projectInfo(dir).stateDir;
+  fs.rmSync(dir, { recursive: true, force: true });
+
+  const dry = pruneProjectStates(process.env, { dryRun: true });
+  assert.ok(dry.candidates.some((item) => item.id === path.basename(stateDir)));
+
+  const result = pruneProjectStates(process.env, { dryRun: false });
+  assert.ok(result.moved.some((item) => item.id === path.basename(stateDir)));
+  assert.ok(!fs.existsSync(stateDir));
+});
+
+
 test("projectInfo resolves the project root from a subdirectory", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-project-root-"));
   fs.writeFileSync(path.join(dir, "PROJECT.md"), "# Project\n");

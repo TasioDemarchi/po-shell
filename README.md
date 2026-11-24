@@ -51,6 +51,10 @@ po-shell doctor              # verifica Node, Pi, git y archivos
 po-shell                     # inicia el agente con po-shell cargado
 ```
 
+Hoy la instalación es desde el checkout con `npm link`; el paquete todavía no está publicado.
+Cuando se publique, el mismo comando será `npm i -g po-shell`.
+Un instalador propio (`po-shell install`, bootstrap que verifique Node y Pi) está pendiente y es el próximo paso del proyecto.
+
 `po-shell` inicializa el estado central del proyecto en `~/.po-shell/projects/<id>/`.
 El repo **no** recibe una carpeta `.po-shell/`: solo los `.md` del proyecto.
 

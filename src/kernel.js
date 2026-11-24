@@ -92,12 +92,12 @@ export function init(cwd = process.cwd(), env = process.env) {
       ["events.jsonl", "reviews/", "agents/", "active", "*.tmp-*", ""].join("\n"),
     );
   }
-  if (firstRun) appendEvent(cwd, "init", {});
+  if (firstRun) appendEvent(cwd, "init", {}, env);
   return { ok: true, root, migratedFrom };
 }
 
-export function loadConfig(cwd = process.cwd()) {
-  const config = readJson(path.join(poShellPath(cwd), "config.json"), DEFAULT_CONFIG);
+export function loadConfig(cwd = process.cwd(), env = process.env) {
+  const config = readJson(path.join(poShellPath(cwd, env), "config.json"), DEFAULT_CONFIG);
   return {
     ...DEFAULT_CONFIG,
     ...config,
@@ -105,53 +105,54 @@ export function loadConfig(cwd = process.cwd()) {
   };
 }
 
-export function saveConfig(cwd, patch) {
-  const next = { ...loadConfig(cwd), ...patch };
-  writeJson(path.join(poShellPath(cwd), "config.json"), next);
+export function saveConfig(cwd, patch, env = process.env) {
+  const next = { ...loadConfig(cwd, env), ...patch };
+  writeJson(path.join(poShellPath(cwd, env), "config.json"), next);
   return next;
 }
 
-export function appendEvent(cwd, type, data = {}) {
-  appendJsonl(path.join(poShellPath(cwd), "events.jsonl"), { ts: nowIso(), type, data });
+export function appendEvent(cwd, type, data = {}, env = process.env) {
+  appendJsonl(path.join(poShellPath(cwd, env), "events.jsonl"), { ts: nowIso(), type, data });
 }
 
-export function events(cwd, limit = 20) {
-  const all = readJsonl(path.join(poShellPath(cwd), "events.jsonl"));
+export function events(cwd, limit = 20, env = process.env) {
+  const all = readJsonl(path.join(poShellPath(cwd, env), "events.jsonl"));
   return all.slice(-limit);
 }
 
 /* ------------------------------- tasks ---------------------------------- */
 
-function tasksDir(cwd) {
-  return path.join(poShellPath(cwd), "tasks");
+function tasksDir(cwd, env = process.env) {
+  return path.join(poShellPath(cwd, env), "tasks");
 }
 
-function activeFile(cwd) {
-  return path.join(poShellPath(cwd), "active");
+function activeFile(cwd, env = process.env) {
+  return path.join(poShellPath(cwd, env), "active");
 }
 
-export function setActiveTask(cwd, id) {
-  fs.writeFileSync(activeFile(cwd), `${id}\n`);
+export function setActiveTask(cwd, id, env = process.env) {
+  fs.writeFileSync(activeFile(cwd, env), `${id}\n`);
 }
 
-export function activeTaskId(cwd) {
+export function activeTaskId(cwd, env = process.env) {
   try {
-    return fs.readFileSync(activeFile(cwd), "utf8").trim() || null;
+    return fs.readFileSync(activeFile(cwd, env), "utf8").trim() || null;
   } catch {
     return null;
   }
 }
 
-export function getTask(cwd, id) {
-  return readJson(path.join(tasksDir(cwd), `${id}.json`), null);
+export function getTask(cwd, id, env = process.env) {
+  return readJson(path.join(tasksDir(cwd, env), `${id}.json`), null);
 }
 
-export function listTasks(cwd) {
+export function listTasks(cwd, env = process.env) {
   try {
+    const dir = tasksDir(cwd, env);
     return fs
-      .readdirSync(tasksDir(cwd))
+      .readdirSync(dir)
       .filter((f) => f.endsWith(".json"))
-      .map((f) => readJson(path.join(tasksDir(cwd), f), null))
+      .map((f) => readJson(path.join(dir, f), null))
       .filter(Boolean)
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
   } catch {
@@ -159,19 +160,23 @@ export function listTasks(cwd) {
   }
 }
 
-export function activeTask(cwd) {
-  const id = activeTaskId(cwd);
+export function activeTask(cwd, env = process.env) {
+  const id = activeTaskId(cwd, env);
   if (id) {
-    const task = getTask(cwd, id);
+    const task = getTask(cwd, id, env);
     if (task) return task;
   }
-  return listTasks(cwd)[0] ?? null;
+  return listTasks(cwd, env)[0] ?? null;
 }
 
-export function createTask(cwd, { title, risk = "medium", scope = "", outOfScope = "", acceptance = [], plan = "" }) {
+export function createTask(
+  cwd,
+  { title, risk = "medium", scope = "", outOfScope = "", acceptance = [], plan = "" },
+  env = process.env,
+) {
   if (!title || !String(title).trim()) throw new Error("task title is required");
   if (!RISKS.includes(risk)) throw new Error(`risk must be one of ${RISKS.join(", ")}`);
-  init(cwd);
+  init(cwd, env);
   const id = `${slugify(title)}-${Date.now().toString(36)}`;
   const task = {
     id,
@@ -188,14 +193,14 @@ export function createTask(cwd, { title, risk = "medium", scope = "", outOfScope
     createdAt: nowIso(),
     updatedAt: nowIso(),
   };
-  writeJson(path.join(tasksDir(cwd), `${id}.json`), task);
-  setActiveTask(cwd, id);
-  appendEvent(cwd, "task.created", { id, title: task.title, risk });
+  writeJson(path.join(tasksDir(cwd, env), `${id}.json`), task);
+  setActiveTask(cwd, id, env);
+  appendEvent(cwd, "task.created", { id, title: task.title, risk }, env);
   return task;
 }
 
-export function updateTask(cwd, id, patch = {}) {
-  const task = id ? getTask(cwd, id) : activeTask(cwd);
+export function updateTask(cwd, id, patch = {}, env = process.env) {
+  const task = id ? getTask(cwd, id, env) : activeTask(cwd, env);
   if (!task) throw new Error("no active task");
   const cleanPatch = Object.fromEntries(
     Object.entries(patch).filter(([, value]) => value !== undefined),
@@ -230,37 +235,37 @@ export function updateTask(cwd, id, patch = {}) {
     }
   }
   if (next.phase === "delivered" && next.risk === "high") {
-    const review = latestReview(cwd);
+    const review = latestReview(cwd, env);
     if (!review || review.taskId !== next.id) {
       throw new Error("high-risk delivery requires a frozen review for this task");
     }
   }
-  writeJson(path.join(tasksDir(cwd), `${task.id}.json`), next);
-  appendEvent(cwd, "task.updated", { id: task.id, phase: next.phase, patch: cleanPatch });
+  writeJson(path.join(tasksDir(cwd, env), `${task.id}.json`), next);
+  appendEvent(cwd, "task.updated", { id: task.id, phase: next.phase, patch: cleanPatch }, env);
   return next;
 }
 
-export function addEvidence(cwd, evidence) {
-  const task = activeTask(cwd);
+export function addEvidence(cwd, evidence, env = process.env) {
+  const task = activeTask(cwd, env);
   if (!task) return null;
   const next = {
     ...task,
     evidence: [...(task.evidence ?? []), evidence].slice(-50),
     updatedAt: nowIso(),
   };
-  writeJson(path.join(tasksDir(cwd), `${task.id}.json`), next);
-  appendEvent(cwd, "task.evidence", { id: task.id, ok: evidence.ok, command: evidence.command });
+  writeJson(path.join(tasksDir(cwd, env), `${task.id}.json`), next);
+  appendEvent(cwd, "task.evidence", { id: task.id, ok: evidence.ok, command: evidence.command }, env);
   return next;
 }
 
 /* ------------------------------- memory --------------------------------- */
 
-function memoryDir(cwd) {
-  return path.join(poShellPath(cwd), "memory");
+function memoryDir(cwd, env = process.env) {
+  return path.join(poShellPath(cwd, env), "memory");
 }
 
-function memoryIndexFile(cwd) {
-  return path.join(memoryDir(cwd), "index.json");
+function memoryIndexFile(cwd, env = process.env) {
+  return path.join(memoryDir(cwd, env), "index.json");
 }
 
 function memoryDb(cwd, env = process.env) {
@@ -415,17 +420,17 @@ export function saveMemory(
   if (aliasText) entry.aliases = aliasText;
   index.push(entry);
   writeJson(indexFile, index.sort((a, b) => a.slug.localeCompare(b.slug)));
-  if (!isGlobal) appendEvent(cwd, "memory.saved", { slug, title: displayTitle, type: type || "memory" });
+  if (!isGlobal) appendEvent(cwd, "memory.saved", { slug, title: displayTitle, type: type || "memory" }, env);
   return { slug, file, scope: isGlobal ? "global" : "project" };
 }
 
-export function searchMemory(cwd, query, limit = 5) {
+export function searchMemory(cwd, query, limit = 5, env = process.env) {
   const terms = String(query ?? "")
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean);
   if (!terms.length) return [];
-  const dbPath = contextDbPath();
+  const dbPath = contextDbPath(env);
   if (!fs.existsSync(dbPath)) return [];
   const db = openContextDb(dbPath);
   try {
@@ -473,8 +478,9 @@ export function searchMemory(cwd, query, limit = 5) {
 export function saveAgentArtifact(
   cwd,
   { id, meta = {}, output = "", events = [], maxEvents = 2000 },
+  env = process.env,
 ) {
-  const dir = path.join(poShellPath(cwd), "agents", id);
+  const dir = path.join(poShellPath(cwd, env), "agents", id);
   ensureDir(dir);
   const createdAt = nowIso();
   const cleanMeta = {
@@ -513,16 +519,16 @@ export function saveAgentArtifact(
 
 /* ------------------------------- checks --------------------------------- */
 
-export function runChecks(cwd, commands = null) {
-  const config = loadConfig(cwd);
+export function runChecks(cwd, commands = null, env = process.env) {
+  const config = loadConfig(cwd, env);
   const list = commands?.length ? commands : config.checks;
   if (!list?.length) {
     throw new Error(
-      `no checks configured. Edit ${path.join(poShellPath(cwd), "config.json")} or pass commands.`,
+      `no checks configured. Edit ${path.join(poShellPath(cwd, env), "config.json")} or pass commands.`,
     );
   }
-  const task = activeTask(cwd);
-  if (task) updateTask(cwd, task.id, { phase: "checking" });
+  const task = activeTask(cwd, env);
+  if (task) updateTask(cwd, task.id, { phase: "checking" }, env);
   const results = list.map((command) => {
     const started = Date.now();
     const proc = spawnSync(command, {
@@ -542,9 +548,9 @@ export function runChecks(cwd, commands = null) {
     };
   });
   const ok = results.every((r) => r.ok);
-  addEvidence(cwd, { ts: nowIso(), kind: "checks", ok, results });
-  if (task) updateTask(cwd, task.id, { phase: ok ? "ready" : "implementing" });
-  appendEvent(cwd, "checks.run", { ok, commands: list });
+  addEvidence(cwd, { ts: nowIso(), kind: "checks", ok, results }, env);
+  if (task) updateTask(cwd, task.id, { phase: ok ? "ready" : "implementing" }, env);
+  appendEvent(cwd, "checks.run", { ok, commands: list }, env);
   return { ok, results };
 }
 
@@ -565,8 +571,8 @@ function tryGit(cwd, args) {
 
 const RISK_RANK = { low: 0, medium: 1, high: 2 };
 
-function riskFor(cwd, changedLines, files) {
-  const task = activeTask(cwd);
+function riskFor(cwd, changedLines, files, env = process.env) {
+  const task = activeTask(cwd, env);
   const risky =
     /(^|\/)(auth|security|permission|permissions|payment|payments|billing|migration|migrations|schema|infra|deploy|dockerfile|terraform|\.env|secrets?)(\/|$|\.)/i;
   let inferred = "low";
@@ -577,8 +583,8 @@ function riskFor(cwd, changedLines, files) {
   return RISK_RANK[taskRisk] >= RISK_RANK[inferred] ? taskRisk : inferred;
 }
 
-export function freezeReview(cwd, { base = "HEAD" } = {}) {
-  init(cwd);
+export function freezeReview(cwd, { base = "HEAD" } = {}, env = process.env) {
+  init(cwd, env);
   if (!tryGit(cwd, ["rev-parse", "--is-inside-work-tree"])) {
     throw new Error("not a git repository");
   }
@@ -611,10 +617,10 @@ export function freezeReview(cwd, { base = "HEAD" } = {}) {
   const added = numstat.reduce((n, f) => n + f.added, 0);
   const deleted = numstat.reduce((n, f) => n + f.deleted, 0);
   const files = [...new Set([...numstat.map((f) => f.file), ...untracked])];
-  const risk = riskFor(cwd, added + deleted, files);
+  const risk = riskFor(cwd, added + deleted, files, env);
   const hash = sha256(diff);
   const id = `review-${Date.now().toString(36)}`;
-  const dir = path.join(poShellPath(cwd), "reviews", id);
+  const dir = path.join(poShellPath(cwd, env), "reviews", id);
   ensureDir(dir);
   fs.writeFileSync(path.join(dir, "diff.patch"), diff);
   const meta = {
@@ -627,16 +633,16 @@ export function freezeReview(cwd, { base = "HEAD" } = {}) {
     deleted,
     risk,
     status: "frozen",
-    taskId: activeTask(cwd)?.id ?? null,
+    taskId: activeTask(cwd, env)?.id ?? null,
     createdAt: nowIso(),
   };
   writeJson(path.join(dir, "meta.json"), meta);
-  appendEvent(cwd, "review.frozen", { id, hash, risk, added, deleted, files: files.length });
+  appendEvent(cwd, "review.frozen", { id, hash, risk, added, deleted, files: files.length }, env);
   return meta;
 }
 
-export function latestReview(cwd) {
-  const dir = path.join(poShellPath(cwd), "reviews");
+export function latestReview(cwd, env = process.env) {
+  const dir = path.join(poShellPath(cwd, env), "reviews");
   try {
     const reviews = fs
       .readdirSync(dir)
@@ -650,30 +656,33 @@ export function latestReview(cwd) {
   }
 }
 
-export function reviewDiff(cwd, id = null) {
-  const meta = id ? readJson(path.join(poShellPath(cwd), "reviews", id, "meta.json"), null) : latestReview(cwd);
+export function reviewDiff(cwd, id = null, env = process.env) {
+  const meta = id
+    ? readJson(path.join(poShellPath(cwd, env), "reviews", id, "meta.json"), null)
+    : latestReview(cwd, env);
   if (!meta) throw new Error("no review found");
-  const file = path.join(poShellPath(cwd), "reviews", meta.id, "diff.patch");
+  const file = path.join(poShellPath(cwd, env), "reviews", meta.id, "diff.patch");
   return { meta, diff: fs.readFileSync(file, "utf8") };
 }
 
 /* ------------------------------- status --------------------------------- */
 
 export function status(cwd = process.cwd(), options = {}) {
-  const initialized = isInitialized(cwd);
-  const config = initialized ? loadConfig(cwd) : DEFAULT_CONFIG;
-  const task = initialized ? activeTask(cwd) : null;
+  const env = options.env ?? process.env;
+  const initialized = isInitialized(cwd, env);
+  const config = initialized ? loadConfig(cwd, env) : DEFAULT_CONFIG;
+  const task = initialized ? activeTask(cwd, env) : null;
   return {
     initialized,
     cwd,
     activeTask: task,
-    tasks: initialized ? listTasks(cwd).length : 0,
+    tasks: initialized ? listTasks(cwd, env).length : 0,
     checks: config.checks,
-    lastReview: initialized ? latestReview(cwd) : null,
+    lastReview: initialized ? latestReview(cwd, env) : null,
     policy: config.policy,
     cost:
       initialized && options.cost
-        ? costSummary({ projectId: projectIdentity(cwd).id })
+        ? costSummary({ projectId: projectIdentity(cwd).id, env })
         : null,
     git: {
       branch: initialized ? tryGit(cwd, ["branch", "--show-current"]) : "",
@@ -682,8 +691,8 @@ export function status(cwd = process.cwd(), options = {}) {
   };
 }
 
-export function renderStatus(cwd = process.cwd()) {
-  const s = status(cwd, { cost: true });
+export function renderStatus(cwd = process.cwd(), env = process.env) {
+  const s = status(cwd, { cost: true, env });
   if (!s.initialized) {
     return [
       "po-shell no está inicializado en este directorio.",
@@ -724,8 +733,8 @@ export function renderStatus(cwd = process.cwd()) {
   return lines.join("\n");
 }
 
-export function renderContext(cwd = process.cwd()) {
-  const s = status(cwd);
+export function renderContext(cwd = process.cwd(), env = process.env) {
+  const s = status(cwd, { env });
   if (!s.initialized) return "";
   const lines = ["<po_shell_state>"];
   if (s.activeTask) {
@@ -759,14 +768,14 @@ export function renderContext(cwd = process.cwd()) {
 
 /* ------------------------------ policy API ------------------------------ */
 
-export function checkPolicy(cwd, toolName, input) {
-  const config = loadConfig(cwd);
+export function checkPolicy(cwd, toolName, input, env = process.env) {
+  const config = loadConfig(cwd, env);
   return evaluateToolCall({
     toolName,
     input,
     cwd,
     policy: config.policy,
-    activeTask: activeTask(cwd),
+    activeTask: activeTask(cwd, env),
   });
 }
 

@@ -148,7 +148,10 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
       const result = pruneProjectStates(process.env, { dryRun: !options.yes });
       if (json) return console.log(JSON.stringify(result, null, 2));
       if (!result.candidates.length) return console.log("(sin estados huérfanos)");
-      for (const item of result.candidates) console.log(`  ${item.id}`);
+      for (const item of result.candidates) {
+        const reason = !item.hasMetadata || !item.root ? "sin metadata" : "root inexistente";
+        console.log(`  ${item.id}  ${item.name}  ${item.root ?? "(sin root)"}  [${reason}]`);
+      }
       if (result.moved.length) {
         console.log(`Movidos a backup: ${result.moved.length}`);
         console.log(`  ${result.trashDir}`);

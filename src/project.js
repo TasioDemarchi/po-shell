@@ -131,7 +131,7 @@ export function resolveProjectState(selector, env = process.env) {
 export function pruneProjectStates(env = process.env, options = {}) {
   const dryRun = options.dryRun !== false;
   const candidates = listProjectStates(env, { all: true }).filter(
-    (item) => !item.hasMetadata,
+    (item) => !item.hasMetadata || !item.root || !fs.existsSync(item.root),
   );
   if (dryRun || !candidates.length) {
     return { dryRun, trashDir: null, candidates, moved: [] };
