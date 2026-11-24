@@ -74,7 +74,7 @@ export function init(cwd = process.cwd(), env = process.env) {
   for (const dir of ["tasks", "memory", "reviews", "agents"]) {
     ensureDir(path.join(root, dir));
   }
-  const identity = projectIdentity(cwd);
+  const identity = projectIdentity(cwd, env);
   writeJson(projectMetaPath(cwd, env), {
     id: identity.id,
     name: identity.name,
@@ -272,8 +272,8 @@ function memoryDb(cwd, env = process.env) {
   return openContextDb(contextDbPath(env));
 }
 
-function ensureProjectRow(db, cwd) {
-  const identity = projectIdentity(cwd);
+function ensureProjectRow(db, cwd, env = process.env) {
+  const identity = projectIdentity(cwd, env);
   db.prepare(
     `INSERT INTO projects(id, name, root, updated_at)
      VALUES (?, ?, ?, ?)
@@ -290,7 +290,7 @@ export function memoryIndex(cwd, env = process.env) {
   if (!fs.existsSync(dbPath)) return [];
   const db = openContextDb(dbPath);
   try {
-    const project = projectIdentity(cwd);
+    const project = projectIdentity(cwd, env);
     return db
       .prepare(
         `SELECT memory_key AS slug, memory_key AS topic, title, type, scope, priority, trigger, aliases, updated_at AS updated
@@ -378,7 +378,7 @@ export function saveMemory(
 
   const db = memoryDb(cwd, env);
   try {
-    const projectId = isGlobal ? GLOBAL_PROJECT_ID : ensureProjectRow(db, cwd).id;
+    const projectId = isGlobal ? GLOBAL_PROJECT_ID : ensureProjectRow(db, cwd, env).id;
     const stat = fs.statSync(file);
     const rel = path.relative(cwd, file).split(path.sep).join("/");
     db.prepare(
@@ -434,7 +434,7 @@ export function searchMemory(cwd, query, limit = 5, env = process.env) {
   if (!fs.existsSync(dbPath)) return [];
   const db = openContextDb(dbPath);
   try {
-    const project = projectIdentity(cwd);
+    const project = projectIdentity(cwd, env);
     const rows = db
       .prepare(
         `SELECT memory_key AS slug, title, content, type, scope, path, updated_at
@@ -682,7 +682,7 @@ export function status(cwd = process.cwd(), options = {}) {
     policy: config.policy,
     cost:
       initialized && options.cost
-        ? costSummary({ projectId: projectIdentity(cwd).id, env })
+        ? costSummary({ projectId: projectIdentity(cwd, env).id, env })
         : null,
     git: {
       branch: initialized ? tryGit(cwd, ["branch", "--show-current"]) : "",

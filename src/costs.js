@@ -112,7 +112,7 @@ export function recordCost(cwd = process.cwd(), entry = {}, options = {}) {
   const usage = entry.usage ?? entry;
   const model = entry.model ?? "unknown";
   const calc = creditsFor(model, usage);
-  const project = projectIdentity(cwd);
+  const project = projectIdentity(cwd, env);
   const db = openContextDb(options.dbPath ?? contextDbPath(env));
   try {
     db.prepare(

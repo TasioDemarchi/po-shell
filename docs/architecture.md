@@ -42,7 +42,7 @@ po-shell doctor          # chequea Node, Pi, git y extensión
 | Componente | Estado |
 |---|---|
 | `kernel.js` | Tareas, fases, memoria, checks, reviews |
-| `project.js` | Identidad estable del proyecto y resolución del estado central |
+| `project.js` | Identidad estable del proyecto, adopción del estado existente por root y resolución del estado central |
 | `indexer.js` | Índice SQLite FTS5 de docs por sección y memorias |
 | `context.js` | `context_search` / `context_get` sobre el índice |
 | `backup.js` | Backup, restore e integrity del estado central |

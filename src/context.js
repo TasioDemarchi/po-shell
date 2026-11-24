@@ -148,7 +148,7 @@ export async function searchContext(cwd = process.cwd(), query, options = {}) {
   const current = selected ?? projectInfo(cwd, env);
   const inProject = Boolean(selected || current.initialized);
   const indexRoot = selected?.root ?? (current.initialized ? cwd : null);
-  let project = selected ? projectIdentity(selected.root) : projectIdentity(cwd);
+  let project = selected ? projectIdentity(selected.root, env) : projectIdentity(cwd, env);
 
   if (options.autoIndex !== false && indexRoot) {
     project = indexProject(indexRoot, { dbPath, env }).project;
@@ -394,7 +394,7 @@ export function getContext(cwd = process.cwd(), ref, options = {}) {
   const parsed = parseRef(ref);
 
   if (options.autoIndex !== false) indexProject(cwd, { dbPath, env });
-  const project = projectIdentity(cwd);
+  const project = projectIdentity(cwd, env);
   if (!fs.existsSync(dbPath)) throw new Error("no hay índice. Corré: po-shell index");
 
   const db = openContextDb(dbPath);
@@ -467,7 +467,7 @@ export function activeDirectives(cwd = process.cwd(), options = {}) {
   const maxChars = Math.max(100, Number(options.maxChars) || 800);
 
   if (options.autoIndex !== false) indexProject(cwd, { dbPath, env });
-  const project = projectIdentity(cwd);
+  const project = projectIdentity(cwd, env);
   if (!fs.existsSync(dbPath)) return [];
 
   const db = openContextDb(dbPath);

@@ -44,6 +44,8 @@ cd ../po-shell-selfhost
 
 po-shell identifica un proyecto por su remote o root. Un worktree puede compartir el estado central con el repo principal: no tengas dos sesiones escribiendo tareas o memoria al mismo tiempo.
 
+Si agregás un remote, el id calculado cambia. Para no perder estado, el kernel **adopta** el directorio que ya existe para ese root (`adoptStateId`). Si ves un id nuevo con `inicializado: no`, corré `po-shell where`: debería resolver al estado viejo. El procedimiento manual está en `docs/recovery.md`. Un proceso de Pi ya abierto cachea la identidad; el valor nuevo se usa desde la próxima sesión.
+
 ## Qué tocar primero
 
 Orden recomendado:

@@ -4,7 +4,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { init } from "../src/kernel.js";
-import { listProjectStates, projectIdentity, projectInfo, pruneProjectStates } from "../src/project.js";
+import { listProjectStates, projectIdentity, projectInfo, projectStateDir, pruneProjectStates } from "../src/project.js";
+import { sha256 } from "../src/util.js";
 
 process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-project-home-"));
 
@@ -82,4 +83,50 @@ test("projectInfo resolves the project root from a subdirectory", () => {
   assert.equal(projectIdentity(sub).root, dir);
   assert.equal(projectInfo(sub).root, dir);
   assert.equal(projectInfo(sub).initialized, true);
+});
+
+test("identity adopts existing state for the same root when the computed id is new", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-adopt-"));
+  const projects = path.join(process.env.PO_SHELL_HOME, "projects");
+  const adopted = path.join(projects, "adopted-id-000001");
+  fs.mkdirSync(adopted, { recursive: true });
+  fs.writeFileSync(
+    path.join(adopted, "project.json"),
+    JSON.stringify({ id: "adopted-id-000001", name: "old", root: dir, updatedAt: "2026-01-01T00:00:00.000Z" }),
+  );
+
+  const identity = projectIdentity(dir);
+  assert.equal(identity.id, "adopted-id-000001");
+  assert.equal(projectStateDir(dir), adopted);
+});
+
+test("identity prefers the computed id when that state already exists", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-adopt-own-"));
+  init(dir);
+  const computed = sha256(dir).slice(0, 16);
+  const other = path.join(process.env.PO_SHELL_HOME, "projects", "other-id-0000002");
+  fs.mkdirSync(other, { recursive: true });
+  fs.writeFileSync(
+    path.join(other, "project.json"),
+    JSON.stringify({ id: "other-id-0000002", name: "other", root: dir, updatedAt: "2026-01-01T00:00:00.000Z" }),
+  );
+
+  assert.equal(projectIdentity(dir).id, computed);
+});
+
+test("adoption never crosses state homes", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-adopt-home-"));
+  const otherHome = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-adopt-other-home-"));
+  const projects = path.join(process.env.PO_SHELL_HOME, "projects");
+  const adopted = path.join(projects, "home-scoped-id001");
+  fs.mkdirSync(adopted, { recursive: true });
+  fs.writeFileSync(
+    path.join(adopted, "project.json"),
+    JSON.stringify({ id: "home-scoped-id001", name: "old", root: dir, updatedAt: "2026-01-01T00:00:00.000Z" }),
+  );
+
+  const env = { ...process.env, PO_SHELL_HOME: otherHome };
+  const identity = projectIdentity(dir, env);
+  assert.equal(identity.id, sha256(dir).slice(0, 16));
+  assert.ok(!fs.existsSync(path.join(otherHome, "projects")));
 });

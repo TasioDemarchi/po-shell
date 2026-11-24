@@ -9,7 +9,7 @@
 - CLI.
 - Extensión de Pi con 9 tools y 6 hooks.
 - Skill `po-shell-workflow`.
-- 117 tests (kernel 17, project 6, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 8, subagent policy 3, tool defaults 2, policy 3, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10, state env 2, install 10), todos pasando.
+- 120 tests (kernel 17, project 9, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 8, subagent policy 3, tool defaults 2, policy 3, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10, state env 2, install 10), todos pasando.
 - Extensión validada en una sesión real de Pi.
 - Launcher `po-shell`: **implementado** y validado en una sesión real de Pi.
 
@@ -65,7 +65,7 @@
 - Snapshots operativos `state`, `feature` y `session`; memoria primero, feature doc como fuente precisa.
 - Checkpoint automático antes/después de compactación; se reinyecta como contexto.
 - Búsqueda híbrida: FTS + `qwen3-embedding` + `rerank`, con fallback exacto.
-- 117 tests y bench de 3 tareas.
+- 120 tests y bench de 3 tareas.
 - Aislamiento de env en el kernel: un `env` explícito nunca escribe en el home real; `projects prune` también considera huérfano un estado cuyo root ya no existe.
 
 ### v0.6 — recuperación
@@ -106,6 +106,13 @@
 - `po-shell uninstall` nunca toca `~/.po-shell`: imprime dónde vive el estado y sale.
 - `scripts/install.sh` hace el bootstrap del checkout: valida Node 22+ y git, avisa si falta Pi, corre `npm link` y termina con `po-shell doctor`.
 - 10 tests nuevos en `test/install.test.js`.
+
+### v0.10 — identidad que no pierde estado
+
+- `projectIdentity` adopta el directorio que ya existe para el mismo root cuando el id calculado no tiene estado. Agregar un remote ya no deja las tareas invisibles.
+- La cache de identidad se indexa por home + root, así dos `PO_SHELL_HOME` no se pisan.
+- 3 tests nuevos: adopción, no-adopción cuando el id calculado existe, y aislamiento entre homes.
+- Procedimiento manual en `docs/recovery.md` (escenario 8) y regla en `docs/self-hosting.md`.
 
 ### Pendiente
 

@@ -28,26 +28,47 @@ function projectRoot(cwd) {
   }
 }
 
-export function projectIdentity(cwd = process.cwd()) {
+export function projectIdentity(cwd = process.cwd(), env = process.env) {
   const root = projectRoot(cwd);
-  if (identityCache.has(root)) return identityCache.get(root);
+  const cacheKey = `${poShellHome(env)}::${root}`;
+  if (identityCache.has(cacheKey)) return identityCache.get(cacheKey);
 
   const remote = spawnSync("git", ["remote", "get-url", "origin"], {
     cwd: root,
     encoding: "utf8",
   });
   const key = remote.status === 0 && remote.stdout.trim() ? remote.stdout.trim() : root;
+  const computed = sha256(key).slice(0, 16);
   const identity = {
-    id: sha256(key).slice(0, 16),
+    // Adding a git remote changes the computed id. If the root already has state
+    // under another id, adopt it instead of starting from an empty directory.
+    id: adoptStateId(root, computed, env),
     name: path.basename(root) || "root",
     root,
   };
-  identityCache.set(root, identity);
+  identityCache.set(cacheKey, identity);
   return identity;
 }
 
+function adoptStateId(root, computed, env) {
+  const projectsDir = path.join(poShellHome(env), "projects");
+  if (fs.existsSync(path.join(projectsDir, computed))) return computed;
+  let entries;
+  try {
+    entries = fs.readdirSync(projectsDir, { withFileTypes: true });
+  } catch {
+    return computed;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const meta = readJson(path.join(projectsDir, entry.name, "project.json"), null);
+    if (meta?.root === root) return entry.name;
+  }
+  return computed;
+}
+
 export function projectStateDir(cwd = process.cwd(), env = process.env) {
-  return path.join(poShellHome(env), "projects", projectIdentity(cwd).id);
+  return path.join(poShellHome(env), "projects", projectIdentity(cwd, env).id);
 }
 
 export function legacyStateDir(cwd = process.cwd()) {
@@ -60,7 +81,7 @@ export function projectMetaPath(cwd = process.cwd(), env = process.env) {
 }
 
 export function projectInfo(cwd = process.cwd(), env = process.env) {
-  const identity = projectIdentity(cwd);
+  const identity = projectIdentity(cwd, env);
   const stateDir = projectStateDir(cwd, env);
   const meta = readJson(projectMetaPath(cwd, env), null);
   return {

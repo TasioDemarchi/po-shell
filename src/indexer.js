@@ -558,7 +558,7 @@ function indexGlobalMemories(db, env = process.env, options = {}) {
 export function importMissingMemories(cwd = process.cwd(), options = {}) {
   const env = options.env ?? process.env;
   const dbPath = options.dbPath ?? contextDbPath(env);
-  const project = projectIdentity(cwd);
+  const project = projectIdentity(cwd, env);
   const db = openContextDb(dbPath);
   try {
     db.exec("BEGIN");
@@ -582,7 +582,7 @@ export function importMissingMemories(cwd = process.cwd(), options = {}) {
 export function indexProject(cwd = process.cwd(), options = {}) {
   const env = options.env ?? process.env;
   const dbPath = options.dbPath ?? contextDbPath(env);
-  const project = projectIdentity(cwd);
+  const project = projectIdentity(cwd, env);
   const db = openContextDb(dbPath);
 
   try {

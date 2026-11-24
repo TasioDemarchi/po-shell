@@ -170,6 +170,29 @@ La sesión `.jsonl` es de Pi, no de po-shell. po-shell guarda:
 
 Para retomar: abrí la sesión desde su ruta, leé `po-shell status` y buscá `session/current` con `context_search`.
 
+### 8. El estado "desapareció" después de agregar un remote
+
+Síntoma: `po-shell where` muestra un id nuevo con `inicializado: no` y las tareas no aparecen.
+
+Causa: la identidad es `sha256(remote || root)`. Agregar o cambiar el remote cambia el id calculado.
+
+Qué hace po-shell: si el root ya tiene estado bajo otro id, lo adopta (`adoptStateId` en `src/project.js`) en vez de crear un directorio vacío. Verificá:
+
+```bash
+po-shell where          # inicializado: sí, con el id viejo
+po-shell status
+po-shell integrity
+```
+
+Si el id calculado ya tuviera su propio estado (dos estados para el mismo root), no hay fusión automática:
+
+1. `po-shell backup`.
+2. Copiá a mano `tasks/`, `memory/`, `reviews/` y `agents/` del directorio que quieras conservar.
+3. Mové el directorio descartado a `~/.po-shell/trash/`; no lo borres.
+4. `po-shell integrity` y `po-shell index`.
+
+Nunca muevas ni borres un directorio de proyecto sin backup previo.
+
 ## Restore selectivo
 
 - `--no-db`: no toca `context.db`; útil para recuperar solo tareas, reviews o config.
