@@ -89,7 +89,7 @@ export function deniedCommand(command, policy) {
  * Returns { block, reason, warning }.
  */
 export function evaluateToolCall({ toolName, input = {}, cwd, policy, activeTask }) {
-  if (toolName.startsWith("plain_")) return { block: false };
+  if (toolName.startsWith("po_shell_")) return { block: false };
 
   const file = input.path ?? input.file_path ?? input.file ?? null;
   const writes = toolName === "write" || toolName === "edit";
@@ -97,19 +97,19 @@ export function evaluateToolCall({ toolName, input = {}, cwd, policy, activeTask
   if (file) {
     const pattern = deniedPath(file, policy, cwd);
     if (pattern) {
-      return { block: true, reason: `Plain policy: path denied by ${pattern} (${file})` };
+      return { block: true, reason: `po-shell policy: path denied by ${pattern} (${file})` };
     }
   }
 
   const scratchViolation = testScratchViolation({ toolName, input, cwd });
   if (scratchViolation) {
-    return { block: true, reason: `Plain policy: ${scratchViolation}` };
+    return { block: true, reason: `po-shell policy: ${scratchViolation}` };
   }
 
   if (writes && policy.requireTaskForWrite && !activeTask) {
     return {
       block: true,
-      reason: "Plain policy: no active task. Create one with plain_task before editing.",
+      reason: "po-shell policy: no active task. Create one with po_shell_task before editing.",
     };
   }
 
@@ -118,12 +118,12 @@ export function evaluateToolCall({ toolName, input = {}, cwd, policy, activeTask
     if (/\bgit\s+push\b/i.test(command) && policy.allowPush !== true) {
       return {
         block: true,
-        reason: "Plain policy: git push requires allowPush=true; the human owns delivery.",
+        reason: "po-shell policy: git push requires allowPush=true; the human owns delivery.",
       };
     }
     const pattern = deniedCommand(command, policy);
     if (pattern) {
-      return { block: true, reason: `Plain policy: command denied by /${pattern}/` };
+      return { block: true, reason: `po-shell policy: command denied by /${pattern}/` };
     }
   }
 

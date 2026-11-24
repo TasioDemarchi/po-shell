@@ -15,8 +15,8 @@ import { testScratchViolation } from "../src/scratch-guard.js";
 import { DEFAULT_POLICY, evaluateToolCall } from "../src/policy.js";
 
 function envFor() {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "plain-scratch-home-"));
-  return { PLAIN_HOME: home, PLAIN_TMP_ROOT: path.join(home, "tmp") };
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-scratch-home-"));
+  return { PO_SHELL_HOME: home, PO_SHELL_TMP_ROOT: path.join(home, "tmp") };
 }
 
 test("creates a private session scratch and points TMPDIR at it", () => {
@@ -24,7 +24,7 @@ test("creates a private session scratch and points TMPDIR at it", () => {
   const scratch = createSessionScratch(env, { cwd: "/tmp/project" });
   assert.ok(fs.existsSync(scratch.dir));
   assert.equal(scratch.env.TMPDIR, scratch.dir);
-  assert.equal(scratch.env.PLAIN_TMP, scratch.dir);
+  assert.equal(scratch.env.PO_SHELL_TMP, scratch.dir);
   assert.ok(fs.existsSync(scratch.ledgerPath));
   assert.equal(listScratch(env).length, 1);
   assert.equal(cleanupSessionScratch(scratch), true);
@@ -35,7 +35,7 @@ test("creates a private session scratch and points TMPDIR at it", () => {
 test("subagent scratch nests under the session scratch and cleans only itself", () => {
   const env = envFor();
   const session = createSessionScratch(env);
-  const child = createSubagentScratch({ ...env, PLAIN_TMP: session.dir });
+  const child = createSubagentScratch({ ...env, PO_SHELL_TMP: session.dir });
   assert.ok(child.dir.startsWith(`${session.dir}${path.sep}`));
   assert.equal(child.env.TMPDIR, child.dir);
   assert.equal(child.cleanup(), true);
@@ -64,24 +64,24 @@ test("sweep keeps a live session and removes an old ended one", () => {
 
 test("scratch cleanup refuses paths that are not runtime scratch names", () => {
   const env = envFor();
-  const root = path.resolve(env.PLAIN_TMP_ROOT);
-  fs.mkdirSync(path.join(root, "plain-not-valid"), { recursive: true });
+  const root = path.resolve(env.PO_SHELL_TMP_ROOT);
+  fs.mkdirSync(path.join(root, "po-shell-not-valid"), { recursive: true });
   assert.equal(
     cleanupSessionScratch({
-      scratchDir: path.join(root, "plain-not-valid"),
+      scratchDir: path.join(root, "po-shell-not-valid"),
       tempRoot: root,
       ledgerPath: path.join(root, "ledger", "missing.json"),
     }),
     false,
   );
-  assert.ok(fs.existsSync(path.join(root, "plain-not-valid")));
+  assert.ok(fs.existsSync(path.join(root, "po-shell-not-valid")));
 });
 
 test("scratchEnvironment sets TMP and TEMP on Windows", () => {
-  assert.deepEqual(scratchEnvironment("C:\\tmp\\plain-abc", "win32"), {
-    TMPDIR: "C:\\tmp\\plain-abc",
-    TMP: "C:\\tmp\\plain-abc",
-    TEMP: "C:\\tmp\\plain-abc",
+  assert.deepEqual(scratchEnvironment("C:\\tmp\\po-shell-abc", "win32"), {
+    TMPDIR: "C:\\tmp\\po-shell-abc",
+    TMP: "C:\\tmp\\po-shell-abc",
+    TEMP: "C:\\tmp\\po-shell-abc",
   });
 });
 

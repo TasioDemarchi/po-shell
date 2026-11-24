@@ -22,7 +22,7 @@ test("vector blobs round-trip Float32 values", () => {
 });
 
 test("semanticConfig reads Nan auth and can be disabled", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-semantic-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-semantic-"));
   fs.writeFileSync(
     path.join(dir, "models.json"),
     JSON.stringify({ providers: { nan: { baseUrl: "https://api.nan.builders/v1" } } }),
@@ -39,19 +39,19 @@ test("semanticConfig reads Nan auth and can be disabled", () => {
   assert.equal(config.embeddingModel, "qwen3-embedding");
   assert.equal(config.rerankModel, "rerank");
   assert.equal(config.baseUrl, "https://api.nan.builders/v1");
-  assert.equal(semanticConfig({ PI_CODING_AGENT_DIR: dir, PLAIN_SEMANTIC: "off" }), null);
+  assert.equal(semanticConfig({ PI_CODING_AGENT_DIR: dir, PO_SHELL_SEMANTIC: "off" }), null);
 });
 
 
 test("semanticConfig falls back to NAN_API_KEY and provider apiKey placeholders", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-semantic-env-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-semantic-env-"));
   fs.writeFileSync(
     path.join(dir, "models.json"),
     JSON.stringify({ providers: { nan: { apiKey: "$NAN_API_KEY" } } }),
   );
   assert.equal(semanticConfig({ PI_CODING_AGENT_DIR: dir, NAN_API_KEY: "env-key" }).apiKey, "env-key");
   assert.equal(
-    semanticConfig({ PI_CODING_AGENT_DIR: dir, PLAIN_SEMANTIC_API_KEY: "plain-key" }).apiKey,
-    "plain-key",
+    semanticConfig({ PI_CODING_AGENT_DIR: dir, PO_SHELL_SEMANTIC_API_KEY: "po-shell-key" }).apiKey,
+    "po-shell-key",
   );
 });

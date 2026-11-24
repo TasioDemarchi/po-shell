@@ -1,5 +1,5 @@
 {
-  "name": "plain-bench-fixture",
+  "name": "po-shell-bench-fixture",
   "private": true,
   "type": "module",
   "scripts": {

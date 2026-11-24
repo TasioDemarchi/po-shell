@@ -1,4 +1,4 @@
-# AGENTS.md — Plain
+# AGENTS.md — po-shell
 
 Operational manual for the agent working **in this repo**. Pi discovers and loads it on every session.
 
@@ -6,8 +6,8 @@ Human-facing documentation, project scope and status live in `PROJECT.md`. Archi
 
 ## Scope and precedence
 
-- Applies to the Plain repo.
-- `prompts/plain-protocol.md` is the global orchestrator protocol.
+- Applies to the po-shell repo.
+- `prompts/po-shell-protocol.md` is the global orchestrator protocol.
 - This file adds repo-specific rules: commands, paths, tests and conventions.
 - If a local rule contradicts a hard protocol rule, ask before proceeding.
 
@@ -15,42 +15,42 @@ Human-facing documentation, project scope and status live in `PROJECT.md`. Archi
 
 1. Run `npm test`.
 2. Run `npm run check`.
-3. If a task is active, check `plain status`.
-4. Run `plain integrity` if the project already has central state.
-5. If you are changing behavior, search for an existing decision or error with `plain context search`.
+3. If a task is active, check `po-shell status`.
+4. Run `po-shell integrity` if the project already has central state.
+5. If you are changing behavior, search for an existing decision or error with `po-shell context search`.
 
 ## Commands
 
 ```bash
 npm test        # kernel, indexer, backup, scratch and launcher tests
 npm run check   # syntax for src/ and the extension
-plain index     # index docs and memories into SQLite FTS5
-plain backup    # snapshot state + SQLite + repo bundle
-plain backup list
-plain restore <backup-dir> --yes
-plain integrity # validate tasks, events, reviews, SQLite and memory
-plain integrity --fix
-plain scratch list    # session/subagent temporary dirs
-plain scratch clean   # remove ended scratch
-plain where     # show the project's central state
-plain projects  # list projects with central state
-plain checks suggest   # suggest checks from the stack
-plain projects prune --dry-run  # show orphan states
-plain context search "<topic>"   # search specs + memories
-plain remember "<rule>" ...      # behavior directive
-plain directives                # show active directives
-npm link        # put `plain` on PATH
-plain doctor     # check Node, Pi, git, extension, providers
-plain            # start the agent
+po-shell index     # index docs and memories into SQLite FTS5
+po-shell backup    # snapshot state + SQLite + repo bundle
+po-shell backup list
+po-shell restore <backup-dir> --yes
+po-shell integrity # validate tasks, events, reviews, SQLite and memory
+po-shell integrity --fix
+po-shell scratch list    # session/subagent temporary dirs
+po-shell scratch clean   # remove ended scratch
+po-shell where     # show the project's central state
+po-shell projects  # list projects with central state
+po-shell checks suggest   # suggest checks from the stack
+po-shell projects prune --dry-run  # show orphan states
+po-shell context search "<topic>"   # search specs + memories
+po-shell remember "<rule>" ...      # behavior directive
+po-shell directives                # show active directives
+npm link        # put `po-shell` on PATH
+po-shell doctor     # check Node, Pi, git, extension, providers
+po-shell            # start the agent
 ```
 
-`plain` loads the extension with `--extension` and the skills with `--skill`.
-Do not also run `pi install ./plain`: it would load twice.
+`po-shell` loads the extension with `--extension` and the skills with `--skill`.
+Do not also run `pi install ./po-shell`: it would load twice.
 
 ## Structure
 
 ```text
-bin/plain.js            CLI entry point
+bin/po-shell.js            CLI entry point
 src/kernel.js          tasks, phases, memory, checks, reviews
 src/project.js         project identity and central state
 src/indexer.js         SQLite FTS5 index of docs and memories
@@ -63,8 +63,8 @@ src/policy.js          deny paths / deny commands / gate
 src/cli.js             command parser
 src/shell.js           launcher: resolves Pi and loads extension, skills and protocol
 src/util.js            helpers
-extensions/plain.ts     tools + hooks for Pi
-skills/plain-workflow/  agent procedure
+extensions/po-shell.ts     tools + hooks for Pi
+skills/po-shell-workflow/  agent procedure
 skills/agents-md-authoring/  skill for writing AGENTS.md
 skills/skill-md-authoring/   skill for writing SKILL.md
 skills/feature-doc/          skill for docs/features/<slug>.md
@@ -80,14 +80,14 @@ docs/agents-md-y-skill-md-investigacion.md  reference research
 
 ## Change rules
 
-- **Do not rewrite Pi or its TUI.** Plain is a product on top of Pi.
+- **Do not rewrite Pi or its TUI.** po-shell is a product on top of Pi.
 - **Zero runtime dependencies.** Only Node 22+ and Git.
 - **Tests for every kernel or policy change.** If you touch a rule, add or adjust a test.
 - **Small, reviewable changes.** One unit of behavior at a time.
 - **Do not break the CLI without updating `README.md` and `PROJECT.md`.**
 - **Do not add features that are not in this file or approved in conversation.**
 - **Do not store secrets** in code, tests, memory or logs.
-- **Temporary files stay out of the repo.** Use `PLAIN_TMP`/`TMPDIR`; cleanup belongs to the runtime.
+- **Temporary files stay out of the repo.** Use `PO_SHELL_TMP`/`TMPDIR`; cleanup belongs to the runtime.
 - **Promote durable tests.** A temporary script/test that must remain goes to `test/` or `scripts/` with a normal name.
 - **Do not add ADRs.** Decisions go in memory.
 - **Documentation:** if a section of this file exceeds ~150–200 lines, split it into `docs/`. Do not create a doc before it hurts.
@@ -96,7 +96,7 @@ docs/agents-md-y-skill-md-investigacion.md  reference research
 
 Search with `context_search` (specs + memories) and `context_get` for detail.
 For errors from other projects, use `context_search` with `all_projects: true`; it only crosses memories, never foreign specs.
-Save with `plain_memory` with `action: "save"`.
+Save with `po_shell_memory` with `action: "save"`.
 
 Save when:
 
@@ -128,40 +128,40 @@ FIX: ...
 PREVENTION: ...
 ```
 
-Directives: `plain remember` (or `plain_memory` with `type: "behavior"`, `scope`, `priority`, `trigger`). They are injected at session start.
-`--scope global` is stored in `~/.plain/memory`; everything else in `~/.plain/projects/<id>/memory`.
+Directives: `po-shell remember` (or `po_shell_memory` with `type: "behavior"`, `scope`, `priority`, `trigger`). They are injected at session start.
+`--scope global` is stored in `~/.po-shell/memory`; everything else in `~/.po-shell/projects/<id>/memory`.
 The full memory and index design is in `docs/architecture.md`.
 
 ## Workflow
 
 1. If this is a new project without `PROJECT.md`, draft it and get human approval before feature docs or code.
-2. If the task is substantial, create a task with `plain_task`.
+2. If the task is substantial, create a task with `po_shell_task`.
 3. Explore before editing.
 4. Implement one unit at a time.
 5. Run `npm test` and `npm run check`.
-6. Put throwaway scripts and test data in `PLAIN_TMP`/`TMPDIR`, never in the repo.
-7. Before a risky state change, migration or recovery test: `plain backup` and `plain integrity`.
-8. If the change is risky, freeze the review with `plain_review freeze`.
+6. Put throwaway scripts and test data in `PO_SHELL_TMP`/`TMPDIR`, never in the repo.
+7. Before a risky state change, migration or recovery test: `po-shell backup` and `po-shell integrity`.
+8. If the change is risky, freeze the review with `po_shell_review freeze`.
 9. Save memory if there is a durable conclusion.
 10. You may commit to save state. Push, PR and deploy are the human's decision.
 11. If recovery or state integrity changed, update `docs/recovery.md` and add tests.
 
 ## Temporary files
 
-- Session scratch is `PLAIN_TMP`, normally `~/.plain/tmp/plain-XXXXXX/`.
-- Subagents get `PLAIN_TMP/plain-sub-XXXXXX/`; the parent removes it.
+- Session scratch is `PO_SHELL_TMP`, normally `~/.po-shell/tmp/po-shell-XXXXXX/`.
+- Subagents get `PO_SHELL_TMP/po-shell-sub-XXXXXX/`; the parent removes it.
 - Do not create `tmp/`, `.tmp/`, test fixtures or caches inside the repo.
 - Tests use `mktemp` outside the worktree; if scratch must live inside, use an ignored path and remove it before finishing.
-- `plain scratch list` inspects leftovers; `plain scratch clean` removes ended sessions.
+- `po-shell scratch list` inspects leftovers; `po-shell scratch clean` removes ended sessions.
 - If a temporary test becomes real, move it to `test/` and commit it.
 
 ## Recovery
 
-- Never delete `~/.plain`, `context.db`, task JSON or reviews to "fix" an error.
-- Stop and run `plain integrity` before editing recovery state.
+- Never delete `~/.po-shell`, `context.db`, task JSON or reviews to "fix" an error.
+- Stop and run `po-shell integrity` before editing recovery state.
 - Follow `docs/recovery.md`; do not improvise a restore.
-- `plain restore` requires `--yes` and is a human decision unless explicitly requested.
-- `plain integrity --fix` only imports missing memory rows; it does not overwrite existing ones.
+- `po-shell restore` requires `--yes` and is a human decision unless explicitly requested.
+- `po-shell integrity --fix` only imports missing memory rows; it does not overwrite existing ones.
 
 ## Definition of done
 

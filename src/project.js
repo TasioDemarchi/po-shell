@@ -6,8 +6,8 @@ import { expandHome, readJson, sha256 } from "./util.js";
 
 const identityCache = new Map();
 
-export function plainHome(env = process.env) {
-  return env.PLAIN_HOME ? expandHome(env.PLAIN_HOME) : path.join(os.homedir(), ".plain");
+export function poShellHome(env = process.env) {
+  return env.PO_SHELL_HOME ? expandHome(env.PO_SHELL_HOME) : path.join(os.homedir(), ".po-shell");
 }
 
 function projectRoot(cwd) {
@@ -47,11 +47,11 @@ export function projectIdentity(cwd = process.cwd()) {
 }
 
 export function projectStateDir(cwd = process.cwd(), env = process.env) {
-  return path.join(plainHome(env), "projects", projectIdentity(cwd).id);
+  return path.join(poShellHome(env), "projects", projectIdentity(cwd).id);
 }
 
 export function legacyStateDir(cwd = process.cwd()) {
-  return path.join(path.resolve(cwd), ".plain");
+  return path.join(path.resolve(cwd), ".po-shell");
 }
 
 
@@ -68,16 +68,16 @@ export function projectInfo(cwd = process.cwd(), env = process.env) {
     name: meta?.name ?? identity.name,
     root: meta?.root ?? identity.root,
     stateDir,
-    contextDb: env.PLAIN_CONTEXT_DB
-      ? expandHome(env.PLAIN_CONTEXT_DB)
-      : path.join(plainHome(env), "context.db"),
+    contextDb: env.PO_SHELL_CONTEXT_DB
+      ? expandHome(env.PO_SHELL_CONTEXT_DB)
+      : path.join(poShellHome(env), "context.db"),
     initialized: fs.existsSync(path.join(stateDir, "config.json")),
     updatedAt: meta?.updatedAt ?? null,
   };
 }
 
 export function listProjectStates(env = process.env, options = {}) {
-  const root = path.join(plainHome(env), "projects");
+  const root = path.join(poShellHome(env), "projects");
   let entries;
   try {
     entries = fs.readdirSync(root, { withFileTypes: true });
@@ -138,7 +138,7 @@ export function pruneProjectStates(env = process.env, options = {}) {
   }
 
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const trashDir = path.join(plainHome(env), "trash", stamp);
+  const trashDir = path.join(poShellHome(env), "trash", stamp);
   const moved = [];
   for (const item of candidates) {
     try {

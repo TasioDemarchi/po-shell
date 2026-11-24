@@ -7,16 +7,16 @@ import { creditsFor, costSummary, formatCredits, recordCost } from "../src/costs
 import { projectIdentity } from "../src/project.js";
 import { createTask, init } from "../src/kernel.js";
 
-process.env.PLAIN_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "plain-costs-home-"));
+process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-costs-home-"));
 
 function tempProject() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "plain-costs-"));
+  return fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-costs-"));
 }
 
 function envFor(dir) {
   return {
-    PLAIN_HOME: process.env.PLAIN_HOME,
-    PLAIN_CONTEXT_DB: path.join(dir, "context.db"),
+    PO_SHELL_HOME: process.env.PO_SHELL_HOME,
+    PO_SHELL_CONTEXT_DB: path.join(dir, "context.db"),
   };
 }
 

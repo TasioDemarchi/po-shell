@@ -4,7 +4,7 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { init, isInitialized, plainPath } from "./kernel.js";
+import { init, isInitialized, poShellPath } from "./kernel.js";
 import { readJson } from "./util.js";
 import { semanticConfig } from "./semantic.js";
 import { cleanupSessionScratch, createSessionScratch, sweepScratch } from "./scratch.js";
@@ -13,25 +13,25 @@ import { checkIntegrity, fixIntegrity } from "./backup.js";
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 export const PACKAGE_ROOT = path.resolve(here, "..");
-export const EXTENSION = path.join(PACKAGE_ROOT, "extensions", "plain.ts");
-export const SKILL = path.join(PACKAGE_ROOT, "skills", "plain-workflow");
+export const EXTENSION = path.join(PACKAGE_ROOT, "extensions", "po-shell.ts");
+export const SKILL = path.join(PACKAGE_ROOT, "skills", "po-shell-workflow");
 export const SKILLS = [
   SKILL,
   path.join(PACKAGE_ROOT, "skills", "agents-md-authoring"),
   path.join(PACKAGE_ROOT, "skills", "skill-md-authoring"),
   path.join(PACKAGE_ROOT, "skills", "feature-doc"),
 ];
-export const PROTOCOL = path.join(PACKAGE_ROOT, "prompts", "plain-protocol.md");
+export const PROTOCOL = path.join(PACKAGE_ROOT, "prompts", "po-shell-protocol.md");
 
 const INHERITED_AGENT_ENV = /^(PI_|VIOLETA_)/;
 
 export function cleanPiEnv(env = process.env) {
-  if (env.PLAIN_KEEP_PI_ENV === "1") return { ...env };
+  if (env.PO_SHELL_KEEP_PI_ENV === "1") return { ...env };
   const clean = { ...env };
   for (const key of Object.keys(clean)) {
     if (INHERITED_AGENT_ENV.test(key)) delete clean[key];
   }
-  if (clean.PLAIN_PI_AGENT_DIR) clean.PI_CODING_AGENT_DIR = clean.PLAIN_PI_AGENT_DIR;
+  if (clean.PO_SHELL_PI_AGENT_DIR) clean.PI_CODING_AGENT_DIR = clean.PO_SHELL_PI_AGENT_DIR;
   return clean;
 }
 
@@ -44,8 +44,8 @@ export function buildPiArgs(extra = []) {
 }
 
 export function resolvePi(env = process.env) {
-  if (env.PLAIN_PI_BIN) {
-    return { command: env.PLAIN_PI_BIN, prefix: [], source: "PLAIN_PI_BIN" };
+  if (env.PO_SHELL_PI_BIN) {
+    return { command: env.PO_SHELL_PI_BIN, prefix: [], source: "PO_SHELL_PI_BIN" };
   }
 
   const which = spawnSync(process.platform === "win32" ? "where" : "which", ["pi"], {
@@ -69,7 +69,7 @@ export function resolvePi(env = process.env) {
       };
     }
   } catch {
-    // Sin Pi como dependencia; se usa PATH o PLAIN_PI_BIN.
+    // Sin Pi como dependencia; se usa PATH o PO_SHELL_PI_BIN.
   }
 
   return null;
@@ -111,7 +111,7 @@ export function doctor({ cwd = process.cwd(), env = process.env } = {}) {
   const pi = resolvePi(effectiveEnv);
   const piExists =
     pi &&
-    (pi.source !== "PLAIN_PI_BIN" ||
+    (pi.source !== "PO_SHELL_PI_BIN" ||
       fs.existsSync(pi.command) ||
       spawnSync(process.platform === "win32" ? "where" : "which", [pi.command]).status === 0);
   add(
@@ -119,7 +119,7 @@ export function doctor({ cwd = process.cwd(), env = process.env } = {}) {
     Boolean(piExists),
     pi
       ? `${pi.source}: ${[pi.command, ...pi.prefix].join(" ")}`
-      : "no encontrado. Instalá Pi o definí PLAIN_PI_BIN",
+      : "no encontrado. Instalá Pi o definí PO_SHELL_PI_BIN",
   );
 
   add("extensión", fs.existsSync(EXTENSION), EXTENSION);
@@ -177,7 +177,7 @@ export function doctor({ cwd = process.cwd(), env = process.env } = {}) {
   add(
     "estado central",
     initialized,
-    initialized ? plainPath(cwd, env) : "se inicializa al arrancar",
+    initialized ? poShellPath(cwd, env) : "se inicializa al arrancar",
     true,
   );
 
@@ -202,7 +202,7 @@ export function ensureProject(cwd = process.cwd(), env = process.env) {
   if (!wasInitialized) {
     try {
       const result = init(cwd, env);
-      console.error(`Plain inicializado en ${result.root}`);
+      console.error(`po-shell inicializado en ${result.root}`);
       if (result.migratedFrom) {
         console.error(`  estado anterior migrado desde ${result.migratedFrom}`);
       }
@@ -251,24 +251,24 @@ export function ensureProject(cwd = process.cwd(), env = process.env) {
 export async function launch({ cwd = process.cwd(), env = process.env, args = [] } = {}) {
   const pi = resolvePi(env);
   if (!pi) {
-    console.error("plain: no encontré Pi.");
-    console.error("  Instalá Pi o definí PLAIN_PI_BIN=/ruta/al/binario/pi");
-    console.error("  Después probá: plain doctor");
+    console.error("po-shell: no encontré Pi.");
+    console.error("  Instalá Pi o definí PO_SHELL_PI_BIN=/ruta/al/binario/pi");
+    console.error("  Después probá: po-shell doctor");
     return 1;
   }
 
   const piArgs = buildPiArgs(args);
-  if (env.PLAIN_DRY_RUN === "1") {
+  if (env.PO_SHELL_DRY_RUN === "1") {
     console.log(JSON.stringify({ command: pi.command, args: [...pi.prefix, ...piArgs] }, null, 2));
     return 0;
   }
 
   const project = ensureProject(cwd, env);
   if (!project.ok) {
-    console.error("plain: el estado del proyecto no está sano; no abro el chat.");
+    console.error("po-shell: el estado del proyecto no está sano; no abro el chat.");
     const detail = formatIntegrity(project.report);
     if (detail) console.error(detail);
-    console.error("  Corregí con: plain integrity --fix, o restaurá un backup con plain restore.");
+    console.error("  Corregí con: po-shell integrity --fix, o restaurá un backup con po-shell restore.");
     return 1;
   }
   if (project.report.warnings > 0) {
@@ -281,7 +281,7 @@ export async function launch({ cwd = process.cwd(), env = process.env, args = []
     sweepScratch(env);
     scratch = createSessionScratch(env, { cwd });
   } catch (error) {
-    console.error(`plain: no se pudo crear el scratch de sesión: ${error.message}`);
+    console.error(`po-shell: no se pudo crear el scratch de sesión: ${error.message}`);
   }
 
   return await new Promise((resolve) => {
@@ -301,17 +301,17 @@ export async function launch({ cwd = process.cwd(), env = process.env, args = []
         env: {
           ...cleanPiEnv(env),
           ...(scratch?.env ?? {}),
-          PLAIN_SHELL: "1",
+          PO_SHELL_SHELL: "1",
         },
         shell: process.platform === "win32",
       });
     } catch (error) {
-      console.error(`plain: no se pudo iniciar Pi: ${error.message}`);
+      console.error(`po-shell: no se pudo iniciar Pi: ${error.message}`);
       return finish(1);
     }
 
     child.on("error", (error) => {
-      console.error(`plain: no se pudo iniciar Pi: ${error.message}`);
+      console.error(`po-shell: no se pudo iniciar Pi: ${error.message}`);
       finish(1);
     });
     child.on("exit", (code, signal) => {

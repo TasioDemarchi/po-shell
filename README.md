@@ -1,4 +1,4 @@
-# Plain
+# po-shell
 
 **Un arnés determinista para agentes de código.**
 No es un prompt, no es un kit de `.md`, no es un wrapper de chat: es un runtime con estado, políticas, evidencia y revisión congelada.
@@ -10,7 +10,7 @@ No es un prompt, no es un kit de `.md`, no es un wrapper de chat: es un runtime 
 └───────────────┬──────────────────────────────────────────────┘
                 │ tools + hooks
 ┌───────────────▼──────────────────────────────────────────────┐
-│  Plain (kernel + extensión)                                   │
+│  po-shell (kernel + extensión)                                   │
 │                                                              │
 │  tasks      estado determinista del trabajo                  │
 │  memory     conocimiento durable con búsqueda                │
@@ -20,16 +20,16 @@ No es un prompt, no es un kit de `.md`, no es un wrapper de chat: es un runtime 
 │  events     log append-only de todo                          │
 └───────────────┬──────────────────────────────────────────────┘
                 │
-        ~/.plain/projects/<id>/ (estado central por proyecto)
+        ~/.po-shell/projects/<id>/ (estado central por proyecto)
 ```
 
 ## Qué resuelve
 
-| Problema real | Cómo lo resuelve Plain |
+| Problema real | Cómo lo resuelve po-shell |
 |---|---|
 | El agente olvida decisiones entre sesiones | `context_search` sobre docs + memorias |
-| Dice “listo” sin probar nada | `plain_check` graba evidencia; el contexto recuerda que falta |
-| Revisa un worktree que ya cambió | `plain_review freeze` congela bytes + hash |
+| Dice “listo” sin probar nada | `po_shell_check` graba evidencia; el contexto recuerda que falta |
+| Revisa un worktree que ya cambió | `po_shell_review freeze` congela bytes + hash |
 | Toca secretos o comandos destructivos | `tool_call` gate determinista |
 | Trabajo grande sin estado | task state machine (`authorized → … → delivered`) |
 | No sabés qué hizo ni cuánto costó | `events.jsonl` append-only |
@@ -45,17 +45,17 @@ El launcher fue validado en sesiones reales; quedan pendientes MCP, sandbox y ev
 Requisitos: Node 22+ y Pi.
 
 ```bash
-cd plain
-npm link                 # deja `plain` en el PATH
-plain doctor              # verifica Node, Pi, git y archivos
-plain                     # inicia el agente con Plain cargado
+cd po-shell
+npm link                 # deja `po-shell` en el PATH
+po-shell doctor              # verifica Node, Pi, git y archivos
+po-shell                     # inicia el agente con po-shell cargado
 ```
 
-`plain` inicializa el estado central del proyecto en `~/.plain/projects/<id>/`.
-El repo **no** recibe una carpeta `.plain/`: solo los `.md` del proyecto.
+`po-shell` inicializa el estado central del proyecto en `~/.po-shell/projects/<id>/`.
+El repo **no** recibe una carpeta `.po-shell/`: solo los `.md` del proyecto.
 
 ```text
-~/.plain/
+~/.po-shell/
 ├── context.db                  memorias canónicas + índice de docs
 ├── memory/                     mirror Markdown de memorias globales
 └── projects/<id>/
@@ -67,32 +67,32 @@ El repo **no** recibe una carpeta `.plain/`: solo los `.md` del proyecto.
     └── events.jsonl
 ```
 
-Podés cambiar la raíz con `PLAIN_HOME`.
+Podés cambiar la raíz con `PO_SHELL_HOME`.
 
-Si no querés `npm link`, usá `node /ruta/a/plain/bin/plain.js`.
+Si no querés `npm link`, usá `node /ruta/a/po-shell/bin/po-shell.js`.
 
-Para los subagentes, Plain ejecuta `pi`. Si no está en el `PATH` del proceso:
+Para los subagentes, po-shell ejecuta `pi`. Si no está en el `PATH` del proceso:
 
 ```bash
-export PLAIN_PI_BIN=/ruta/al/binario/pi
+export PO_SHELL_PI_BIN=/ruta/al/binario/pi
 ```
 
 El launcher limpia `PI_*` y `VIOLETA_*` heredados antes de abrir Pi. Así no reutiliza la sesión, el modelo ni el `agent dir` de otro harness. Si querés forzar un agent dir:
 
 ```bash
-export PLAIN_PI_AGENT_DIR=/home/vos/.pi/agent
+export PO_SHELL_PI_AGENT_DIR=/home/vos/.pi/agent
 ```
 
-Para conservar todo el entorno heredado: `PLAIN_KEEP_PI_ENV=1`.
+Para conservar todo el entorno heredado: `PO_SHELL_KEEP_PI_ENV=1`.
 
 > [!note]
-> `plain` carga la extensión explícitamente con `--extension`.
-> Si además instalás el paquete con `pi install ./plain`, vas a cargarla dos veces.
-> Elegí uno: `plain` (launcher) o `pi install` (uso desde un Pi normal).
+> `po-shell` carga la extensión explícitamente con `--extension`.
+> Si además instalás el paquete con `pi install ./po-shell`, vas a cargarla dos veces.
+> Elegí uno: `po-shell` (launcher) o `pi install` (uso desde un Pi normal).
 
-`plain` crea el estado central si falta y corre `plain integrity` antes de abrir Pi. `plain init` e `plain integrity` quedan como comandos explícitos, pero no son necesarios para arrancar.
+`po-shell` crea el estado central si falta y corre `po-shell integrity` antes de abrir Pi. `po-shell init` e `po-shell integrity` quedan como comandos explícitos, pero no son necesarios para arrancar.
 
-Configurá tus checks en `~/.plain/projects/<id>/config.json`:
+Configurá tus checks en `~/.po-shell/projects/<id>/config.json`:
 
 ```json
 {
@@ -103,37 +103,37 @@ Configurá tus checks en `~/.plain/projects/<id>/config.json`:
 ## Uso
 
 ```bash
-plain                     # agente: crea estado y valida integridad solo
-plain shell -- --model X  # agente con argumentos para Pi
-plain where               # muestra id, root y estado central del proyecto
-plain projects            # lista proyectos con estado central (oculta huérfanos)
-plain projects --all      # incluye directorios sin metadata
-plain projects prune --dry-run  # muestra estados huérfanos
-plain checks suggest      # propone checks según el stack
-plain checks suggest --write    # los guarda en la config central
-plain index               # indexa docs y memorias para búsqueda
-plain context search "idempotencia"
-plain context search "idempotencia" --project plain
-plain ask "¿cómo manejamos uploads?" --project plain
-plain context get "mem:arch-upload"
-plain backup              # snapshot de estado + SQLite + repo
-plain backup list
-plain restore <backup-dir> --yes
-plain integrity           # tareas, eventos, reviews, SQLite y memoria
-plain scratch list        # temporales de sesión y subagentes
-plain scratch clean       # limpia temporales terminados
-plain costs               # créditos por modelo, tarea y rol
-plain costs --days 7      # últimos 7 días
-plain costs --task <id>   # una tarea
-plain costs --all-projects  # suma de todos los proyectos Plain
-plain remember "Antes de refactorizar, mostrar un plan" --priority high --scope global
-plain directives
-plain status
-plain task new "Agregar retries al upload" --risk medium --scope "upload handler"
-plain task phase implementing
-plain check
-plain review freeze
-plain memory save --title "Idempotencia" \
+po-shell                     # agente: crea estado y valida integridad solo
+po-shell shell -- --model X  # agente con argumentos para Pi
+po-shell where               # muestra id, root y estado central del proyecto
+po-shell projects            # lista proyectos con estado central (oculta huérfanos)
+po-shell projects --all      # incluye directorios sin metadata
+po-shell projects prune --dry-run  # muestra estados huérfanos
+po-shell checks suggest      # propone checks según el stack
+po-shell checks suggest --write    # los guarda en la config central
+po-shell index               # indexa docs y memorias para búsqueda
+po-shell context search "idempotencia"
+po-shell context search "idempotencia" --project po-shell
+po-shell ask "¿cómo manejamos uploads?" --project po-shell
+po-shell context get "mem:arch-upload"
+po-shell backup              # snapshot de estado + SQLite + repo
+po-shell backup list
+po-shell restore <backup-dir> --yes
+po-shell integrity           # tareas, eventos, reviews, SQLite y memoria
+po-shell scratch list        # temporales de sesión y subagentes
+po-shell scratch clean       # limpia temporales terminados
+po-shell costs               # créditos por modelo, tarea y rol
+po-shell costs --days 7      # últimos 7 días
+po-shell costs --task <id>   # una tarea
+po-shell costs --all-projects  # suma de todos los proyectos po-shell
+po-shell remember "Antes de refactorizar, mostrar un plan" --priority high --scope global
+po-shell directives
+po-shell status
+po-shell task new "Agregar retries al upload" --risk medium --scope "upload handler"
+po-shell task phase implementing
+po-shell check
+po-shell review freeze
+po-shell memory save --title "Idempotencia" \
   --what "Reusar request id" \
   --why "Los retries duplicaban registros" \
   --where "internal/upload/handler.go" \
@@ -144,7 +144,7 @@ plain memory save --title "Idempotencia" \
 
 Dentro de Pi, el agente tiene:
 
-- `plain_status`, `plain_task`, `plain_memory`, `plain_check`, `plain_review`, `plain_ask`, `plain_delegate`
+- `po_shell_status`, `po_shell_task`, `po_shell_memory`, `po_shell_check`, `po_shell_review`, `po_shell_ask`, `po_shell_delegate`
 - `context_search` y `context_get` sobre docs y memorias indexadas
 - directivas de comportamiento inyectadas al inicio de cada sesión
 - un hook `tool_call` que bloquea paths/comandos prohibidos
@@ -152,11 +152,11 @@ Dentro de Pi, el agente tiene:
 
 ## Skills incluidas
 
-`plain` carga cuatro skills:
+`po-shell` carga cuatro skills:
 
 | Skill | Para qué |
 |---|---|
-| `plain-workflow` | Procedimiento operativo de Plain |
+| `po-shell-workflow` | Procedimiento operativo de po-shell |
 | `agents-md-authoring` | Escribir o revisar `AGENTS.md` |
 | `skill-md-authoring` | Escribir o revisar `SKILL.md` |
 | `feature-doc` | Crear y mantener `docs/features/<slug>.md` |
@@ -194,7 +194,7 @@ Se indexan solo las secciones estables. `Tareas`, `Estado` y `Log` no se indexan
 - **Feature docs:** estructura y headings en inglés; contenido, pedidos textuales, errores y copy de UI en el idioma del usuario.
 - **Memorias:** un solo idioma por registro. En proyectos en español, se escriben en español y se buscan en español. Si la búsqueda no devuelve nada, reintentar con sinónimos en inglés.
 - **Aliases:** cada memoria puede incluir 2–5 alias bilingües; el FTS exacto los indexa.
-- **SQLite es la fuente:** las memorias viven en `~/.plain/context.db`; los `.md` son mirror de auditoría.
+- **SQLite es la fuente:** las memorias viven en `~/.po-shell/context.db`; los `.md` son mirror de auditoría.
 - **Snapshots:** `state`, `feature` y `session` son snapshots operativos; se actualizan por `topic`, no se acumulan.
 
 ## Memoria y reanudación
@@ -226,7 +226,7 @@ Antes de compactar, guarda un checkpoint `session/current`; después de compacta
 
 ## Búsqueda semántica
 
-Plain usa la API de Nan:
+po-shell usa la API de Nan:
 
 ```text
 qwen3-embedding → embeddings
@@ -245,10 +245,10 @@ Funciona como híbrido:
 
 - Si Nan no está disponible, vuelve a FTS exacto con variantes singular/plural y fallback OR.
 - El primer search indexa embeddings lazy; después queda cacheado en SQLite.
-- Para desactivar: `PLAIN_SEMANTIC=off` o `/semantic off`.
+- Para desactivar: `PO_SHELL_SEMANTIC=off` o `/semantic off`.
 - `git push` está bloqueado por defecto; se habilita con `"allowPush": true` en la policy.
-- Credenciales: `PLAIN_SEMANTIC_API_KEY` o `NAN_API_KEY`; también lee `auth.json` del agent dir.
-- Variables: `PLAIN_EMBEDDING_MODEL`, `PLAIN_RERANK_MODEL`, `PLAIN_SEMANTIC_BASE_URL`.
+- Credenciales: `PO_SHELL_SEMANTIC_API_KEY` o `NAN_API_KEY`; también lee `auth.json` del agent dir.
+- Variables: `PO_SHELL_EMBEDDING_MODEL`, `PO_SHELL_RERANK_MODEL`, `PO_SHELL_SEMANTIC_BASE_URL`.
 - Smoke test semántico: `npm run test:semantic`.
 
 Dentro de Pi:
@@ -260,21 +260,21 @@ Dentro de Pi:
 
 Sin argumentos muestra el estado. El cambio aplica a la sesión actual.
 
-La regla completa vive en `prompts/plain-protocol.md`.
+La regla completa vive en `prompts/po-shell-protocol.md`.
 
 ## Costos
 
-Nan cobra en créditos, no en dólares. Plain calcula el costo con una tabla de tarifas por modelo y registra cada respuesta del agente y cada subagente.
+Nan cobra en créditos, no en dólares. po-shell calcula el costo con una tabla de tarifas por modelo y registra cada respuesta del agente y cada subagente.
 
 ```bash
-plain costs
-plain costs --days 7
-plain costs --task <id> --json
+po-shell costs
+po-shell costs --days 7
+po-shell costs --task <id> --json
 ```
 
-Por defecto muestra solo el proyecto actual. `--all-projects` suma todos los proyectos Plain.
+Por defecto muestra solo el proyecto actual. `--all-projects` suma todos los proyectos po-shell.
 
-El reporte agrupa por modelo, tarea y rol. **No calcula el saldo de tu suscripción Nan**: solo muestra lo que consumió Plain. Si usás Nan en otros lados, ese consumo no aparece acá.
+El reporte agrupa por modelo, tarea y rol. **No calcula el saldo de tu suscripción Nan**: solo muestra lo que consumió po-shell. Si usás Nan en otros lados, ese consumo no aparece acá.
 
 Si un modelo no tiene tarifa, el evento se registra con `0` créditos y el reporte lo marca como desconocido. Las tarifas viven en `src/costs.js`.
 
@@ -283,34 +283,34 @@ Si un modelo no tiene tarifa, el evento se registra con `0` créditos y el repor
 Antes de una operación riesgosa:
 
 ```bash
-plain backup
-plain integrity
+po-shell backup
+po-shell integrity
 ```
 
-`plain backup` guarda el estado del proyecto, un snapshot de SQLite, la memoria global si existe y un bundle de Git. El runbook completo está en `docs/recovery.md`.
+`po-shell backup` guarda el estado del proyecto, un snapshot de SQLite, la memoria global si existe y un bundle de Git. El runbook completo está en `docs/recovery.md`.
 
 ```bash
-plain backup list
-plain restore <backup-dir> --yes
-plain integrity --fix
+po-shell backup list
+po-shell restore <backup-dir> --yes
+po-shell integrity --fix
 ```
 
-`restore` mueve el estado anterior a `~/.plain/trash/` y requiere `--yes`. `integrity --fix` solo importa memorias Markdown que falten en SQLite; no sobrescribe filas existentes.
+`restore` mueve el estado anterior a `~/.po-shell/trash/` y requiere `--yes`. `integrity --fix` solo importa memorias Markdown que falten en SQLite; no sobrescribe filas existentes.
 
 ## Scratch temporal
 
 El agente no elige dónde poner scripts descartables. El launcher crea un directorio privado por sesión y lo pasa como `TMPDIR`:
 
 ```text
-~/.plain/tmp/plain-XXXXXX/
+~/.po-shell/tmp/po-shell-XXXXXX/
 ```
 
-Cada subagente recibe su propio `plain-sub-XXXXXX` debajo. El runtime limpia al cerrar y barre sesiones muertas al iniciar.
+Cada subagente recibe su propio `po-shell-sub-XXXXXX` debajo. El runtime limpia al cerrar y barre sesiones muertas al iniciar.
 
 ```bash
-plain scratch list
-plain scratch clean
-plain scratch clean --force
+po-shell scratch list
+po-shell scratch clean
+po-shell scratch clean --force
 ```
 
 Si un script deja de ser temporal, se promueve a `test/` o `scripts/`. La política completa está en `docs/scratch.md`.
@@ -320,7 +320,7 @@ Si un script deja de ser temporal, se promueve a `test/` o `scripts/`. La polít
 Para darle una regla al agente sin editar `AGENTS.md`:
 
 ```bash
-plain remember "Antes de refactorizar, mostrar un plan y esperar aprobación" \
+po-shell remember "Antes de refactorizar, mostrar un plan y esperar aprobación" \
   --trigger "refactor, renombrar" \
   --priority high \
   --scope global
@@ -329,23 +329,23 @@ plain remember "Antes de refactorizar, mostrar un plan y esperar aprobación" \
 Se guarda como memoria `type: behavior` y se inyecta al inicio de cada sesión:
 
 ```xml
-<plain_directives>
+<po_shell_directives>
 - [global, high] Antes de refactorizar, mostrar un plan y esperar aprobación (cuando: refactor, renombrar)
-</plain_directives>
+</po_shell_directives>
 ```
 
 Para ver las directivas activas:
 
 ```bash
-plain directives
-plain directives --json
+po-shell directives
+po-shell directives --json
 ```
 
-`--scope global` guarda la directiva en `~/.plain/memory/`, no en el proyecto.
+`--scope global` guarda la directiva en `~/.po-shell/memory/`, no en el proyecto.
 Así se comparte entre todos tus proyectos.
 
 ```text
-~/.plain/
+~/.po-shell/
 ├── context.db
 └── memory/
     └── responder-en-espanol.md
@@ -354,7 +354,7 @@ Así se comparte entre todos tus proyectos.
 Podés cambiar la ubicación con:
 
 ```bash
-export PLAIN_HOME=/ruta/a/plain-home
+export PO_SHELL_HOME=/ruta/a/po-shell-home
 ```
 
 IDs:
@@ -383,8 +383,8 @@ Las memorias viven en una DB global. La búsqueda:
 También podés consultar otro proyecto registrado desde cualquier carpeta:
 
 ```bash
-plain context search "retry duplicado" --project facturacion-api
-plain ask "¿cómo manejamos uploads?" --project plain
+po-shell context search "retry duplicado" --project facturacion-api
+po-shell ask "¿cómo manejamos uploads?" --project po-shell
 ```
 
 ```text
@@ -401,7 +401,7 @@ Reglas:
 - Para traer el detalle:
 
 ```bash
-plain context get "mem:project:<id>:bugfix-retries"
+po-shell context get "mem:project:<id>:bugfix-retries"
 ```
 
 ## Tareas de alto riesgo
@@ -415,7 +415,7 @@ Una tarea con `risk: "high"` nace con:
 El agente debe mostrar el plan y pedir aprobación humana con:
 
 ```text
-plain_task action="approve"
+po_shell_task action="approve"
 ```
 
 Eso abre un selector:
@@ -433,7 +433,7 @@ Hasta que se apruebe:
 
 ## Delegación
 
-`plain_delegate` lanza un subagente en otro proceso Pi con contexto limpio.
+`po_shell_delegate` lanza un subagente en otro proceso Pi con contexto limpio.
 
 ```json
 {
@@ -452,13 +452,13 @@ role: explorer
 status: ok
 turns: 3
 usage: input=... output=... total=...
-artifact: ~/.plain/projects/<id>/agents/run-.../result.md
+artifact: ~/.po-shell/projects/<id>/agents/run-.../result.md
 ```
 
 Artefactos:
 
 ```text
-~/.plain/projects/<id>/agents/run-.../
+~/.po-shell/projects/<id>/agents/run-.../
 ├── meta.json      rol, tarea, tools, usage, budget, status
 ├── result.md      salida final
 └── events.jsonl   stream JSON de Pi (capado)
@@ -494,13 +494,13 @@ Se cambia manualmente con `/model` o `--model`.
 ### Subagentes
 
 Cada rol tiene un modelo fijo en la config. El agente no lo cambia solo.
-El humano puede reemplazarlo editando la config o pasando `model` en `plain_delegate`.
+El humano puede reemplazarlo editando la config o pasando `model` en `po_shell_delegate`.
 
 No hay cambio automático de modelo entre fases: eso rompería cache y consistencia.
 
 ## Router por rol
 
-`plain_delegate` elige el modelo del rol desde `~/.plain/projects/<id>/config.json`:
+`po_shell_delegate` elige el modelo del rol desde `~/.po-shell/projects/<id>/config.json`:
 
 ```json
 {
@@ -534,14 +534,14 @@ Se lanza con:
 - `--no-context-files`: sin `AGENTS.md`/`CLAUDE.md`;
 - `--no-extensions`, `--no-skills`, `--no-mcp`: sin contaminación global;
 - un guard explícito de subagente;
-- protocolo mínimo (`prompts/plain-subagent.md`);
+- protocolo mínimo (`prompts/po-shell-subagent.md`);
 - solo las tools del rol.
 
 El subagente:
 
-- no puede usar `plain_memory` ni tools de estado;
+- no puede usar `po_shell_memory` ni tools de estado;
 - no puede escribir ni modificar `.md`;
-- no puede tocar el estado central (`~/.plain/`);
+- no puede tocar el estado central (`~/.po-shell/`);
 - sí puede leer, buscar y escribir código según su rol.
 
 Si necesita contexto del proyecto, el orquestador debe pasarlo en la misión.
@@ -549,7 +549,7 @@ Si necesita contexto del proyecto, el orquestador debe pasarlo en la misión.
 ## Principios de diseño
 
 1. **El modelo propone; el kernel dispone.** Las reglas que no admiten excepción no viven en un prompt.
-2. **Estado central, no en el repo.** `~/.plain/projects/<id>/` es inspeccionable con `cat` y `jq`; el repo solo guarda docs `.md`.
+2. **Estado central, no en el repo.** `~/.po-shell/projects/<id>/` es inspeccionable con `cat` y `jq`; el repo solo guarda docs `.md`.
 3. **Una tarea, una fase, una próxima acción.** Nada de “estoy trabajando en varias cosas”.
 4. **Evidencia o no está listo.** Un check que no corre no es un check.
 5. **Revisión sobre bytes congelados.** Si cambia un byte, cambia el hash.
@@ -559,47 +559,47 @@ Si necesita contexto del proyecto, el orquestador debe pasarlo en la misión.
 
 ## Seguridad
 
-La policy de Plain es **determinista pero no es un sandbox**. Bloquea paths y comandos conocidos; no impide que un binario arbitrario abra un socket. Para eso necesitás una barrera del sistema operativo:
+La policy de po-shell es **determinista pero no es un sandbox**. Bloquea paths y comandos conocidos; no impide que un binario arbitrario abra un socket. Para eso necesitás una barrera del sistema operativo:
 
 - Linux: `bubblewrap` / contenedor
 - macOS: `sandbox-exec`
 - o correr todo el proceso en Docker/VM
 
-Plain está diseñado para convivir con esa barrera, no para reemplazarla.
+po-shell está diseñado para convivir con esa barrera, no para reemplazarla.
 
 ## Roadmap
 
 | Versión | Qué agrega |
 |---|---|
-| **0.1** | Kernel + CLI + extensión Pi + launcher `plain` |
-| **0.2** | `plain index` + `context_search` / `context_get` + directivas de comportamiento |
-| **0.3** | `plain_delegate` con presupuesto y artefactos (hecho) |
+| **0.1** | Kernel + CLI + extensión Pi + launcher `po-shell` |
+| **0.2** | `po-shell index` + `context_search` / `context_get` + directivas de comportamiento |
+| **0.3** | `po_shell_delegate` con presupuesto y artefactos (hecho) |
 | **0.4** | Onboarding: doctor de providers, checks suggest y projects prune (hecho) |
 | **0.5** | Ledger de costo (hecho) + perfiles de subagentes |
 | **0.6** | Backup, restore e integrity (hecho) |
 | **0.7** | Scratch temporal de sesión y subagentes (hecho) |
-| **0.8** | Arranque automático sin `plain init` (hecho) |
+| **0.8** | Arranque automático sin `po-shell init` (hecho) |
 | **0.9** | Servidor MCP para usar el kernel desde Claude Code/Codex |
 | **1.0** | Sandbox integrado + evals amplias |
 
 ### Backlog
 
-- `plain checks set "<comando>"`: agregar un check sin editar el JSON a mano.
+- `po-shell checks set "<comando>"`: agregar un check sin editar el JSON a mano.
 
 ## Estructura
 
 ```
-plain/
+po-shell/
 ├── README.md              qué es, cómo se instala, cómo se usa
 ├── AGENTS.md              manual operativo del agente en el repo
 ├── PROJECT.md             contexto humano y de proyecto: objetivo, alcance y estado
 ├── docs/architecture.md   arquitectura, componentes y memoria
 ├── docs/recovery.md       backup, restore y runbook de recuperación
 ├── docs/scratch.md        política de temporales y cleanup
-├── docs/self-hosting.md   cómo usar Plain para mejorar Plain
+├── docs/self-hosting.md   cómo usar po-shell para mejorar po-shell
 ├── docs/status.md         estado, pendientes, pausados y descartado
 ├── docs/agents-md-y-skill-md-investigacion.md  criterios para instrucciones de agentes
-├── bin/plain.js            dispatcher: agente o CLI
+├── bin/po-shell.js            dispatcher: agente o CLI
 ├── src/kernel.js          estado, tasks, memory, checks, reviews
 ├── src/project.js         identidad de proyecto y estado central
 ├── src/indexer.js         índice SQLite FTS5 de docs y memorias
@@ -610,10 +610,10 @@ plain/
 ├── src/costs.js           tarifas Nan, créditos y ledger
 ├── src/policy.js          deny paths/commands, gate
 ├── src/cli.js             parser de comandos
-├── src/shell.js           launcher: resuelve Pi y carga Plain
-├── prompts/plain-protocol.md  protocolo estable del orquestador
-├── extensions/plain.ts     tools + hooks para Pi
-├── skills/plain-workflow/  procedimiento para el agente
+├── src/shell.js           launcher: resuelve Pi y carga po-shell
+├── prompts/po-shell-protocol.md  protocolo estable del orquestador
+├── extensions/po-shell.ts     tools + hooks para Pi
+├── skills/po-shell-workflow/  procedimiento para el agente
 ├── skills/agents-md-authoring/  skill para escribir AGENTS.md
 ├── skills/skill-md-authoring/   skill para escribir SKILL.md
 ├── skills/feature-doc/          skill para crear docs/features/<slug>.md
@@ -642,7 +642,7 @@ Ahorro: 97,1%
 > **Pendiente:** esto mide payload de contexto, no tokens reales de Pi/NaN.
 > Falta la medición con 5 tareas reales: tokens, costo, tiempo y aceptación.
 
-En el repo de Plain (8 docs):
+En el repo de po-shell (8 docs):
 
 ```text
 Baseline: 26.980 chars ≈ 6.745 tokens
@@ -680,7 +680,7 @@ Resultados: `bench/RESULTS.md`.
 Diagnóstico de Pi y providers:
 
 ```bash
-plain doctor
+po-shell doctor
 ```
 
 Ahora muestra:
@@ -692,8 +692,8 @@ agent dir, models.json, providers, defaultProvider/defaultModel, auth.json
 Sugerencia de checks:
 
 ```bash
-plain checks suggest
-plain checks suggest --write
+po-shell checks suggest
+po-shell checks suggest --write
 ```
 
 Detecta Node, Go, Rust, Python, Maven, Gradle, Makefile y justfile.
@@ -702,11 +702,11 @@ No ejecuta nada solo.
 Limpieza de estados huérfanos:
 
 ```bash
-plain projects prune --dry-run
-plain projects prune --yes
+po-shell projects prune --dry-run
+po-shell projects prune --yes
 ```
 
-Mueve los estados sin `project.json` a `~/.plain/trash/<fecha>/`, no los borra.
+Mueve los estados sin `project.json` a `~/.po-shell/trash/<fecha>/`, no los borra.
 
 ## Tests
 

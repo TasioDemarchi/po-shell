@@ -22,7 +22,7 @@ import {
   listTasks,
   loadConfig,
   memoryIndex,
-  plainPath,
+  poShellPath,
   renderStatus,
   reviewDiff,
   runChecks,
@@ -57,12 +57,12 @@ function parseOptions(args) {
 }
 
 function fail(message) {
-  console.error(`plain: ${message}`);
+  console.error(`po-shell: ${message}`);
   process.exit(1);
 }
 
 function requireInit(cwd) {
-  if (!isInitialized(cwd)) fail("no inicializado. Corré: plain init");
+  if (!isInitialized(cwd)) fail("no inicializado. Corré: po-shell init");
 }
 
 function printTask(task) {
@@ -76,49 +76,49 @@ function printTask(task) {
 }
 
 function help() {
-  console.log(`plain — arnés determinista para agentes
+  console.log(`po-shell — arnés determinista para agentes
 
 Uso:
-  plain                     inicia el agente (Pi) con Plain cargado
-  plain doctor              chequea Node, Pi, git y archivos
-  plain shell [args...]     inicia el agente con argumentos para Pi
-  plain init
-  plain where [--json]
-  plain projects [--all] [--json]
-  plain projects prune [--dry-run] [--yes] [--json]
-  plain checks suggest [--write] [--json]
-  plain status [--json]
-  plain task new "<título>" [--risk low|medium|high] [--scope "..."] [--out "..."]
-  plain task phase <${PHASES.join("|")}> [id]
-  plain task list
-  plain task show [id]
-  plain remember "<regla>" [--title "..."] [--trigger "..."] [--aliases "a, b"] [--priority low|medium|high] [--scope project|global]
-  plain directives [--json]
-  plain memory save --title "..." --what "..." [--why "..."] [--where "..."] [--learned "..."] [--topic "..."] [--type "..."] [--scope "..."] [--priority "..."] [--trigger "..."] [--aliases "a, b"] [--status "..."]
-  plain memory search "<query>"
-  plain memory index
-  plain check [-- <comando>...]
-  plain review freeze [--base HEAD]
-  plain review show [id] [--diff]
-  plain policy test --tool bash --command "rm -rf /"
-  plain policy test --tool write --path .env
-  plain events [n]
-  plain costs [--project <id>|--all-projects] [--task <id>] [--model <id>] [--days N] [--json]
-  plain backup [--output <dir>] [--json]
-  plain backup list [--all] [--json]
-  plain restore <backup-dir> --yes [--no-db] [--global] [--json]
-  plain integrity [--fix] [--json]
-  plain scratch [list|clean] [--force] [--json]
-  plain index [--rebuild] [--json]
-  plain context search "<query>" [--kind spec|memory] [--type <tipo>] [--limit N] [--all-projects] [--json]
-  plain context get "<spec:path#ordinal|mem:key>" [--json]
+  po-shell                     inicia el agente (Pi) con po-shell cargado
+  po-shell doctor              chequea Node, Pi, git y archivos
+  po-shell shell [args...]     inicia el agente con argumentos para Pi
+  po-shell init
+  po-shell where [--json]
+  po-shell projects [--all] [--json]
+  po-shell projects prune [--dry-run] [--yes] [--json]
+  po-shell checks suggest [--write] [--json]
+  po-shell status [--json]
+  po-shell task new "<título>" [--risk low|medium|high] [--scope "..."] [--out "..."]
+  po-shell task phase <${PHASES.join("|")}> [id]
+  po-shell task list
+  po-shell task show [id]
+  po-shell remember "<regla>" [--title "..."] [--trigger "..."] [--aliases "a, b"] [--priority low|medium|high] [--scope project|global]
+  po-shell directives [--json]
+  po-shell memory save --title "..." --what "..." [--why "..."] [--where "..."] [--learned "..."] [--topic "..."] [--type "..."] [--scope "..."] [--priority "..."] [--trigger "..."] [--aliases "a, b"] [--status "..."]
+  po-shell memory search "<query>"
+  po-shell memory index
+  po-shell check [-- <comando>...]
+  po-shell review freeze [--base HEAD]
+  po-shell review show [id] [--diff]
+  po-shell policy test --tool bash --command "rm -rf /"
+  po-shell policy test --tool write --path .env
+  po-shell events [n]
+  po-shell costs [--project <id>|--all-projects] [--task <id>] [--model <id>] [--days N] [--json]
+  po-shell backup [--output <dir>] [--json]
+  po-shell backup list [--all] [--json]
+  po-shell restore <backup-dir> --yes [--no-db] [--global] [--json]
+  po-shell integrity [--fix] [--json]
+  po-shell scratch [list|clean] [--force] [--json]
+  po-shell index [--rebuild] [--json]
+  po-shell context search "<query>" [--kind spec|memory] [--type <tipo>] [--limit N] [--all-projects] [--json]
+  po-shell context get "<spec:path#ordinal|mem:key>" [--json]
 
 Estado central (por proyecto):
-  ~/.plain/projects/<id>/config.json      política y checks
-  ~/.plain/projects/<id>/tasks/*.json     estado de tareas
-  ~/.plain/projects/<id>/memory/*.md      memoria durable
-  ~/.plain/projects/<id>/reviews/*        candidatos congelados
-  ~/.plain/projects/<id>/events.jsonl     log de eventos
+  ~/.po-shell/projects/<id>/config.json      política y checks
+  ~/.po-shell/projects/<id>/tasks/*.json     estado de tareas
+  ~/.po-shell/projects/<id>/memory/*.md      memoria durable
+  ~/.po-shell/projects/<id>/reviews/*        candidatos congelados
+  ~/.po-shell/projects/<id>/events.jsonl     log de eventos
 
 Los docs del proyecto (.md) siguen viviendo en el repo.`);
 }
@@ -154,7 +154,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
         console.log(`  ${result.trashDir}`);
       } else {
         console.log(`Candidatos: ${result.candidates.length}`);
-        console.log("No se movió nada. Para moverlos a backup: plain projects prune --yes");
+        console.log("No se movió nada. Para moverlos a backup: po-shell projects prune --yes");
       }
       return;
     }
@@ -173,7 +173,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
 
   if (command === "init") {
     const result = init(cwd);
-    console.log(`Plain inicializado en ${result.root}`);
+    console.log(`po-shell inicializado en ${result.root}`);
     if (result.migratedFrom) console.log(`Estado migrado desde ${result.migratedFrom}`);
     return;
   }
@@ -197,7 +197,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
 
     if (action === "new") {
       const title = positional.join(" ").trim();
-      if (!title) fail('falta el título: plain task new "mi feature"');
+      if (!title) fail('falta el título: po-shell task new "mi feature"');
       const acceptance = options.acceptance
         ? String(options.acceptance)
             .split("|")
@@ -270,7 +270,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
 
   if (command === "checks") {
     const [action, ...args] = rest;
-    if (action !== "suggest") return fail("uso: plain checks suggest [--write] [--json]");
+    if (action !== "suggest") return fail("uso: po-shell checks suggest [--write] [--json]");
     const { options } = parseOptions(args);
     const result = suggestChecks(cwd);
     if (json) {
@@ -281,7 +281,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
       console.log("Sugerencias:");
       for (const command of result.commands) console.log(`  ${command}`);
       console.log("");
-      if (!options.write) console.log("No se escribió nada. Para aplicarlas: plain checks suggest --write");
+      if (!options.write) console.log("No se escribió nada. Para aplicarlas: po-shell checks suggest --write");
     }
     if (options.write) {
       if (!result.commands.length) return;
@@ -294,7 +294,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
   if (command === "remember") {
     const { options, positional } = parseOptions(rest);
     const rule = positional.join(" ").trim();
-    if (!rule) fail('falta la regla: plain remember "Antes de refactorizar, mostrar plan"');
+    if (!rule) fail('falta la regla: po-shell remember "Antes de refactorizar, mostrar plan"');
     const scope = options.scope ?? "project";
     const priority = options.priority ?? "medium";
     if (!["project", "global"].includes(scope)) fail("scope inválido: project|global");
@@ -379,7 +379,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
   if (command === "ask") {
     const { options, positional } = parseOptions(rest);
     const query = positional.join(" ").trim();
-    if (!query) fail('falta la pregunta: plain ask "tema"');
+    if (!query) fail('falta la pregunta: po-shell ask "tema"');
     const result = await searchContext(cwd, query, {
       project: options.project,
       kinds: options.kind ? [options.kind] : undefined,
@@ -410,7 +410,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
 
     if (action === "search") {
       const query = positional.join(" ").trim();
-      if (!query) fail('falta la búsqueda: plain context search "tema"');
+      if (!query) fail('falta la búsqueda: po-shell context search "tema"');
       const result = await searchContext(cwd, query, {
         project: options.project,
         kinds: options.kind ? [options.kind] : undefined,
@@ -442,7 +442,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
 
     if (action === "get") {
       const id = positional[0];
-      if (!id) fail('falta la referencia: plain context get "spec:docs/x.md#2"');
+      if (!id) fail('falta la referencia: po-shell context get "spec:docs/x.md#2"');
       const item = getContext(cwd, id);
       if (json) return console.log(JSON.stringify(item, null, 2));
       const location =
@@ -454,7 +454,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
       return;
     }
 
-    return fail("uso: plain context search|get ...");
+    return fail("uso: po-shell context search|get ...");
   }
 
   if (command === "backup") {
@@ -481,7 +481,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
   if (command === "restore") {
     const { options, positional } = parseOptions(rest);
     const source = positional[0];
-    if (!source) return fail("uso: plain restore <backup-dir> --yes");
+    if (!source) return fail("uso: po-shell restore <backup-dir> --yes");
     if (!options.yes) return fail("restore requiere --yes");
     const result = restoreBackup(cwd, source, {
       yes: true,
@@ -492,7 +492,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
     console.log(`Restaurado en: ${result.restoredTo}`);
     console.log(`Estado anterior: ${result.trashDir}`);
     for (const warning of result.warnings) console.log(`WARN: ${warning}`);
-    console.log("Verificá con: plain integrity");
+    console.log("Verificá con: po-shell integrity");
     return;
   }
 
@@ -538,7 +538,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
       }
       return;
     }
-    if (action !== "list") return fail("uso: plain scratch [list|clean] [--force]");
+    if (action !== "list") return fail("uso: po-shell scratch [list|clean] [--force]");
     const records = listScratch(process.env);
     if (json) return console.log(JSON.stringify(records, null, 2));
     if (!records.length) return console.log("(sin scratch)");
@@ -553,7 +553,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
   if (command === "index") {
     const { options } = parseOptions(rest);
     if (path.resolve(cwd) === os.homedir()) {
-      fail("no indexes el home completo. Corré plain index desde la raíz del proyecto o usá plain ask --project <nombre>.");
+      fail("no indexes el home completo. Corré po-shell index desde la raíz del proyecto o usá po-shell ask --project <nombre>.");
     }
     const result = indexProject(cwd, { rebuild: Boolean(options.rebuild) });
     if (json) return console.log(JSON.stringify(result, null, 2));
@@ -596,7 +596,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
       `Créditos del harness: ${formatCredits(summary.credits)} · ${summary.events} eventos`,
     );
     console.log(
-      `(solo lo consumido por Plain en ${projectId ? "este proyecto" : "todos los proyectos"}; no es el saldo de Nan)`,
+      `(solo lo consumido por po-shell en ${projectId ? "este proyecto" : "todos los proyectos"}; no es el saldo de Nan)`,
     );
     console.log(
       `Tokens: input ${summary.tokens.input}, cache ${summary.tokens.cached}, ` +
@@ -638,7 +638,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
     if (action === "freeze") {
       const meta = freezeReview(cwd, { base: options.base ?? "HEAD" });
       console.log(
-        `Review congelado: ${meta.id}\n  hash: ${meta.hash}\n  riesgo: ${meta.risk}\n  archivos: ${meta.files.length}\n  +${meta.added} / -${meta.deleted}\n  diff: ${path.join(plainPath(cwd), "reviews", meta.id, "diff.patch")}`,
+        `Review congelado: ${meta.id}\n  hash: ${meta.hash}\n  riesgo: ${meta.risk}\n  archivos: ${meta.files.length}\n  +${meta.added} / -${meta.deleted}\n  diff: ${path.join(poShellPath(cwd), "reviews", meta.id, "diff.patch")}`,
       );
       return;
     }
@@ -655,7 +655,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
 
   if (command === "policy") {
     const [action, ...args] = rest;
-    if (action !== "test") return fail("uso: plain policy test --tool bash --command ...");
+    if (action !== "test") return fail("uso: po-shell policy test --tool bash --command ...");
     const { options } = parseOptions(args);
     const toolName = options.tool ?? "bash";
     const input =
@@ -674,5 +674,5 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
     return;
   }
 
-  return fail(`comando desconocido: ${command}. Probá: plain help`);
+  return fail(`comando desconocido: ${command}. Probá: po-shell help`);
 }

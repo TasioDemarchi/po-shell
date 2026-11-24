@@ -6,14 +6,14 @@ import path from "node:path";
 import { searchContext } from "../src/context.js";
 import { init, saveMemory } from "../src/kernel.js";
 
-process.env.PLAIN_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "plain-search-home-"));
+process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-search-home-"));
 
 function project() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-search-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-search-"));
   const env = {
-    PLAIN_HOME: process.env.PLAIN_HOME,
-    PLAIN_CONTEXT_DB: path.join(dir, "context.db"),
-    PLAIN_SEMANTIC: "off",
+    PO_SHELL_HOME: process.env.PO_SHELL_HOME,
+    PO_SHELL_CONTEXT_DB: path.join(dir, "context.db"),
+    PO_SHELL_SEMANTIC: "off",
   };
   init(dir, env);
   return { dir, env };

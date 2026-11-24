@@ -1,6 +1,6 @@
 # Recuperación e integridad
 
-Este documento es el runbook de recuperación de Plain. Aplica al estado central en `~/.plain` y al repositorio.
+Este documento es el runbook de recuperación de po-shell. Aplica al estado central en `~/.po-shell` y al repositorio.
 
 ## Principio
 
@@ -9,18 +9,18 @@ Este documento es el runbook de recuperación de Plain. Aplica al estado central
 Antes de una operación riesgosa:
 
 ```bash
-plain backup
-plain integrity
+po-shell backup
+po-shell integrity
 ```
 
 Operaciones riesgosas incluyen migraciones, cambios de schema, limpieza de estado, reindexado, restauración y cualquier tarea con `risk: high`.
 
 ## Qué guarda un backup
 
-`plain backup` crea un directorio bajo:
+`po-shell backup` crea un directorio bajo:
 
 ```text
-~/.plain/backups/<project-id>/<timestamp>/
+~/.po-shell/backups/<project-id>/<timestamp>/
 ```
 
 Contiene:
@@ -35,29 +35,29 @@ repo.bundle          historial Git, si el proyecto es un repo
 
 `repo.bundle` incluye commits, no archivos sin trackear ni cambios sin commitear. Hacé commit antes de un backup importante.
 
-El scratch efímero (`~/.plain/tmp/`) no se incluye: no es estado durable.
+El scratch efímero (`~/.po-shell/tmp/`) no se incluye: no es estado durable.
 
 El directorio del backup se crea con permisos `0700` en sistemas POSIX.
 
 ## Comandos
 
 ```bash
-plain backup                    # crear backup del proyecto actual
-plain backup --output <dir>     # destino explícito
-plain backup list               # backups del proyecto actual
-plain backup list --all         # backups de todos los proyectos
-plain restore <backup-dir> --yes
-plain restore <backup-dir> --yes --no-db
-plain restore <backup-dir> --yes --global
-plain integrity
-plain integrity --fix
-plain integrity --json
+po-shell backup                    # crear backup del proyecto actual
+po-shell backup --output <dir>     # destino explícito
+po-shell backup list               # backups del proyecto actual
+po-shell backup list --all         # backups de todos los proyectos
+po-shell restore <backup-dir> --yes
+po-shell restore <backup-dir> --yes --no-db
+po-shell restore <backup-dir> --yes --global
+po-shell integrity
+po-shell integrity --fix
+po-shell integrity --json
 ```
 
 `restore` requiere `--yes` y mueve el estado anterior a:
 
 ```text
-~/.plain/trash/restore-<timestamp>/<project-id>/
+~/.po-shell/trash/restore-<timestamp>/<project-id>/
 ```
 
 Ese directorio es la red de seguridad inmediata.
@@ -65,7 +65,7 @@ Ese directorio es la red de seguridad inmediata.
 ## Verificación
 
 ```bash
-plain integrity
+po-shell integrity
 ```
 
 Chequea:
@@ -83,34 +83,34 @@ Códigos:
 - **ERROR**: no entregar ni seguir sin reparar.
 - **WARN**: revisar; puede ser recuperable.
 
-`plain integrity --fix` importa memorias Markdown que falten en SQLite. No sobrescribe memorias existentes ni borra filas.
+`po-shell integrity --fix` importa memorias Markdown que falten en SQLite. No sobrescribe memorias existentes ni borra filas.
 
 ## Escenarios
 
 ### 1. La DB SQLite está corrupta
 
-1. Detené Plain.
+1. Detené po-shell.
 2. Hacé un backup del estado actual si es legible:
 
 ```bash
-plain backup --output ~/plain-emergency-$(date +%s)
+po-shell backup --output ~/po-shell-emergency-$(date +%s)
 ```
 
 3. Restaurá el último backup sano:
 
 ```bash
-plain restore ~/.plain/backups/<project-id>/<timestamp> --yes
-plain integrity
+po-shell restore ~/.po-shell/backups/<project-id>/<timestamp> --yes
+po-shell integrity
 ```
 
-4. Si no hay backup, preservá `~/.plain` completo antes de tocar nada. No borres la DB sin copiarla.
+4. Si no hay backup, preservá `~/.po-shell` completo antes de tocar nada. No borres la DB sin copiarla.
 
 ### 2. Falta una memoria en SQLite pero existe el Markdown
 
 ```bash
-plain integrity          # debe mostrar WARN memory mirror
-plain integrity --fix
-plain integrity
+po-shell integrity          # debe mostrar WARN memory mirror
+po-shell integrity --fix
+po-shell integrity
 ```
 
 El fix solo inserta memorias faltantes. Si hay hashes distintos, revisalos a mano: el Markdown puede ser el mirror viejo.
@@ -123,8 +123,8 @@ El fix solo inserta memorias faltantes. Si hay hashes distintos, revisalos a man
 4. Verificá:
 
 ```bash
-plain integrity
-plain status
+po-shell integrity
+po-shell status
 ```
 
 `events.jsonl` es append-only y sirve como evidencia, no como replay automático.
@@ -132,19 +132,19 @@ plain status
 ### 4. Un review no coincide con su hash
 
 ```bash
-plain integrity
+po-shell integrity
 ```
 
 No entregues ese cambio. Revisá el diff actual, confirmá que es lo esperado y volvé a congelar:
 
 ```bash
-plain review freeze
+po-shell review freeze
 ```
 
 ### 5. Se perdió o corrompió el índice
 
 ```bash
-plain index --rebuild
+po-shell index --rebuild
 ```
 
 El rebuild preserva las memorias canónicas. No borra `context.db` ni el estado de tareas.
@@ -154,21 +154,21 @@ El rebuild preserva las memorias canónicas. No borra `context.db` ni el estado 
 Si el backup tiene `repo.bundle`:
 
 ```bash
-git clone ~/.plain/backups/<project-id>/<timestamp>/repo.bundle <destino>
+git clone ~/.po-shell/backups/<project-id>/<timestamp>/repo.bundle <destino>
 ```
 
 Los archivos sin commitear no están en el bundle. Recuperalos desde el working tree o desde otro backup.
 
 ### 7. Se perdió la sesión de Pi
 
-La sesión `.jsonl` es de Pi, no de Plain. Plain guarda:
+La sesión `.jsonl` es de Pi, no de po-shell. po-shell guarda:
 
 - `session/current` antes de compactar;
-- tareas y evidencia en `~/.plain/projects/<id>/`;
+- tareas y evidencia en `~/.po-shell/projects/<id>/`;
 - memoria durable;
 - `docs/features/<slug>.md` cuando corresponde.
 
-Para retomar: abrí la sesión desde su ruta, leé `plain status` y buscá `session/current` con `context_search`.
+Para retomar: abrí la sesión desde su ruta, leé `po-shell status` y buscá `session/current` con `context_search`.
 
 ## Restore selectivo
 
@@ -186,10 +186,10 @@ Para retomar: abrí la sesión desde su ruta, leé `plain status` y buscá `sess
 ## Checklist después de recuperar
 
 ```text
-[ ] plain integrity
-[ ] plain status
-[ ] plain index
-[ ] plain context search "<tema>" para verificar memoria
+[ ] po-shell integrity
+[ ] po-shell status
+[ ] po-shell index
+[ ] po-shell context search "<tema>" para verificar memoria
 [ ] revisar tarea activa y próximo paso
 [ ] correr el check del proyecto
 [ ] commit de estado si corresponde

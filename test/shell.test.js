@@ -25,15 +25,15 @@ test("SKILLS includes the workflow and authoring skills", () => {
   for (const skill of SKILLS) assert.ok(fs.existsSync(skill));
 });
 
-test("resolvePi honors PLAIN_PI_BIN", () => {
-  const resolved = resolvePi({ PLAIN_PI_BIN: "/bin/echo" });
+test("resolvePi honors PO_SHELL_PI_BIN", () => {
+  const resolved = resolvePi({ PO_SHELL_PI_BIN: "/bin/echo" });
   assert.equal(resolved.command, "/bin/echo");
-  assert.equal(resolved.source, "PLAIN_PI_BIN");
+  assert.equal(resolved.source, "PO_SHELL_PI_BIN");
 });
 
 
 test("providerDiagnostics reads providers and defaults from the agent dir", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-agent-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-agent-"));
   fs.writeFileSync(
     path.join(dir, "models.json"),
     JSON.stringify({ providers: { nan: { baseUrl: "https://api.nan.builders/v1" } } }),
@@ -56,10 +56,10 @@ test("cleanPiEnv removes inherited Pi and Violeta state", () => {
     PI_SESSION_FILE: "/tmp/session.jsonl",
     PI_MODEL: "violeta-model",
     VIOLETA_HOME: "/home/me/.violeta-test",
-    PLAIN_PI_BIN: "/bin/pi",
+    PO_SHELL_PI_BIN: "/bin/pi",
   });
   assert.equal(clean.PATH, "/bin");
-  assert.equal(clean.PLAIN_PI_BIN, "/bin/pi");
+  assert.equal(clean.PO_SHELL_PI_BIN, "/bin/pi");
   assert.equal(clean.PI_CODING_AGENT_DIR, undefined);
   assert.equal(clean.PI_SESSION_FILE, undefined);
   assert.equal(clean.PI_MODEL, undefined);
@@ -68,18 +68,18 @@ test("cleanPiEnv removes inherited Pi and Violeta state", () => {
 
 test("cleanPiEnv supports an explicit agent dir and escape hatch", () => {
   assert.equal(
-    cleanPiEnv({ PLAIN_PI_AGENT_DIR: "/home/me/.pi/agent" }).PI_CODING_AGENT_DIR,
+    cleanPiEnv({ PO_SHELL_PI_AGENT_DIR: "/home/me/.pi/agent" }).PI_CODING_AGENT_DIR,
     "/home/me/.pi/agent",
   );
   assert.equal(
-    cleanPiEnv({ PLAIN_KEEP_PI_ENV: "1", PI_MODEL: "x" }).PI_MODEL,
+    cleanPiEnv({ PO_SHELL_KEEP_PI_ENV: "1", PI_MODEL: "x" }).PI_MODEL,
     "x",
   );
 });
 
 
 test("launch creates a session scratch, passes TMPDIR to Pi and cleans it", async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-launch-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-launch-"));
   const home = path.join(dir, "home");
   const out = path.join(dir, "tmpdir.txt");
   const fake = path.join(dir, "fake-pi");
@@ -89,10 +89,10 @@ test("launch creates a session scratch, passes TMPDIR to Pi and cleans it", asyn
     cwd: dir,
     env: {
       ...process.env,
-      PLAIN_HOME: home,
-      PLAIN_CONTEXT_DB: path.join(dir, "context.db"),
-      PLAIN_TMP_ROOT: path.join(home, "tmp"),
-      PLAIN_PI_BIN: fake,
+      PO_SHELL_HOME: home,
+      PO_SHELL_CONTEXT_DB: path.join(dir, "context.db"),
+      PO_SHELL_TMP_ROOT: path.join(home, "tmp"),
+      PO_SHELL_PI_BIN: fake,
     },
   });
   assert.equal(code, 0);
@@ -103,11 +103,11 @@ test("launch creates a session scratch, passes TMPDIR to Pi and cleans it", asyn
 
 
 test("ensureProject initializes state automatically and leaves it healthy", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-ensure-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-ensure-"));
   const env = {
     ...process.env,
-    PLAIN_HOME: path.join(dir, "home"),
-    PLAIN_CONTEXT_DB: path.join(dir, "context.db"),
+    PO_SHELL_HOME: path.join(dir, "home"),
+    PO_SHELL_CONTEXT_DB: path.join(dir, "context.db"),
   };
   const result = ensureProject(dir, env);
   assert.equal(result.ok, true);
@@ -117,11 +117,11 @@ test("ensureProject initializes state automatically and leaves it healthy", () =
 });
 
 test("ensureProject refuses an invalid task before opening the chat", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-ensure-bad-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-ensure-bad-"));
   const env = {
     ...process.env,
-    PLAIN_HOME: path.join(dir, "home"),
-    PLAIN_CONTEXT_DB: path.join(dir, "context.db"),
+    PO_SHELL_HOME: path.join(dir, "home"),
+    PO_SHELL_CONTEXT_DB: path.join(dir, "context.db"),
   };
   const first = ensureProject(dir, env);
   const tasks = path.join(dir, "home", "projects", first.report.project.id, "tasks");

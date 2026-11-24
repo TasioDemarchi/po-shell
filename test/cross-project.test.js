@@ -14,8 +14,8 @@ function tempDir(prefix) {
 
 function envFor(home) {
   return {
-    PLAIN_HOME: home,
-    PLAIN_CONTEXT_DB: path.join(home, "context.db"),
+    PO_SHELL_HOME: home,
+    PO_SHELL_CONTEXT_DB: path.join(home, "context.db"),
   };
 }
 
@@ -44,9 +44,9 @@ function setupProject(dir, env) {
 }
 
 test("falls back to other projects when the current project has no memory", async () => {
-  const home = tempDir("plain-cross-home-");
-  const projectA = tempDir("plain-cross-a-");
-  const projectB = tempDir("plain-cross-b-");
+  const home = tempDir("po-shell-cross-home-");
+  const projectA = tempDir("po-shell-cross-a-");
+  const projectB = tempDir("po-shell-cross-b-");
   const env = envFor(home);
   const a = setupProject(projectA, env);
   init(projectB, env);
@@ -76,9 +76,9 @@ test("falls back to other projects when the current project has no memory", asyn
 
 
 test("current project memories win over other projects", async () => {
-  const home = tempDir("plain-cross-home-");
-  const projectA = tempDir("plain-cross-a-");
-  const projectB = tempDir("plain-cross-b-");
+  const home = tempDir("po-shell-cross-home-");
+  const projectA = tempDir("po-shell-cross-a-");
+  const projectB = tempDir("po-shell-cross-b-");
   const env = envFor(home);
   setupProject(projectA, env);
   init(projectB, env);
@@ -103,9 +103,9 @@ test("current project memories win over other projects", async () => {
 });
 
 test("explicit project search works from an unrelated cwd", async () => {
-  const home = tempDir("plain-cross-home-");
-  const projectA = tempDir("plain-cross-a-");
-  const outside = tempDir("plain-cross-outside-");
+  const home = tempDir("po-shell-cross-home-");
+  const projectA = tempDir("po-shell-cross-a-");
+  const outside = tempDir("po-shell-cross-outside-");
   const env = envFor(home);
   const a = setupProject(projectA, env);
 
@@ -120,9 +120,9 @@ test("explicit project search works from an unrelated cwd", async () => {
 });
 
 test("does not index an uninitialized cwd", async () => {
-  const home = tempDir("plain-cross-home-");
-  const projectA = tempDir("plain-cross-a-");
-  const outside = tempDir("plain-cross-outside-");
+  const home = tempDir("po-shell-cross-home-");
+  const projectA = tempDir("po-shell-cross-a-");
+  const outside = tempDir("po-shell-cross-outside-");
   const env = envFor(home);
   setupProject(projectA, env);
   fs.mkdirSync(path.join(outside, "docs"), { recursive: true });

@@ -26,9 +26,9 @@ function providerConfig(env = process.env) {
   const auth = readJson(path.join(dir, "auth.json"), {});
   return {
     provider,
-    baseUrl: String(env.PLAIN_SEMANTIC_BASE_URL || providerData.baseUrl || DEFAULT_BASE_URL).replace(/\/$/, ""),
+    baseUrl: String(env.PO_SHELL_SEMANTIC_BASE_URL || providerData.baseUrl || DEFAULT_BASE_URL).replace(/\/$/, ""),
     apiKey:
-      env.PLAIN_SEMANTIC_API_KEY ||
+      env.PO_SHELL_SEMANTIC_API_KEY ||
       env.NAN_API_KEY ||
       auth[provider]?.key ||
       auth.nan?.key ||
@@ -37,15 +37,15 @@ function providerConfig(env = process.env) {
 }
 
 export function semanticConfig(env = process.env) {
-  if (["0", "off", "false", "no"].includes(String(env.PLAIN_SEMANTIC ?? "").toLowerCase())) {
+  if (["0", "off", "false", "no"].includes(String(env.PO_SHELL_SEMANTIC ?? "").toLowerCase())) {
     return null;
   }
   const provider = providerConfig(env);
   if (!provider.apiKey) return null;
   return {
     ...provider,
-    embeddingModel: env.PLAIN_EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL,
-    rerankModel: env.PLAIN_RERANK_MODEL || DEFAULT_RERANK_MODEL,
+    embeddingModel: env.PO_SHELL_EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL,
+    rerankModel: env.PO_SHELL_RERANK_MODEL || DEFAULT_RERANK_MODEL,
   };
 }
 

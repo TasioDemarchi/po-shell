@@ -1,6 +1,6 @@
 # Self-hosting
 
-Plain puede usarse para mejorar Plain. Eso es dogfooding: el arnés trabaja sobre su propio código.
+po-shell puede usarse para mejorar po-shell. Eso es dogfooding: el arnés trabaja sobre su propio código.
 
 ## Regla base
 
@@ -20,8 +20,8 @@ Desde el repo:
 git status
 npm test
 npm run check
-plain integrity
-plain backup
+po-shell integrity
+po-shell backup
 git tag selfhost-baseline
 ```
 
@@ -38,11 +38,11 @@ git switch -c test/selfhost
 Opción aislada:
 
 ```bash
-git worktree add ../plain-selfhost -b test/selfhost
-cd ../plain-selfhost
+git worktree add ../po-shell-selfhost -b test/selfhost
+cd ../po-shell-selfhost
 ```
 
-Plain identifica un proyecto por su remote o root. Un worktree puede compartir el estado central con el repo principal: no tengas dos sesiones escribiendo tareas o memoria al mismo tiempo.
+po-shell identifica un proyecto por su remote o root. Un worktree puede compartir el estado central con el repo principal: no tengas dos sesiones escribiendo tareas o memoria al mismo tiempo.
 
 ## Qué tocar primero
 
@@ -59,12 +59,12 @@ Launcher, policy y recovery son la vía de arranque: si se rompen, podés quedar
 
 ## Fallback de emergencia
 
-Si `plain` deja de abrir:
+Si `po-shell` deja de abrir:
 
 ```bash
-node bin/plain.js doctor
-node bin/plain.js integrity
-node bin/plain.js help
+node bin/po-shell.js doctor
+node bin/po-shell.js integrity
+node bin/po-shell.js help
 ```
 
 También podés volver al tag:
@@ -77,8 +77,8 @@ git switch -c fix/launcher
 Y restaurar estado:
 
 ```bash
-plain restore <backup-dir> --yes
-plain integrity
+po-shell restore <backup-dir> --yes
+po-shell integrity
 ```
 
 ## Reglas para la sesión de self-hosting
@@ -88,7 +88,7 @@ plain integrity
 - Antes de tocar estado, backup + integrity.
 - No edites `main`.
 - No hagas push.
-- Si el agente cambia el launcher, probá con `node bin/plain.js`, no solo con `plain`.
+- Si el agente cambia el launcher, probá con `node bin/po-shell.js`, no solo con `po-shell`.
 - Si cambia la extensión, reiniciá la sesión para cargar el código nuevo.
 - Si cambia la policy, verificá que los tests de bloqueo sigan pasando.
 - Si el cambio es high-risk, plan aprobado + review congelado.
@@ -100,15 +100,15 @@ plain integrity
 npm test
 npm run check
 npm run test:semantic
-plain integrity
-plain scratch list
-plain doctor
+po-shell integrity
+po-shell scratch list
+po-shell doctor
 ```
 
 Y una prueba manual:
 
 ```bash
-plain
+po-shell
 ```
 
 La sesión nueva debe abrir, crear su scratch y mostrar el estado del proyecto.

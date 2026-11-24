@@ -17,7 +17,7 @@ import { GLOBAL_PROJECT_ID, contextDbPath, openContextDb } from "./indexer.js";
 import { costSummary, formatCredits } from "./costs.js";
 import {
   legacyStateDir,
-  plainHome,
+  poShellHome,
   projectIdentity,
   projectMetaPath,
   projectStateDir,
@@ -42,24 +42,26 @@ const DEFAULT_CONFIG = {
   models: {},
 };
 
-export function plainPath(cwd = process.cwd(), env = process.env) {
+export function poShellPath(cwd = process.cwd(), env = process.env) {
   return projectStateDir(cwd, env);
 }
 
 export function globalMemoryDir(env = process.env) {
-  return path.join(plainHome(env), "memory");
+  return path.join(poShellHome(env), "memory");
 }
 
 export function isInitialized(cwd = process.cwd(), env = process.env) {
-  return fs.existsSync(path.join(plainPath(cwd, env), "config.json"));
+  return fs.existsSync(path.join(poShellPath(cwd, env), "config.json"));
 }
 
 export function init(cwd = process.cwd(), env = process.env) {
-  const root = plainPath(cwd, env);
+  const root = poShellPath(cwd, env);
   const firstRun = !fs.existsSync(path.join(root, "config.json"));
   let migratedFrom = null;
   const legacy = legacyStateDir(cwd);
-  if (!fs.existsSync(root) && fs.existsSync(legacy)) {
+  // In the home directory, <cwd>/.po-shell IS the central home: never migrate it into itself.
+  const legacyIsHome = path.resolve(legacy) === path.resolve(poShellHome(env));
+  if (!legacyIsHome && !fs.existsSync(root) && fs.existsSync(legacy)) {
     ensureDir(path.dirname(root));
     try {
       fs.renameSync(legacy, root);
@@ -95,7 +97,7 @@ export function init(cwd = process.cwd(), env = process.env) {
 }
 
 export function loadConfig(cwd = process.cwd()) {
-  const config = readJson(path.join(plainPath(cwd), "config.json"), DEFAULT_CONFIG);
+  const config = readJson(path.join(poShellPath(cwd), "config.json"), DEFAULT_CONFIG);
   return {
     ...DEFAULT_CONFIG,
     ...config,
@@ -105,27 +107,27 @@ export function loadConfig(cwd = process.cwd()) {
 
 export function saveConfig(cwd, patch) {
   const next = { ...loadConfig(cwd), ...patch };
-  writeJson(path.join(plainPath(cwd), "config.json"), next);
+  writeJson(path.join(poShellPath(cwd), "config.json"), next);
   return next;
 }
 
 export function appendEvent(cwd, type, data = {}) {
-  appendJsonl(path.join(plainPath(cwd), "events.jsonl"), { ts: nowIso(), type, data });
+  appendJsonl(path.join(poShellPath(cwd), "events.jsonl"), { ts: nowIso(), type, data });
 }
 
 export function events(cwd, limit = 20) {
-  const all = readJsonl(path.join(plainPath(cwd), "events.jsonl"));
+  const all = readJsonl(path.join(poShellPath(cwd), "events.jsonl"));
   return all.slice(-limit);
 }
 
 /* ------------------------------- tasks ---------------------------------- */
 
 function tasksDir(cwd) {
-  return path.join(plainPath(cwd), "tasks");
+  return path.join(poShellPath(cwd), "tasks");
 }
 
 function activeFile(cwd) {
-  return path.join(plainPath(cwd), "active");
+  return path.join(poShellPath(cwd), "active");
 }
 
 export function setActiveTask(cwd, id) {
@@ -218,13 +220,13 @@ export function updateTask(cwd, id, patch = {}) {
     next.planApproved !== true
   ) {
     throw new Error(
-      "high-risk task requires plan approval before implementing. Show the plan and call plain_task with action=approve.",
+      "high-risk task requires plan approval before implementing. Show the plan and call po_shell_task with action=approve.",
     );
   }
   if (next.phase === "ready") {
     const checked = (next.evidence ?? []).some((item) => item.kind === "checks" && item.ok === true);
     if (!checked) {
-      throw new Error("cannot move to ready without a passing plain_check evidence entry");
+      throw new Error("cannot move to ready without a passing po_shell_check evidence entry");
     }
   }
   if (next.phase === "delivered" && next.risk === "high") {
@@ -254,7 +256,7 @@ export function addEvidence(cwd, evidence) {
 /* ------------------------------- memory --------------------------------- */
 
 function memoryDir(cwd) {
-  return path.join(plainPath(cwd), "memory");
+  return path.join(poShellPath(cwd), "memory");
 }
 
 function memoryIndexFile(cwd) {
@@ -472,7 +474,7 @@ export function saveAgentArtifact(
   cwd,
   { id, meta = {}, output = "", events = [], maxEvents = 2000 },
 ) {
-  const dir = path.join(plainPath(cwd), "agents", id);
+  const dir = path.join(poShellPath(cwd), "agents", id);
   ensureDir(dir);
   const createdAt = nowIso();
   const cleanMeta = {
@@ -484,7 +486,7 @@ export function saveAgentArtifact(
   fs.writeFileSync(
     path.join(dir, "result.md"),
     [
-      `# Plain agent ${id}`,
+      `# po-shell agent ${id}`,
       "",
       `created: ${createdAt}`,
       `status: ${cleanMeta.status ?? "unknown"}`,
@@ -516,7 +518,7 @@ export function runChecks(cwd, commands = null) {
   const list = commands?.length ? commands : config.checks;
   if (!list?.length) {
     throw new Error(
-      `no checks configured. Edit ${path.join(plainPath(cwd), "config.json")} or pass commands.`,
+      `no checks configured. Edit ${path.join(poShellPath(cwd), "config.json")} or pass commands.`,
     );
   }
   const task = activeTask(cwd);
@@ -580,7 +582,7 @@ export function freezeReview(cwd, { base = "HEAD" } = {}) {
   if (!tryGit(cwd, ["rev-parse", "--is-inside-work-tree"])) {
     throw new Error("not a git repository");
   }
-  const pathspec = [".", ":(exclude).plain/**"];
+  const pathspec = [".", ":(exclude).po-shell/**"];
   let diff = git(cwd, ["diff", base, "--", ...pathspec]);
   const untracked = tryGit(cwd, ["ls-files", "--others", "--exclude-standard", "--", ...pathspec])
     .split("\n")
@@ -612,7 +614,7 @@ export function freezeReview(cwd, { base = "HEAD" } = {}) {
   const risk = riskFor(cwd, added + deleted, files);
   const hash = sha256(diff);
   const id = `review-${Date.now().toString(36)}`;
-  const dir = path.join(plainPath(cwd), "reviews", id);
+  const dir = path.join(poShellPath(cwd), "reviews", id);
   ensureDir(dir);
   fs.writeFileSync(path.join(dir, "diff.patch"), diff);
   const meta = {
@@ -634,7 +636,7 @@ export function freezeReview(cwd, { base = "HEAD" } = {}) {
 }
 
 export function latestReview(cwd) {
-  const dir = path.join(plainPath(cwd), "reviews");
+  const dir = path.join(poShellPath(cwd), "reviews");
   try {
     const reviews = fs
       .readdirSync(dir)
@@ -649,9 +651,9 @@ export function latestReview(cwd) {
 }
 
 export function reviewDiff(cwd, id = null) {
-  const meta = id ? readJson(path.join(plainPath(cwd), "reviews", id, "meta.json"), null) : latestReview(cwd);
+  const meta = id ? readJson(path.join(poShellPath(cwd), "reviews", id, "meta.json"), null) : latestReview(cwd);
   if (!meta) throw new Error("no review found");
-  const file = path.join(plainPath(cwd), "reviews", meta.id, "diff.patch");
+  const file = path.join(poShellPath(cwd), "reviews", meta.id, "diff.patch");
   return { meta, diff: fs.readFileSync(file, "utf8") };
 }
 
@@ -684,12 +686,12 @@ export function renderStatus(cwd = process.cwd()) {
   const s = status(cwd, { cost: true });
   if (!s.initialized) {
     return [
-      "Plain no está inicializado en este directorio.",
-      "Corré: plain init",
+      "po-shell no está inicializado en este directorio.",
+      "Corré: po-shell init",
     ].join("\n");
   }
   const lines = [
-    `Plain · ${path.basename(s.cwd)} · ${s.git.branch || "sin rama"}${s.git.dirty ? " · dirty" : ""}`,
+    `po-shell · ${path.basename(s.cwd)} · ${s.git.branch || "sin rama"}${s.git.dirty ? " · dirty" : ""}`,
   ];
   if (s.activeTask) {
     const t = s.activeTask;
@@ -703,7 +705,7 @@ export function renderStatus(cwd = process.cwd()) {
     if (t.scope) lines.push(`Scope: ${t.scope}`);
     if (t.next) lines.push(`Próximo paso: ${t.next}`);
   } else {
-    lines.push("Tarea: (ninguna) — usá plain_task para crear una");
+    lines.push("Tarea: (ninguna) — usá po_shell_task para crear una");
   }
   lines.push(
     `Checks: ${s.checks.length ? s.checks.join(" | ") : "(sin configurar)"}`,
@@ -716,7 +718,7 @@ export function renderStatus(cwd = process.cwd()) {
   if (s.cost?.events) {
     lines.push(
       `Costo harness: ${formatCredits(s.cost.credits)} créditos · ${s.cost.events} eventos ` +
-        "(solo Plain; no es el saldo de Nan)",
+        "(solo po-shell; no es el saldo de Nan)",
     );
   }
   return lines.join("\n");
@@ -725,7 +727,7 @@ export function renderStatus(cwd = process.cwd()) {
 export function renderContext(cwd = process.cwd()) {
   const s = status(cwd);
   if (!s.initialized) return "";
-  const lines = ["<plain_state>"];
+  const lines = ["<po_shell_state>"];
   if (s.activeTask) {
     const t = s.activeTask;
     lines.push(
@@ -746,11 +748,11 @@ export function renderContext(cwd = process.cwd()) {
   lines.push(
     "rules:",
     "- Before editing code, make sure a task exists and its phase is implementing.",
-    "- Before saying a change is ready, run plain_check and record evidence.",
-    "- Before a risky delivery, run plain_review freeze and inspect the frozen diff.",
-    "- High-risk tasks require explicit plan approval with plain_task action=approve before editing.",
+    "- Before saying a change is ready, run po_shell_check and record evidence.",
+    "- Before a risky delivery, run po_shell_review freeze and inspect the frozen diff.",
+    "- High-risk tasks require explicit plan approval with po_shell_task action=approve before editing.",
     "- Use context_search before re-deciding something; save What/Why/Where/Learned after.",
-    "</plain_state>",
+    "</po_shell_state>",
   );
   return lines.join("\n");
 }

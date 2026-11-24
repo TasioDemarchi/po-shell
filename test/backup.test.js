@@ -13,16 +13,16 @@ import {
 import { openContextDb } from "../src/indexer.js";
 import { createTask, init, saveMemory } from "../src/kernel.js";
 
-process.env.PLAIN_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "plain-backup-home-"));
+process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-backup-home-"));
 
 function tempProject() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "plain-backup-"));
+  return fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-backup-"));
 }
 
 function envFor(dir) {
   return {
-    PLAIN_HOME: process.env.PLAIN_HOME,
-    PLAIN_CONTEXT_DB: path.join(dir, "context.db"),
+    PO_SHELL_HOME: process.env.PO_SHELL_HOME,
+    PO_SHELL_CONTEXT_DB: path.join(dir, "context.db"),
   };
 }
 
@@ -70,14 +70,14 @@ function resultProjectId(env, dir) {
 test("restores project state and moves the previous state to trash", () => {
   const { dir, env, task } = setup();
   const backup = createBackup(dir, { env });
-  const taskFile = path.join(process.env.PLAIN_HOME, "projects", backup.manifest.project.id, "tasks", `${task.id}.json`);
+  const taskFile = path.join(process.env.PO_SHELL_HOME, "projects", backup.manifest.project.id, "tasks", `${task.id}.json`);
   fs.rmSync(taskFile);
-  fs.rmSync(env.PLAIN_CONTEXT_DB);
+  fs.rmSync(env.PO_SHELL_CONTEXT_DB);
   assert.ok(!fs.existsSync(taskFile));
 
   const restored = restoreBackup(dir, backup.path, { env, yes: true });
   assert.ok(fs.existsSync(taskFile));
-  assert.ok(fs.existsSync(env.PLAIN_CONTEXT_DB));
+  assert.ok(fs.existsSync(env.PO_SHELL_CONTEXT_DB));
   assert.equal(checkIntegrity(dir, { env }).ok, true);
   assert.ok(fs.existsSync(restored.trashDir));
 });
@@ -89,7 +89,7 @@ test("integrity reports a healthy project and repairs missing memory rows", () =
   assert.equal(healthy.errors, 0);
 
   const projectId = path.basename(checkIntegrity(dir, { env }).project.stateDir);
-  const db = openContextDb(env.PLAIN_CONTEXT_DB);
+  const db = openContextDb(env.PO_SHELL_CONTEXT_DB);
   db.prepare("DELETE FROM memories WHERE project_id = ?").run(projectId);
   db.close();
 

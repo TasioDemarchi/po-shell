@@ -17,14 +17,14 @@ import {
   status,
   updateTask,
 } from "../src/kernel.js";
-import { plainPath } from "../src/kernel.js";
+import { poShellPath } from "../src/kernel.js";
 import { evaluateToolCall } from "../src/policy.js";
 import { DEFAULT_POLICY } from "../src/policy.js";
 
-process.env.PLAIN_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "plain-home-"));
+process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-home-"));
 
 function tempRepo() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-test-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-test-"));
   return dir;
 }
 
@@ -39,15 +39,15 @@ test("init creates the state directory and config", () => {
   assert.equal(isInitialized(dir), false);
   init(dir);
   assert.equal(isInitialized(dir), true);
-  assert.ok(fs.existsSync(path.join(plainPath(dir), "config.json")));
-  assert.ok(fs.existsSync(path.join(plainPath(dir), "tasks")));
-  assert.ok(fs.existsSync(path.join(plainPath(dir), "memory")));
-  assert.ok(!fs.existsSync(path.join(dir, ".plain")));
+  assert.ok(fs.existsSync(path.join(poShellPath(dir), "config.json")));
+  assert.ok(fs.existsSync(path.join(poShellPath(dir), "tasks")));
+  assert.ok(fs.existsSync(path.join(poShellPath(dir), "memory")));
+  assert.ok(!fs.existsSync(path.join(dir, ".po-shell")));
 });
 
-test("migrates a legacy project .plain directory to central state", () => {
+test("migrates a legacy project .po-shell directory to central state", () => {
   const dir = tempRepo();
-  const legacy = path.join(dir, ".plain");
+  const legacy = path.join(dir, ".po-shell");
   fs.mkdirSync(path.join(legacy, "tasks"), { recursive: true });
   fs.writeFileSync(path.join(legacy, "config.json"), '{"version":1}\n');
   fs.writeFileSync(path.join(legacy, "tasks", "old.json"), '{}\n');
@@ -55,8 +55,20 @@ test("migrates a legacy project .plain directory to central state", () => {
   const result = init(dir);
   assert.equal(result.migratedFrom, legacy);
   assert.ok(!fs.existsSync(legacy));
-  assert.ok(fs.existsSync(path.join(plainPath(dir), "config.json")));
-  assert.ok(fs.existsSync(path.join(plainPath(dir), "tasks", "old.json")));
+  assert.ok(fs.existsSync(path.join(poShellPath(dir), "config.json")));
+  assert.ok(fs.existsSync(path.join(poShellPath(dir), "tasks", "old.json")));
+});
+
+test("init in the directory that holds the central home does not migrate it into itself", () => {
+  const dir = tempRepo();
+  const env = { ...process.env, PO_SHELL_HOME: path.join(dir, ".po-shell") };
+  fs.mkdirSync(path.join(env.PO_SHELL_HOME, "projects"), { recursive: true });
+  fs.writeFileSync(path.join(env.PO_SHELL_HOME, "context.db"), "");
+
+  const result = init(dir, env);
+  assert.equal(result.migratedFrom, null);
+  assert.ok(fs.existsSync(path.join(env.PO_SHELL_HOME, "context.db")));
+  assert.ok(fs.existsSync(path.join(poShellPath(dir, env), "config.json")));
 });
 
 test("tasks move through phases and stay active", () => {
@@ -129,7 +141,7 @@ test("memory aliases make bilingual exact searches work", () => {
   const results = searchMemory(dir, "idempotencia");
   assert.ok(results.length >= 1);
   assert.equal(results[0].slug, "upload-idempotency");
-  const file = fs.readFileSync(results[0].slug ? path.join(plainPath(dir), "memory", `${results[0].slug}.md`) : "", "utf8");
+  const file = fs.readFileSync(results[0].slug ? path.join(poShellPath(dir), "memory", `${results[0].slug}.md`) : "", "utf8");
   assert.match(file, /- aliases: idempotencia, reintentos, request id/);
 });
 
@@ -177,8 +189,8 @@ test("policy denies secrets and dangerous commands", () => {
 test("freezeReview captures a stable hash of a real diff", () => {
   const dir = tempRepo();
   git(dir, ["init"]);
-  git(dir, ["config", "user.email", "plain@test.local"]);
-  git(dir, ["config", "user.name", "Plain Test"]);
+  git(dir, ["config", "user.email", "po-shell@test.local"]);
+  git(dir, ["config", "user.name", "po-shell Test"]);
   fs.writeFileSync(path.join(dir, "a.txt"), "one\n");
   git(dir, ["add", "."]);
   git(dir, ["commit", "-m", "init"]);
@@ -190,15 +202,15 @@ test("freezeReview captures a stable hash of a real diff", () => {
   assert.equal(meta.added, 1);
   assert.equal(meta.files.includes("a.txt"), true);
   assert.equal(latestReview(dir).id, meta.id);
-  const patch = fs.readFileSync(path.join(plainPath(dir), "reviews", meta.id, "diff.patch"), "utf8");
+  const patch = fs.readFileSync(path.join(poShellPath(dir), "reviews", meta.id, "diff.patch"), "utf8");
   assert.match(patch, /\+two/);
 });
 
 test("review risk escalates when a task touches a sensitive path", () => {
   const dir = tempRepo();
   git(dir, ["init"]);
-  git(dir, ["config", "user.email", "plain@test.local"]);
-  git(dir, ["config", "user.name", "Plain Test"]);
+  git(dir, ["config", "user.email", "po-shell@test.local"]);
+  git(dir, ["config", "user.name", "po-shell Test"]);
   fs.mkdirSync(path.join(dir, "auth"), { recursive: true });
   fs.writeFileSync(path.join(dir, "auth", "login.js"), "old\n");
   git(dir, ["add", "."]);
@@ -212,8 +224,8 @@ test("review risk escalates when a task touches a sensitive path", () => {
 test("freezeReview refuses an empty candidate", () => {
   const dir = tempRepo();
   git(dir, ["init"]);
-  git(dir, ["config", "user.email", "plain@test.local"]);
-  git(dir, ["config", "user.name", "Plain Test"]);
+  git(dir, ["config", "user.email", "po-shell@test.local"]);
+  git(dir, ["config", "user.name", "po-shell Test"]);
   fs.writeFileSync(path.join(dir, "a.txt"), "one\n");
   git(dir, ["add", "."]);
   git(dir, ["commit", "-m", "init"]);
@@ -255,7 +267,7 @@ test("ready requires passing check evidence", () => {
   const task = createTask(dir, { title: "Ship", risk: "low" });
   assert.throws(
     () => updateTask(dir, task.id, { phase: "ready" }),
-    /passing plain_check/,
+    /passing po_shell_check/,
   );
 });
 

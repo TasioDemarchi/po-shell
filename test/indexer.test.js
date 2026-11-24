@@ -4,12 +4,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { indexProject, isIndexableSection, openContextDb, splitSections } from "../src/indexer.js";
-import { init, plainPath, saveMemory } from "../src/kernel.js";
+import { init, poShellPath, saveMemory } from "../src/kernel.js";
 
-process.env.PLAIN_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "plain-index-home-"));
+process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-index-home-"));
 
 function tempProject() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-index-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-index-"));
   fs.mkdirSync(path.join(dir, "docs"), { recursive: true });
   return dir;
 }
@@ -17,8 +17,8 @@ function tempProject() {
 function runIndex(dir, options = {}) {
   return indexProject(dir, {
     env: {
-      PLAIN_HOME: process.env.PLAIN_HOME,
-      PLAIN_CONTEXT_DB: path.join(dir, "context.db"),
+      PO_SHELL_HOME: process.env.PO_SHELL_HOME,
+      PO_SHELL_CONTEXT_DB: path.join(dir, "context.db"),
     },
     ...options,
   });
@@ -201,7 +201,7 @@ test("indexes bilingual memory aliases for exact FTS search", () => {
 test("imports legacy Markdown memories when the database is empty", () => {
   const dir = tempProject();
   init(dir);
-  const file = path.join(plainPath(dir), "memory", "legacy-upload.md");
+  const file = path.join(poShellPath(dir), "memory", "legacy-upload.md");
   fs.writeFileSync(
     file,
     "# Legacy upload\n\n- type: decision\n- aliases: idempotencia\n\n## What\nReuse the id.\n",
@@ -219,8 +219,8 @@ test("imports legacy Markdown memories when the database is empty", () => {
 test("rebuild preserves canonical memories", () => {
   const dir = tempProject();
   const env = {
-    PLAIN_HOME: process.env.PLAIN_HOME,
-    PLAIN_CONTEXT_DB: path.join(dir, "context.db"),
+    PO_SHELL_HOME: process.env.PO_SHELL_HOME,
+    PO_SHELL_CONTEXT_DB: path.join(dir, "context.db"),
   };
   init(dir, env);
   saveMemory(

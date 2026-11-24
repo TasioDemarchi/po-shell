@@ -1,6 +1,6 @@
-# Plain Bench Fixture
+# po-shell Bench Fixture
 
-Mini proyecto de precios para medir el arnés Plain.
+Mini proyecto de precios para medir el arnés po-shell.
 
 ## Reglas
 

@@ -3,20 +3,20 @@
 ## Arquitectura
 
 ```text
-plain (launcher)
+po-shell (launcher)
    │ inicia
 Pi (TUI + loop del modelo)
    │ tools + hooks
-Adaptador (extensions/plain.ts)
+Adaptador (extensions/po-shell.ts)
    │
 Kernel (src/kernel.js)
    │
-Almacenamiento (~/.plain/projects/<id>/ + ~/.plain/context.db + ~/.plain/tmp/)
+Almacenamiento (~/.po-shell/projects/<id>/ + ~/.po-shell/context.db + ~/.po-shell/tmp/)
 ```
 
 | Capa | Responsabilidad |
 |---|---|
-| **Launcher** | Iniciar Pi con Plain cargado, resolver rutas y variables |
+| **Launcher** | Iniciar Pi con po-shell cargado, resolver rutas y variables |
 | **Modelo** | Decidir qué hacer |
 | **Adaptador** | Exponer tools, interceptar tool calls, inyectar contexto |
 | **Kernel** | Estado, fases, políticas, evidencia, review |
@@ -25,17 +25,17 @@ Almacenamiento (~/.plain/projects/<id>/ + ~/.plain/context.db + ~/.plain/tmp/)
 ### Forma del producto
 
 ```bash
-plain                 # inicia Pi con el arnés cargado
-plain task new "..."  # comandos del kernel
-plain status
-plain doctor          # chequea Node, Pi, git y extensión
+po-shell                 # inicia Pi con el arnés cargado
+po-shell task new "..."  # comandos del kernel
+po-shell status
+po-shell doctor          # chequea Node, Pi, git y extensión
 ```
 
-- `plain` sin argumentos = agente.
-- `plain <subcomando>` = CLI.
+- `po-shell` sin argumentos = agente.
+- `po-shell <subcomando>` = CLI.
 - El launcher carga la extensión y las skills, e inyecta el protocolo del orquestador.
 - No crea un home aislado por defecto: usa el home de Pi para que auth y modelos funcionen.
-- `PLAIN_PI_AGENT_DIR` permite usar un agent dir propio; un `--home` completo no está implementado.
+- `PO_SHELL_PI_AGENT_DIR` permite usar un agent dir propio; un `--home` completo no está implementado.
 
 ### Componentes
 
@@ -53,8 +53,8 @@ plain doctor          # chequea Node, Pi, git y extensión
 | `semantic.js` | Embeddings y rerank con fallback FTS |
 | `policy.js` | Deny paths/commands, gate determinista |
 | `cli.js` | Comandos para humanos y scripts |
-| `extensions/plain.ts` | Tools + hooks para Pi |
-| `skills/plain-workflow` | Procedimiento para el agente |
+| `extensions/po-shell.ts` | Tools + hooks para Pi |
+| `skills/po-shell-workflow` | Procedimiento para el agente |
 | `src/shell.js` | Launcher: resuelve Pi, carga extensión y skill, inicia la TUI |
 
 ## Memoria y contexto
@@ -68,7 +68,7 @@ plain doctor          # chequea Node, Pi, git y extensión
 | Corpus | Fuente de verdad | Dónde vive | Índice |
 |---|---|---|---|
 | **Specs** | `.md` en el repo | `docs/` o raíz | `doc_chunks` |
-| **Memorias** | SQLite | `~/.plain/context.db` | `memories` + FTS |
+| **Memorias** | SQLite | `~/.po-shell/context.db` | `memories` + FTS |
 
 La búsqueda es híbrida:
 
@@ -129,7 +129,7 @@ PREVENTION: ...
 - Si no cambia el estado actual, solo memoria.
 - Se indexa por sección, no por archivo entero.
 - En `docs/features/*.md` solo se indexan secciones estables: resultado, specs, límites, no-objetivos, decisiones y supuestos.
-- `Tasks`, `Estado` y `Log` no se indexan: son estado mutable y se leen del archivo o de `plain status`.
+- `Tasks`, `Estado` y `Log` no se indexan: son estado mutable y se leen del archivo o de `po-shell status`.
 - La búsqueda devuelve preview; el cuerpo se trae solo para 1-2 resultados.
 - Sin ADRs: las decisiones van en la memoria.
 - `INDEX.md` aparece recién con más de ~8 docs.
@@ -139,7 +139,7 @@ PREVENTION: ...
 - Cada memoria puede declarar `aliases` bilingües cortos; el FTS los indexa y la búsqueda exacta los encuentra.
 - Tipos operativos: `state`, `feature` y `session` son snapshots; se actualizan por `topic` y no son la fuente de verdad.
 - Al retomar: memoria primero; si no hay hit o falta detalle, leer el feature doc.
-- Los embeddings se calculan lazy y se guardan en SQLite; `plain index` no llama a la API.
+- Los embeddings se calculan lazy y se guardan en SQLite; `po-shell index` no llama a la API.
 - El adapter guarda un snapshot `state` al crear/actualizar una tarea y al correr checks.
 - Antes de compactar guarda `session/current`; después de compactar lo inyecta en el siguiente turno.
 - SQLite es la fuente canónica de memorias; `memory/*.md` es un mirror de auditoría.

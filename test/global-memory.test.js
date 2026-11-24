@@ -12,8 +12,8 @@ function tempDir(prefix) {
 
 function envFor(home) {
   return {
-    PLAIN_HOME: home,
-    PLAIN_CONTEXT_DB: path.join(home, "context.db"),
+    PO_SHELL_HOME: home,
+    PO_SHELL_CONTEXT_DB: path.join(home, "context.db"),
   };
 }
 
@@ -36,9 +36,9 @@ function behavior(dir, rule, scope, env, extra = {}) {
 }
 
 test("global memories live outside the project and are visible from another project", async () => {
-  const home = tempDir("plain-home-");
-  const projectA = tempDir("plain-project-a-");
-  const projectB = tempDir("plain-project-b-");
+  const home = tempDir("po-shell-home-");
+  const projectA = tempDir("po-shell-project-a-");
+  const projectB = tempDir("po-shell-project-b-");
   const env = envFor(home);
 
   const global = behavior(projectA, "Responder en español.", "global", env, {
@@ -47,7 +47,7 @@ test("global memories live outside the project and are visible from another proj
   behavior(projectA, "Regla local de A.", "project", env, { topic: "local/a" });
 
   assert.ok(global.file.startsWith(path.join(home, "memory")));
-  assert.ok(!fs.existsSync(path.join(projectA, ".plain", "memory", "global-language.md")));
+  assert.ok(!fs.existsSync(path.join(projectA, ".po-shell", "memory", "global-language.md")));
   assert.equal(globalMemoryIndex(env).length, 1);
 
   const directives = activeDirectives(projectB, { env });
@@ -58,9 +58,9 @@ test("global memories live outside the project and are visible from another proj
 });
 
 test("context_search falls back to global memories with confirmation", async () => {
-  const home = tempDir("plain-home-");
-  const projectA = tempDir("plain-project-a-");
-  const projectB = tempDir("plain-project-b-");
+  const home = tempDir("po-shell-home-");
+  const projectA = tempDir("po-shell-project-a-");
+  const projectB = tempDir("po-shell-project-b-");
   const env = envFor(home);
 
   behavior(projectA, "Regla global buscable.", "global", env, { topic: "global/search" });

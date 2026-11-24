@@ -6,7 +6,7 @@ import path from "node:path";
 import { buildSubagentArgs, runPiJson, usageTotal } from "../src/delegate.js";
 import { init, saveAgentArtifact } from "../src/kernel.js";
 
-process.env.PLAIN_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "plain-delegate-home-"));
+process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-delegate-home-"));
 
 function tempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -20,7 +20,7 @@ function fakePi(dir, body) {
 }
 
 function envFor(file) {
-  return { ...process.env, PLAIN_PI_BIN: file };
+  return { ...process.env, PO_SHELL_PI_BIN: file };
 }
 
 test("buildSubagentArgs isolates the child from global context", () => {
@@ -42,7 +42,7 @@ test("buildSubagentArgs isolates the child from global context", () => {
 });
 
 test("runPiJson captures final text, usage and turns", async () => {
-  const dir = tempDir("plain-delegate-");
+  const dir = tempDir("po-shell-delegate-");
   const fake = fakePi(
     dir,
     [
@@ -61,7 +61,7 @@ test("runPiJson captures final text, usage and turns", async () => {
 });
 
 test("runPiJson accumulates usage across assistant messages", async () => {
-  const dir = tempDir("plain-delegate-");
+  const dir = tempDir("po-shell-delegate-");
   const fake = fakePi(
     dir,
     [
@@ -79,14 +79,14 @@ test("runPiJson accumulates usage across assistant messages", async () => {
 });
 
 test("runPiJson passes an explicit child TMPDIR", async () => {
-  const dir = tempDir("plain-delegate-");
+  const dir = tempDir("po-shell-delegate-");
   const out = path.join(dir, "tmpdir.txt");
   const fake = fakePi(
     dir,
     `printf '%s' "$TMPDIR" > "${out}"`,
   );
   await runPiJson(dir, [], {
-    env: { ...envFor(fake), PLAIN_TEST_OUT: out },
+    env: { ...envFor(fake), PO_SHELL_TEST_OUT: out },
     tmpDir: path.join(dir, "child-tmp"),
     timeoutMs: 5000,
   });
@@ -94,7 +94,7 @@ test("runPiJson passes an explicit child TMPDIR", async () => {
 });
 
 test("runPiJson keeps partial text when the stream ends without message_end", async () => {
-  const dir = tempDir("plain-delegate-");
+  const dir = tempDir("po-shell-delegate-");
   const fake = fakePi(
     dir,
     [
@@ -111,7 +111,7 @@ test("runPiJson keeps partial text when the stream ends without message_end", as
 });
 
 test("runPiJson stops when max_tokens is exceeded", async () => {
-  const dir = tempDir("plain-delegate-");
+  const dir = tempDir("po-shell-delegate-");
   const fake = fakePi(
     dir,
     [
@@ -131,7 +131,7 @@ test("runPiJson stops when max_tokens is exceeded", async () => {
 });
 
 test("runPiJson stops when max_turns is reached", async () => {
-  const dir = tempDir("plain-delegate-");
+  const dir = tempDir("po-shell-delegate-");
   const fake = fakePi(
     dir,
     [
@@ -151,7 +151,7 @@ test("runPiJson stops when max_turns is reached", async () => {
 });
 
 test("saveAgentArtifact writes meta, result and events", () => {
-  const dir = tempDir("plain-agent-");
+  const dir = tempDir("po-shell-agent-");
   init(dir);
   const artifact = saveAgentArtifact(dir, {
     id: "run-test",

@@ -38,8 +38,8 @@ function prepare(task) {
     if (result.status !== 0) throw new Error(result.stderr || result.stdout);
   };
   git(["init", "-q"]);
-  git(["config", "user.email", "bench@plain.local"]);
-  git(["config", "user.name", "Plain Bench"]);
+  git(["config", "user.email", "bench@po-shell.local"]);
+  git(["config", "user.name", "po-shell Bench"]);
   git(["add", "."]);
   git(["commit", "-qm", "fixture: baseline"]);
   console.log(`ready   ${task} → ${dest}`);

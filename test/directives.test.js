@@ -8,13 +8,13 @@ import { init, saveMemory } from "../src/kernel.js";
 
 function envFor(dir) {
   return {
-    PLAIN_HOME: path.join(dir, "home"),
-    PLAIN_CONTEXT_DB: path.join(dir, "context.db"),
+    PO_SHELL_HOME: path.join(dir, "home"),
+    PO_SHELL_CONTEXT_DB: path.join(dir, "context.db"),
   };
 }
 
 function tempProject() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-directives-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-directives-"));
   const env = envFor(dir);
   init(dir, env);
   return { dir, env };

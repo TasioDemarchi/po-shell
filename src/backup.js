@@ -7,7 +7,7 @@ import {
   openContextDb,
 } from "./indexer.js";
 import {
-  plainHome,
+  poShellHome,
   projectInfo,
   projectStateDir,
 } from "./project.js";
@@ -96,7 +96,7 @@ export function createBackup(cwd = process.cwd(), options = {}) {
   const env = options.env ?? process.env;
   const project = projectInfo(cwd, env);
   const output = path.resolve(
-    expandHome(options.output ?? path.join(plainHome(env), "backups", project.id, stamp())),
+    expandHome(options.output ?? path.join(poShellHome(env), "backups", project.id, stamp())),
   );
   if (fs.existsSync(output) && fs.readdirSync(output).length > 0) {
     throw new Error(`backup output is not empty: ${output}`);
@@ -132,7 +132,7 @@ export function createBackup(cwd = process.cwd(), options = {}) {
   }
 
   let globalMemoryIncluded = false;
-  const globalMemory = path.join(plainHome(env), "memory");
+  const globalMemory = path.join(poShellHome(env), "memory");
   if (fs.existsSync(globalMemory)) {
     copyDir(globalMemory, path.join(output, "global-memory"));
     globalMemoryIncluded = true;
@@ -160,7 +160,7 @@ export function createBackup(cwd = process.cwd(), options = {}) {
 }
 
 export function listBackups(env = process.env, options = {}) {
-  const root = path.join(plainHome(env), "backups");
+  const root = path.join(poShellHome(env), "backups");
   let projects;
   try {
     projects = fs.readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory());
@@ -221,7 +221,7 @@ export function restoreBackup(cwd, backupSource, options = {}) {
   }
 
   const project = projectInfo(cwd, env);
-  const trashDir = path.join(plainHome(env), "trash", `restore-${stamp()}`, project.id);
+  const trashDir = path.join(poShellHome(env), "trash", `restore-${stamp()}`, project.id);
   const warnings = [...(manifest.warnings ?? [])];
   if (manifest.project?.id !== project.id) {
     warnings.push(
@@ -266,7 +266,7 @@ export function restoreBackup(cwd, backupSource, options = {}) {
   if (options.global && manifest.globalMemory) {
     restorePath(
       safeChild(backupPath, manifest.globalMemory),
-      path.join(plainHome(env), "memory"),
+      path.join(poShellHome(env), "memory"),
       trashDir,
     );
   }

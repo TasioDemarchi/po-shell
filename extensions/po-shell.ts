@@ -1,7 +1,7 @@
 /**
- * Plain — deterministic harness for Pi.
+ * po-shell — deterministic harness for Pi.
  *
- * This extension is the adapter between Pi and the Plain kernel.
+ * This extension is the adapter between Pi and the po-shell kernel.
  * The kernel owns state (tasks, memory, reviews, policy, events).
  * Pi owns the model loop.
  */
@@ -27,7 +27,7 @@ import {
   isInitialized,
   listTasks,
   loadConfig,
-  plainPath,
+  poShellPath,
   renderContext,
   renderStatus,
   reviewDiff,
@@ -76,7 +76,7 @@ ${task.plan}` : "",
     .join("\n");
 }
 
-export default function plainExtension(pi: ExtensionAPI) {
+export default function poShellExtension(pi: ExtensionAPI) {
   let pendingCheckpoint = "";
 
   pi.registerCommand("semantic", {
@@ -91,7 +91,7 @@ export default function plainExtension(pi: ExtensionAPI) {
         ctx.ui.notify("Uso: /semantic on|off", "warning");
         return;
       }
-      process.env.PLAIN_SEMANTIC = value;
+      process.env.PO_SHELL_SEMANTIC = value;
       const available = Boolean(semanticConfig(process.env));
       ctx.ui.notify(
         `Semantic: ${value}${value === "on" && !available ? " (sin credenciales/modelos Nan)" : ""}`,
@@ -100,17 +100,17 @@ export default function plainExtension(pi: ExtensionAPI) {
     },
   });
 
-  pi.registerCommand("plain", {
-    description: "Show Plain state (tasks, checks, last frozen review)",
+  pi.registerCommand("po-shell", {
+    description: "Show po-shell state (tasks, checks, last frozen review)",
     handler: async (args, ctx) => {
       const cwd = ctx.cwd;
       if (!isInitialized(cwd)) {
         if (String(args).trim() === "init") {
           init(cwd);
-          ctx.ui.notify("Plain inicializado", "info");
+          ctx.ui.notify("po-shell inicializado", "info");
           return;
         }
-        ctx.ui.notify("Plain no está inicializado. Corré: plain init", "warning");
+        ctx.ui.notify("po-shell no está inicializado. Corré: po-shell init", "warning");
         return;
       }
       ctx.ui.notify(renderStatus(cwd), "info");
@@ -118,10 +118,10 @@ export default function plainExtension(pi: ExtensionAPI) {
   });
 
   pi.registerTool({
-    name: "plain_status",
-    label: "Plain status",
+    name: "po_shell_status",
+    label: "po-shell status",
     description:
-      "Show the current Plain task, phase, risk, evidence count and last frozen review. Use before planning or when unsure what state the work is in.",
+      "Show the current po-shell task, phase, risk, evidence count and last frozen review. Use before planning or when unsure what state the work is in.",
     parameters: Type.Object({}),
     async execute(_id, _params, _signal, _onUpdate, ctx) {
       return text(renderStatus(ctx.cwd));
@@ -129,8 +129,8 @@ export default function plainExtension(pi: ExtensionAPI) {
   });
 
   pi.registerTool({
-    name: "plain_task",
-    label: "Plain task",
+    name: "po_shell_task",
+    label: "po-shell task",
     description:
       "Manage the deterministic work state. Actions: new (title, risk, scope, out_of_scope, plan), phase (id?, phase), approve (id?, high-risk plan), list, show (id?). Risk: low=local reversible/docs; medium=normal behavior; high=auth/permissions/secrets, payments, migrations, public contracts, infra/deploy, concurrency or irreversible actions. High-risk tasks require a saved plan and human approval before editing.",
     parameters: Type.Object({
@@ -170,7 +170,7 @@ export default function plainExtension(pi: ExtensionAPI) {
           if (!String(task.plan ?? "").trim()) {
             return {
               ...text(
-                `La tarea ${task.id} no tiene plan guardado. Guardalo con plain_task action="update" plan="..." y mostralo antes de pedir aprobación.`,
+                `La tarea ${task.id} no tiene plan guardado. Guardalo con po_shell_task action="update" plan="..." y mostralo antes de pedir aprobación.`,
               ),
               isError: true,
             };
@@ -213,7 +213,7 @@ export default function plainExtension(pi: ExtensionAPI) {
           snapshotTask(cwd, task);
           const next =
             task.risk === "high"
-              ? "\n\nPlan approval pending. Mostrá el plan y llamá plain_task con action=\"approve\". No pidas aprobación por chat."
+              ? "\n\nPlan approval pending. Mostrá el plan y llamá po_shell_task con action=\"approve\". No pidas aprobación por chat."
               : "";
           return text(`Tarea creada.\n${taskSummary(task)}${next}`);
         }
@@ -247,14 +247,14 @@ export default function plainExtension(pi: ExtensionAPI) {
             .join("\n"),
         );
       } catch (error) {
-        return { ...text(`Plain error: ${(error as Error).message}`), isError: true };
+        return { ...text(`po-shell error: ${(error as Error).message}`), isError: true };
       }
     },
   });
 
   pi.registerTool({
-    name: "plain_memory",
-    label: "Plain memory",
+    name: "po_shell_memory",
+    label: "po-shell memory",
     description:
       "Project memory. Actions: save (title?, what, why?, where?, learned?, topic?, type?, scope?, priority?, trigger?, aliases?, status?), search (query). Types: lesson, state, feature, session, behavior. Use stable topics such as state/<task-id>, feature/<slug> or session/current so snapshots overwrite. Search memory first; if there is no hit or it is stale, read the feature doc. Save a short What/Why/Where/Learned entry after a decision, bug fix, discovery, constraint or user rule. Aliases are optional bilingual search terms, comma-separated. For a human behavior rule use type=behavior, scope=global|project, priority=low|medium|high and an optional trigger.",
     parameters: Type.Object({
@@ -316,7 +316,7 @@ export default function plainExtension(pi: ExtensionAPI) {
         }
         return text(lines.join("\n\n"));
       } catch (error) {
-        return { ...text(`Plain error: ${(error as Error).message}`), isError: true };
+        return { ...text(`po-shell error: ${(error as Error).message}`), isError: true };
       }
     },
   });
@@ -368,7 +368,7 @@ export default function plainExtension(pi: ExtensionAPI) {
         }
         return text(lines.join("\n\n"));
       } catch (error) {
-        return { ...text(`Plain error: ${(error as Error).message}`), isError: true };
+        return { ...text(`po-shell error: ${(error as Error).message}`), isError: true };
       }
     },
   });
@@ -391,16 +391,16 @@ export default function plainExtension(pi: ExtensionAPI) {
             : `[memory] ${item.id} · ${item.project ?? "proyecto"} · ${item.type} · ${item.title}`;
         return text(`${header}\n\n${item.content}`);
       } catch (error) {
-        return { ...text(`Plain error: ${(error as Error).message}`), isError: true };
+        return { ...text(`po-shell error: ${(error as Error).message}`), isError: true };
       }
     },
   });
 
   pi.registerTool({
-    name: "plain_check",
-    label: "Plain check",
+    name: "po_shell_check",
+    label: "po-shell check",
     description:
-      "Run the configured deterministic checks (tests, lint, typecheck) and record the result as evidence on the active task. Use before saying work is ready. Optional commands override the checks in the project's central Plain config.",
+      "Run the configured deterministic checks (tests, lint, typecheck) and record the result as evidence on the active task. Use before saying work is ready. Optional commands override the checks in the project's central po-shell config.",
     parameters: Type.Object({
       commands: Type.Optional(Type.Array(Type.String())),
     }),
@@ -417,14 +417,14 @@ export default function plainExtension(pi: ExtensionAPI) {
         }
         return { ...text(lines.join("\n")), isError: !result.ok };
       } catch (error) {
-        return { ...text(`Plain error: ${(error as Error).message}`), isError: true };
+        return { ...text(`po-shell error: ${(error as Error).message}`), isError: true };
       }
     },
   });
 
   pi.registerTool({
-    name: "plain_review",
-    label: "Plain review",
+    name: "po_shell_review",
+    label: "po-shell review",
     description:
       "Freeze the exact current candidate (git diff + untracked files) and return its hash, risk and stats. Actions: freeze (base?), show (id?, include_diff?). Use before a risky delivery; the freeze is what a reviewer should inspect.",
     parameters: Type.Object({
@@ -444,7 +444,7 @@ export default function plainExtension(pi: ExtensionAPI) {
               `riesgo: ${meta.risk}`,
               `archivos: ${meta.files.length}`,
               `+${meta.added} / -${meta.deleted}`,
-              `diff: ${path.join(plainPath(ctx.cwd), "reviews", meta.id, "diff.patch")}`,
+              `diff: ${path.join(poShellPath(ctx.cwd), "reviews", meta.id, "diff.patch")}`,
             ].join("\n"),
           );
         }
@@ -456,14 +456,14 @@ export default function plainExtension(pi: ExtensionAPI) {
           ].join("\n"),
         );
       } catch (error) {
-        return { ...text(`Plain error: ${(error as Error).message}`), isError: true };
+        return { ...text(`po-shell error: ${(error as Error).message}`), isError: true };
       }
     },
   });
 
   pi.registerTool({
-    name: "plain_ask",
-    label: "Plain ask",
+    name: "po_shell_ask",
+    label: "po-shell ask",
     description:
       "Ask the human a decision that the agent must not make alone. Use only for scope changes, destructive actions, security exposure or delivery. Returns the chosen option.",
     parameters: Type.Object({
@@ -483,14 +483,14 @@ export default function plainExtension(pi: ExtensionAPI) {
     },
   });
 
-  const subagentGuard = path.join(PACKAGE_ROOT, "extensions", "plain-subagent.ts");
-  const subagentPrompt = path.join(PACKAGE_ROOT, "prompts", "plain-subagent.md");
+  const subagentGuard = path.join(PACKAGE_ROOT, "extensions", "po-shell-subagent.ts");
+  const subagentPrompt = path.join(PACKAGE_ROOT, "prompts", "po-shell-subagent.md");
 
   pi.registerTool({
-    name: "plain_delegate",
-    label: "Plain delegate",
+    name: "po_shell_delegate",
+    label: "po-shell delegate",
     description:
-      "Run one bounded subagent in a separate Pi process with a fresh, isolated context. The child gets only the mission prompt, allowed tools, a role model and a minimal subagent protocol: no global AGENTS.md, no Plain memory/task tools, and no writes to .md or the central Plain state. Supports token/turn budgets, timeout and audit artifacts under the central Plain state directory. Returns the child's final text; the parent must verify it, not trust it.",
+      "Run one bounded subagent in a separate Pi process with a fresh, isolated context. The child gets only the mission prompt, allowed tools, a role model and a minimal subagent protocol: no global AGENTS.md, no po-shell memory/task tools, and no writes to .md or the central po-shell state. Supports token/turn budgets, timeout and audit artifacts under the central po-shell state directory. Returns the child's final text; the parent must verify it, not trust it.",
     parameters: Type.Object({
       role: Type.Union([
         Type.Literal("explorer"),
@@ -522,7 +522,7 @@ export default function plainExtension(pi: ExtensionAPI) {
         }
       }
       const prompt = [
-        `You are a Plain subagent with role: ${params.role}.`,
+        `You are a po-shell subagent with role: ${params.role}.`,
         "Work on exactly the mission below. Do not expand scope.",
         "Do not commit, push, deploy, or change credentials.",
         "Return a compact result: what you did, evidence, files touched, open questions.",
@@ -625,7 +625,7 @@ export default function plainExtension(pi: ExtensionAPI) {
           isError: result.status !== "ok",
         };
       } catch (error) {
-        return { ...text(`Plain delegate error: ${(error as Error).message}`), isError: true };
+        return { ...text(`po-shell delegate error: ${(error as Error).message}`), isError: true };
       } finally {
         if (childScratch) childScratch.cleanup();
       }
@@ -646,14 +646,14 @@ export default function plainExtension(pi: ExtensionAPI) {
           return {
             block: true,
             reason:
-              "High-risk task requires plan approval. Show the plan and call plain_task with action=approve before editing.",
+              "High-risk task requires plan approval. Show the plan and call po_shell_task with action=approve before editing.",
           };
         }
       }
       return undefined;
     } catch (error) {
       // Fail closed: if the policy cannot be evaluated, do not run the tool.
-      return { block: true, reason: `Plain policy error: ${(error as Error).message}` };
+      return { block: true, reason: `po-shell policy error: ${(error as Error).message}` };
     }
   });
 
@@ -681,7 +681,7 @@ export default function plainExtension(pi: ExtensionAPI) {
     try {
       const task = activeTask(ctx.cwd);
       const lines = [
-        "<plain_checkpoint>",
+        "<po_shell_checkpoint>",
         `reason: ${event.reason}`,
         `created: ${new Date().toISOString()}`,
         task
@@ -691,7 +691,7 @@ export default function plainExtension(pi: ExtensionAPI) {
         task?.scope ? `scope: ${task.scope}` : "",
         task?.outOfScope ? `out_of_scope: ${task.outOfScope}` : "",
         task ? `evidence: ${(task.evidence ?? []).length}` : "",
-        "</plain_checkpoint>",
+        "</po_shell_checkpoint>",
       ].filter(Boolean);
       pendingCheckpoint = lines.join("\n");
       if (task) {
@@ -731,12 +731,12 @@ export default function plainExtension(pi: ExtensionAPI) {
     }
     const directiveBlock = directives.length
       ? [
-          "<plain_directives>",
+          "<po_shell_directives>",
           ...directives.map(
             (item: any) =>
               `- [${item.scope}, ${item.priority}] ${item.rule}${item.trigger ? ` (cuando: ${item.trigger})` : ""}`,
           ),
-          "</plain_directives>",
+          "</po_shell_directives>",
         ].join("\n")
       : "";
     const parts = [content, directiveBlock, pendingCheckpoint].filter(Boolean);
@@ -744,7 +744,7 @@ export default function plainExtension(pi: ExtensionAPI) {
     if (!parts.length) return undefined;
     return {
       message: {
-        customType: "plain-context",
+        customType: "po-shell-context",
         content: parts.join("\n\n"),
         display: false,
       },

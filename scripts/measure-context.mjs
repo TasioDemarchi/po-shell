@@ -6,7 +6,7 @@ import { contextDbPath, indexProject } from "../src/indexer.js";
 import { getContext, searchContext } from "../src/context.js";
 
 const SKIP = new Set([
-  ".git", ".plain", "node_modules", "dist", "build", "target", "vendor",
+  ".git", ".po-shell", "node_modules", "dist", "build", "target", "vendor",
   "coverage", ".next", ".turbo", ".venv", "venv", "__pycache__",
 ]);
 
@@ -64,7 +64,7 @@ const started = performance.now();
 const indexed = indexProject(cwd, { dbPath, env });
 const indexMs = performance.now() - started;
 const docs = walkMd(cwd, cwd);
-const memoryDir = path.join(cwd, ".plain", "memory");
+const memoryDir = path.join(cwd, ".po-shell", "memory");
 const memories = fs.existsSync(memoryDir)
   ? fs.readdirSync(memoryDir).filter((name) => name.endsWith(".md")).map((name) => path.join(memoryDir, name))
   : [];

@@ -31,7 +31,7 @@ async function runCli(args) {
   try {
     await main(args);
   } catch (error) {
-    console.error(`plain: ${error.message}`);
+    console.error(`po-shell: ${error.message}`);
     process.exitCode = 1;
   }
 }

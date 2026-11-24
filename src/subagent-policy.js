@@ -1,14 +1,14 @@
 import { testScratchViolation } from "./scratch-guard.js";
 
 const isMarkdown = (value) => /\.md$/i.test(String(value ?? "").replace(/\\/g, "/"));
-const isPlainState = (value) => {
+const isPoShellState = (value) => {
   const p = String(value ?? "").replace(/\\/g, "/");
-  return p === ".plain" || p.startsWith(".plain/") || p.includes("/.plain/");
+  return p === ".po-shell" || p.startsWith(".po-shell/") || p.includes("/.po-shell/");
 };
 
 export function subagentToolBlock(toolName, input = {}, cwd = process.cwd()) {
-  if (String(toolName).startsWith("plain_")) {
-    return "Un subagente no puede usar tools de memoria, tareas, review ni estado de Plain.";
+  if (String(toolName).startsWith("po_shell_")) {
+    return "Un subagente no puede usar tools de memoria, tareas, review ni estado de po-shell.";
   }
 
   const scratchViolation = testScratchViolation({ toolName, input, cwd });
@@ -19,7 +19,7 @@ export function subagentToolBlock(toolName, input = {}, cwd = process.cwd()) {
     if (isMarkdown(file)) {
       return "Un subagente no puede escribir ni modificar archivos .md.";
     }
-    if (isPlainState(file)) {
+    if (isPoShellState(file)) {
       return "Un subagente no puede tocar el estado central.";
     }
   }
@@ -32,7 +32,7 @@ export function subagentToolBlock(toolName, input = {}, cwd = process.cwd()) {
     ) {
       return "Un subagente no puede modificar archivos .md desde bash.";
     }
-    if (/(?:>>?|tee|sed\s+-i|perl\s+-pi)[^;&|]*\.plain(?:\/|\b)/i.test(command)) {
+    if (/(?:>>?|tee|sed\s+-i|perl\s+-pi)[^;&|]*\.po-shell(?:\/|\b)/i.test(command)) {
       return "Un subagente no puede tocar el estado central desde bash.";
     }
   }

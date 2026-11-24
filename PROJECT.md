@@ -4,7 +4,7 @@ updated: 2026-11-21
 source: conversation
 ---
 
-# Plain
+# po-shell
 
 Documento humano y de contexto del proyecto. El manual operativo del agente vive en `AGENTS.md`.
 
@@ -12,7 +12,7 @@ Documento humano y de contexto del proyecto. El manual operativo del agente vive
 
 Un arnés determinista, simple y barato para agentes de código.
 
-Plain existe para que el trabajo de un agente sea **verificable**, no para que el modelo sea más inteligente. El modelo propone; el arnés guarda estado, aplica reglas, registra evidencia y congela lo que se revisa.
+po-shell existe para que el trabajo de un agente sea **verificable**, no para que el modelo sea más inteligente. El modelo propone; el arnés guarda estado, aplica reglas, registra evidencia y congela lo que se revisa.
 
 Objetivos concretos:
 
@@ -22,11 +22,11 @@ Objetivos concretos:
 - Que el review se haga sobre los bytes exactos que se entregan.
 - Que el costo en tokens sea bajo por diseño.
 - Que todo funcione local, sin servicios pagos ni telemetría.
-- Que se inicie con un solo comando: `plain`.
+- Que se inicie con un solo comando: `po-shell`.
 
 ## 2. No-objetivos
 
-- **No** reemplazar a Pi. Plain es un arnés sobre Pi; el loop del modelo sigue siendo de Pi.
+- **No** reemplazar a Pi. po-shell es un arnés sobre Pi; el loop del modelo sigue siendo de Pi.
 - **No** competir con Gentle Shell en cantidad de features.
 - **No** tener 17 agentes ni una TUI propia.
 - **No** depender de una nube, una cuenta o una API de terceros.
@@ -61,7 +61,7 @@ Objetivos concretos:
 
 - **Presupuesto:** $0. Sin servicios pagos.
 - **Runtime:** Node 22+; cero dependencias de runtime.
-- **Instalación:** `npm i -g plain-harness`; Pi se detecta en el `PATH` o se configura con `PLAIN_PI_BIN`.
+- **Instalación:** `npm i -g po-shell-harness`; Pi se detecta en el `PATH` o se configura con `PO_SHELL_PI_BIN`.
 - **Almacenamiento:** local; SQLite cuando haga falta, sin servidor. `node:sqlite` (experimental) o un binario chico si falta FTS5.
 - **Adapter principal:** Pi. MCP y otros clientes, después.
 - **Portabilidad:** Linux y macOS primero.
@@ -78,7 +78,7 @@ docs/
   architecture.md                     arquitectura, componentes, memoria
   recovery.md                         backup, restore y runbook de recuperación
   scratch.md                          temporales, cleanup y límites
-  self-hosting.md                     cómo usar Plain para mejorar Plain
+  self-hosting.md                     cómo usar po-shell para mejorar po-shell
   status.md                           estado, pendientes, pausados, descartado
   agents-md-y-skill-md-investigacion.md  criterios para instrucciones de agentes
 ```
@@ -92,5 +92,5 @@ El detalle está en `docs/status.md`.
 - **Hecho:** kernel, CLI, launcher, policy, checks, review congelado, memoria, directivas, subagentes aislados, modelos fijos por rol, `doctor`, `checks suggest`, `projects prune`, ledger de costo, `backup`, `restore`, `integrity`, runbook de recuperación y scratch temporal por sesión/subagente.
 - **Pendiente:** MCP, sandbox, evals, scope `personal`, deduplicación, `checks set`.
 - **Pausado:** perfiles de subagentes, `AGENTS.md` por subagente, medición ampliada.
-- **Descartado:** router automático por fase, `.plain` dentro del repo, modelo frontera por defecto.
+- **Descartado:** router automático por fase, `.po-shell` dentro del repo, modelo frontera por defecto.
 

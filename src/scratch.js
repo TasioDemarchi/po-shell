@@ -1,20 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { plainHome } from "./project.js";
+import { poShellHome } from "./project.js";
 import { ensureDir, expandHome, readJson, nowIso } from "./util.js";
 
 export const SCRATCH_VERSION = 1;
-export const SESSION_PREFIX = "plain-";
-export const SUBAGENT_PREFIX = "plain-sub-";
-const SESSION_NAME = /^plain-[A-Za-z0-9]{6}$/;
-const SUBAGENT_NAME = /^plain-sub-[A-Za-z0-9]{6}$/;
+export const SESSION_PREFIX = "po-shell-";
+export const SUBAGENT_PREFIX = "po-shell-sub-";
+const SESSION_NAME = /^po-shell-[A-Za-z0-9]{6}$/;
+const SUBAGENT_NAME = /^po-shell-sub-[A-Za-z0-9]{6}$/;
 const SWEEP_GRACE_MS = 60 * 60 * 1000;
 
 export function scratchRoot(env = process.env) {
-  return env.PLAIN_TMP_ROOT
-    ? path.resolve(expandHome(env.PLAIN_TMP_ROOT))
-    : path.join(plainHome(env), "tmp");
+  return env.PO_SHELL_TMP_ROOT
+    ? path.resolve(expandHome(env.PO_SHELL_TMP_ROOT))
+    : path.join(poShellHome(env), "tmp");
 }
 
 function ledgerRoot(root) {
@@ -140,15 +140,15 @@ export function createSessionScratch(env = process.env, options = {}) {
     ledger,
     env: {
       ...scratchEnv(dir),
-      PLAIN_TMP: dir,
-      PLAIN_SCRATCH_ID: id,
+      PO_SHELL_TMP: dir,
+      PO_SHELL_SCRATCH_ID: id,
     },
   };
 }
 
 export function createSubagentScratch(env = process.env) {
-  const parent = env.PLAIN_TMP && path.isAbsolute(env.PLAIN_TMP) && fs.existsSync(env.PLAIN_TMP)
-    ? realOrUndefined(env.PLAIN_TMP) ?? env.PLAIN_TMP
+  const parent = env.PO_SHELL_TMP && path.isAbsolute(env.PO_SHELL_TMP) && fs.existsSync(env.PO_SHELL_TMP)
+    ? realOrUndefined(env.PO_SHELL_TMP) ?? env.PO_SHELL_TMP
     : scratchRoot(env);
   ensureDir(parent);
   try {

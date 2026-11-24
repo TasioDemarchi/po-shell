@@ -6,10 +6,10 @@ import path from "node:path";
 import { applyChecks, suggestChecks } from "../src/checks.js";
 import { loadConfig } from "../src/kernel.js";
 
-process.env.PLAIN_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "plain-checks-home-"));
+process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-checks-home-"));
 
 function tempProject() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "plain-checks-"));
+  return fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-checks-"));
 }
 
 test("suggests npm scripts", () => {

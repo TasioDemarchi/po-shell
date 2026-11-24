@@ -80,7 +80,7 @@ export function runPiJson(cwd, args, options = {}) {
       return;
     }
 
-    const childEnv = { ...env, PLAIN_SUBAGENT: "1" };
+    const childEnv = { ...env, PO_SHELL_SUBAGENT: "1" };
     if (options.tmpDir) {
       childEnv.TMPDIR = options.tmpDir;
       if (process.platform === "win32") {
@@ -88,7 +88,7 @@ export function runPiJson(cwd, args, options = {}) {
         childEnv.TEMP = options.tmpDir;
       }
     }
-    const child = spawn(env.PLAIN_PI_BIN || "pi", args, {
+    const child = spawn(env.PO_SHELL_PI_BIN || "pi", args, {
       cwd,
       env: childEnv,
       stdio: ["ignore", "pipe", "pipe"],

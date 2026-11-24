@@ -6,13 +6,13 @@ import { searchContext } from "../src/context.js";
 import { init, saveMemory } from "../src/kernel.js";
 import { semanticConfig } from "../src/semantic.js";
 
-const home = fs.mkdtempSync(path.join(os.tmpdir(), "plain-semantic-smoke-"));
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-semantic-project-"));
+const home = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-semantic-smoke-"));
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-semantic-project-"));
 const env = {
   ...process.env,
-  PLAIN_HOME: home,
-  PLAIN_CONTEXT_DB: path.join(home, "context.db"),
-  PLAIN_SEMANTIC: "on",
+  PO_SHELL_HOME: home,
+  PO_SHELL_CONTEXT_DB: path.join(home, "context.db"),
+  PO_SHELL_SEMANTIC: "on",
 };
 
 if (!semanticConfig(env)) {

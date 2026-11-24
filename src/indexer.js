@@ -2,12 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { ensureDir, expandHome, nowIso, sha256 } from "./util.js";
-import { plainHome, projectIdentity, projectStateDir } from "./project.js";
+import { poShellHome, projectIdentity, projectStateDir } from "./project.js";
 
 export const GLOBAL_PROJECT_ID = "__global__";
 const SKIP_DIRS = new Set([
   ".git",
-  ".plain",
+  ".po-shell",
   "node_modules",
   "dist",
   "build",
@@ -165,8 +165,8 @@ END;
 `;
 
 export function contextDbPath(env = process.env) {
-  if (env.PLAIN_CONTEXT_DB) return expandHome(env.PLAIN_CONTEXT_DB);
-  return path.join(plainHome(env), "context.db");
+  if (env.PO_SHELL_CONTEXT_DB) return expandHome(env.PO_SHELL_CONTEXT_DB);
+  return path.join(poShellHome(env), "context.db");
 }
 
 function migrate(db) {
@@ -546,7 +546,7 @@ function indexMemories(db, project, cwd, options = {}) {
 
 
 function indexGlobalMemories(db, env = process.env, options = {}) {
-  const home = plainHome(env);
+  const home = poShellHome(env);
   return indexMemories(db, { id: GLOBAL_PROJECT_ID }, home, {
     dir: path.join(home, "memory"),
     projectId: GLOBAL_PROJECT_ID,

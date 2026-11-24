@@ -57,10 +57,10 @@ Dentro de Pi:
 
 Elegí `nan/glm5.3-flash` y mandá un mensaje corto.
 
-## 5. Usar Plain
+## 5. Usar po-shell
 
 ```bash
-plain
+po-shell
 ```
 
-Plain usa el mismo home de Pi, así que toma esta configuración automáticamente.
+po-shell usa el mismo home de Pi, así que toma esta configuración automáticamente.

@@ -20,11 +20,11 @@ No mantengas compatibilidad hacia atrás.
 `cartTotal(items)` debe leer `unitPriceCents`.
 Al terminar, congelá el review y mostrá el diff.
 
-Si usás Plain:
+Si usás po-shell:
 - creá la tarea con `risk: "high"`;
 - mostrá el plan;
-- usá `plain_task` con `action: "approve"` y esperá la aprobación humana antes de editar;
-- al terminar, `plain review freeze`.
+- usá `po_shell_task` con `action: "approve"` y esperá la aprobación humana antes de editar;
+- al terminar, `po-shell review freeze`.
 ```
 
 ## Criterio de aceptación
@@ -34,7 +34,7 @@ Si usás Plain:
 - Los tests visibles usan `unitPriceCents`.
 - La documentación menciona `unitPriceCents`.
 - `npm test` pasa.
-- Review congelado con `plain review freeze`.
+- Review congelado con `po-shell review freeze`.
 
 ## Test oculto
 

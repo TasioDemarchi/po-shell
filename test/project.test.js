@@ -6,22 +6,22 @@ import path from "node:path";
 import { init } from "../src/kernel.js";
 import { listProjectStates, projectIdentity, projectInfo, pruneProjectStates } from "../src/project.js";
 
-process.env.PLAIN_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "plain-project-home-"));
+process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-project-home-"));
 
 test("projectInfo resolves the central state and metadata", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-project-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-project-"));
   init(dir);
   const info = projectInfo(dir);
   assert.equal(info.initialized, true);
   assert.equal(info.root, dir);
-  assert.ok(info.stateDir.startsWith(process.env.PLAIN_HOME));
+  assert.ok(info.stateDir.startsWith(process.env.PO_SHELL_HOME));
   assert.ok(fs.existsSync(path.join(info.stateDir, "project.json")));
-  assert.equal(info.contextDb, path.join(process.env.PLAIN_HOME, "context.db"));
-  assert.ok(!fs.existsSync(path.join(dir, ".plain")));
+  assert.equal(info.contextDb, path.join(process.env.PO_SHELL_HOME, "context.db"));
+  assert.ok(!fs.existsSync(path.join(dir, ".po-shell")));
 });
 
 test("listProjectStates hides stale directories unless --all is requested", () => {
-  const orphan = path.join(process.env.PLAIN_HOME, "projects", "orphan-no-meta");
+  const orphan = path.join(process.env.PO_SHELL_HOME, "projects", "orphan-no-meta");
   fs.mkdirSync(orphan, { recursive: true });
   const visible = listProjectStates(process.env);
   assert.ok(!visible.some((item) => item.id === "orphan-no-meta"));
@@ -30,7 +30,7 @@ test("listProjectStates hides stale directories unless --all is requested", () =
 });
 
 test("listProjectStates lists central projects by name", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-project-list-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-project-list-"));
   init(dir);
   const projects = listProjectStates(process.env);
   const current = projects.find((item) => item.root === dir);
@@ -40,9 +40,9 @@ test("listProjectStates lists central projects by name", () => {
 
 
 test("prunes orphan state directories into a backup", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-project-prune-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-project-prune-"));
   init(dir);
-  const orphan = path.join(process.env.PLAIN_HOME, "projects", "orphan-prune");
+  const orphan = path.join(process.env.PO_SHELL_HOME, "projects", "orphan-prune");
   fs.mkdirSync(orphan, { recursive: true });
   fs.writeFileSync(path.join(orphan, "config.json"), "{}");
 
@@ -59,7 +59,7 @@ test("prunes orphan state directories into a backup", () => {
 
 
 test("projectInfo resolves the project root from a subdirectory", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-project-root-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-project-root-"));
   fs.writeFileSync(path.join(dir, "PROJECT.md"), "# Project\n");
   init(dir);
   const sub = path.join(dir, "src", "nested");

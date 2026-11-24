@@ -43,8 +43,8 @@ export function toFtsQuery(query) {
 }
 
 function isStopword(term) {
-  const plain = term.normalize("NFD").replace(/\p{Diacritic}/gu, "");
-  return STOPWORDS.has(plain);
+  const normalized = term.normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  return STOPWORDS.has(normalized);
 }
 
 export function toFtsQueryAny(query) {
@@ -395,7 +395,7 @@ export function getContext(cwd = process.cwd(), ref, options = {}) {
 
   if (options.autoIndex !== false) indexProject(cwd, { dbPath, env });
   const project = projectIdentity(cwd);
-  if (!fs.existsSync(dbPath)) throw new Error("no hay índice. Corré: plain index");
+  if (!fs.existsSync(dbPath)) throw new Error("no hay índice. Corré: po-shell index");
 
   const db = openContextDb(dbPath);
   try {

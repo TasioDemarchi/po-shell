@@ -6,10 +6,10 @@ import path from "node:path";
 import { getContext, searchContext, toFtsQuery, toFtsQueryAny } from "../src/context.js";
 import { init, saveMemory } from "../src/kernel.js";
 
-process.env.PLAIN_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "plain-context-home-"));
+process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-context-home-"));
 
 function tempProject() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plain-context-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-context-"));
   fs.mkdirSync(path.join(dir, "docs"), { recursive: true });
   fs.writeFileSync(
     path.join(dir, "docs", "requirements.md"),
@@ -29,8 +29,8 @@ function tempProject() {
 
 function envFor(dir) {
   return {
-    PLAIN_HOME: process.env.PLAIN_HOME,
-    PLAIN_CONTEXT_DB: path.join(dir, "context.db"),
+    PO_SHELL_HOME: process.env.PO_SHELL_HOME,
+    PO_SHELL_CONTEXT_DB: path.join(dir, "context.db"),
   };
 }
 

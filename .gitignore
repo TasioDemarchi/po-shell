@@ -1,5 +1,5 @@
 node_modules/
-.plain/
+.po-shell/
 .tmp-*/
 *.tgz
 bench/work/
