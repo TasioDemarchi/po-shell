@@ -14,7 +14,9 @@ import path from "node:path";
  */
 export const TOOL_STYLE = {
   bash: { icon: "🐚", tone: "accent", label: "shell" },
-  edit: { icon: "✏", tone: "warning", label: "edit" },
+  // U+270F plus VS16: the bare pencil is a one-cell dingbat, the only icon
+  // narrower than the rest, and that is what swallowed the gap before the word.
+  edit: { icon: "✏️", tone: "warning", label: "edit" },
   write: { icon: "📝", tone: "warning", label: "write" },
   read: { icon: "📖", tone: "muted", label: "read" },
   grep: { icon: "🔍", tone: "muted", label: "search" },

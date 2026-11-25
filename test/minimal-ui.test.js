@@ -92,6 +92,19 @@ test("every known tool carries an English label", () => {
   );
 });
 
+test("every icon is one emoji cell wide, never a narrow dingbat", () => {
+  // A one-cell icon next to a two-cell one breaks the gutter after the icon.
+  const defaultEmoji = new Set([0x2705, 0x2753]);
+  for (const [name, style] of Object.entries(TOOL_STYLE)) {
+    const chars = [...style.icon];
+    const [first] = chars;
+    const wide = chars.length === 1 && first.codePointAt(0) >= 0x1f300;
+    const forced = chars.length === 2 && chars[1] === "\uFE0F";
+    const emojiByDefault = chars.length === 1 && defaultEmoji.has(first.codePointAt(0));
+    assert.ok(wide || forced || emojiByDefault, `${name} icon ${JSON.stringify(style.icon)} is narrower than the rest`);
+  }
+});
+
 test("formatCall carries the label and drops it from the text", () => {
   const bash = formatCall("bash", { command: "npm test" }, { cwd });
   assert.equal(bash.label, "shell");

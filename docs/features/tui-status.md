@@ -158,7 +158,8 @@ puede esperar sin dejar la TUI a medias.
   (ls), `status`, `task`, `memory`, `check`, `review`, `ask`, `delegate`, `get` (context_get).
   Un tool desconocido degrada a `label: ""`: la fila queda `icono sujeto`, sin inventar palabra.
   Se descartó alinear las etiquetas con padding: `delegate` (8) obligaría a cuatro espacios
-  muertos en todas las filas.
+  muertos en todas las filas. El icono de `edit` pasó a `✏️` (U+270F + VS16): el lápiz sin
+  selector mide una celda y el resto dos, y ese era el espacio que se comía la fila.
 
 - 2026-11-25: propuesta escrita. Relevado: footer nativo de Pi (2 líneas + estados,
   con tokens, `$`, `ctx%`, modelo), barra de gentle-shell (branch+dirty, permiso,
