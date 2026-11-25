@@ -66,7 +66,7 @@ Cascada al achicar, manteniendo los dos bloques: primero se compacta todo (`~/de
 ### Panel (toggleable, 0–3 líneas arriba del editor)
 
 ```text
-📋 guard-de-contexto-mwvfpt33 · ready · med · evidence 2 · next: review the frozen diff
+📋 #12 · guard de contexto · ready · med · evidence 2 · next: review the frozen diff
 🤖 worker 41s · 0.31cr     🤖 explorer 12s · 0.05cr
 ✓ 185/185 · review mwvis2b5 · 8 files uncommitted
 ```
@@ -184,6 +184,14 @@ un registro en memoria de los hijos vivos (`po_shell_delegate` es sincrónico: s
 arrancar y se borra en el `finally`), y repinta cada segundo solo mientras hay alguno.
 Las filas no se comprimen: la que no entra en el ancho se oculta entera.
 
+Identidad de la tarea implementada (2026-11-25): dos nombres en vez de uno. `id` sigue
+siendo la clave de máquina (archivo, topic de memoria, `taskId` de reviews y costos); `number`
+es el handle humano (`#12`), secuencial y persistido en el JSON de la tarea, con contador en
+`tasks/.seq` para que borrar la última no libere el número. Las tareas viejas se numeran una
+vez, al primer `listTasks`, por `createdAt`. `getTask` acepta `12`, `#12` y el id exacto, así
+que el humano puede decir "la 12" y el modelo no traduce nada a mano. Panel, `status`,
+`po-shell task list/show` y la salida de `po_shell_task` muestran `#N · id · …`.
+
 Falta `/stats`.
 
 ## Log
@@ -205,6 +213,12 @@ Falta `/stats`.
   no entra el bloque de créditos. Cuando la izquierda desaparece el bloque del modelo queda
   alineado a la derecha, no salta a la izquierda. `textWidth` pasó a medir columnas, no code
   points: `📋` ocupa dos y con el conteo anterior la barra se desbordaba una columna.
+- 2026-11-25: identidad. El id (`slug-timestamp36`) no le dice nada al humano y ocupa media
+  fila; el número sí. Se descartó derivarlo del orden de las tareas (cambiaría al borrar) y
+  usarlo como clave de archivo (rompería memoria, reviews y costos históricos). El contador
+  vive en `tasks/.seq` como número plano: un `.json` ahí lo leería `listTasks` como tarea.
+  Numeración legacy perezosa en `listTasks` con una bandera que corta la recursión
+  (`ensureTaskNumbers` lista tareas también).
 - 2026-11-25: panel. El umbral de contexto no es un knob nuevo: se reusa
   `readContextPressure()`, que el kernel ya escribe en cada turno (`contextGuard`
   `warnAt 0.15` / `delegateAt 0.3`) y que ya mueve el gate de delegación. El trigger de

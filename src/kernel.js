@@ -107,10 +107,12 @@ export function init(cwd = process.cwd(), env = process.env) {
   if (!fs.existsSync(gitignore)) {
     fs.writeFileSync(
       gitignore,
-      ["events.jsonl", "reviews/", "agents/", "active", "*.tmp-*", ""].join("\n"),
+      ["events.jsonl", "reviews/", "agents/", "active", "tasks/.seq", "*.tmp-*", ""].join("\n"),
     );
   }
   if (firstRun) appendEvent(cwd, "init", {}, env);
+  // One-time, idempotent: tasks created before `number` existed get theirs here.
+  ensureTaskNumbers(cwd, env);
   return { ok: true, root, migratedFrom };
 }
 
@@ -144,6 +146,97 @@ function tasksDir(cwd, env = process.env) {
   return path.join(poShellPath(cwd, env), "tasks");
 }
 
+/**
+ * Two names per task. `id` is the machine key: file name, memory topic, review
+ * and cost attribution, stable across renames. `number` is the human handle:
+ * `#12` reads like something, `panel-de-tarea-…-mwvzoaos` does not.
+ */
+export function taskNumber(task) {
+  const value = Number(task?.number);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+let numbering = false;
+
+/**
+ * Tasks, with the legacy ones numbered on the first read.
+ *
+ * Numbering is a one-time migration and every entry point lists tasks, so it
+ * lives here instead of in each caller: an unnumbered task shows its id to the
+ * human, which is the whole problem this fixes. The flag keeps the recursion
+ * (`ensureTaskNumbers` lists tasks too) from biting.
+ */
+export function listTasks(cwd, env = process.env) {
+  const tasks = readTasks(cwd, env);
+  if (numbering || !tasks.some((task) => taskNumber(task) === 0)) return tasks;
+  numbering = true;
+  try {
+    ensureTaskNumbers(cwd, env);
+  } catch {
+    // Un directorio de tareas sin permiso de escritura sigue listando.
+  } finally {
+    numbering = false;
+  }
+  return readTasks(cwd, env);
+}
+
+/** `#12` when there is a number, the id otherwise. */
+export function taskLabelOf(task) {
+  const number = taskNumber(task);
+  return number ? `#${number}` : String(task?.id ?? "");
+}
+
+// The counter lives beside the tasks as a bare number, not JSON: `listTasks`
+// reads every `*.json` in that directory and would take the counter for a task.
+function taskSeqPath(cwd, env = process.env) {
+  return path.join(tasksDir(cwd, env), ".seq");
+}
+
+function readTaskSeq(cwd, env = process.env) {
+  try {
+    return Math.max(0, Math.trunc(Number(fs.readFileSync(taskSeqPath(cwd, env), "utf8").trim()) || 0));
+  } catch {
+    return 0;
+  }
+}
+
+function writeTaskSeq(cwd, value, env = process.env) {
+  try {
+    fs.writeFileSync(taskSeqPath(cwd, env), `${Math.max(0, Math.trunc(value))}\n`);
+  } catch {
+    // Sin contador se cae al máximo de las tareas: peor, pero no rompe.
+  }
+}
+
+/**
+ * Tasks created before `number` existed are numbered once, by creation order,
+ * and persisted: a derived index would shift the day a task is removed.
+ */
+export function ensureTaskNumbers(cwd, env = process.env) {
+  const tasks = listTasks(cwd, env).sort((a, b) =>
+    String(a?.createdAt ?? "").localeCompare(String(b?.createdAt ?? "")),
+  );
+  let next = tasks.reduce((max, task) => Math.max(max, taskNumber(task)), readTaskSeq(cwd, env));
+  const highest = next;
+  let changed = 0;
+  for (const task of tasks) {
+    if (taskNumber(task) > 0) continue;
+    next += 1;
+    writeJson(path.join(tasksDir(cwd, env), `${task.id}.json`), { ...task, number: next });
+    changed += 1;
+  }
+  if (next > highest) writeTaskSeq(cwd, next, env);
+  return changed;
+}
+
+/** The next number only moves forward: deleting the newest task frees nothing. */
+export function nextTaskNumber(cwd, env = process.env) {
+  const highest = listTasks(cwd, env).reduce((max, task) => Math.max(max, taskNumber(task)), 0);
+  const next = Math.max(highest, readTaskSeq(cwd, env)) + 1;
+  writeTaskSeq(cwd, next, env);
+  return next;
+}
+
 function activeFile(cwd, env = process.env) {
   return path.join(poShellPath(cwd, env), "active");
 }
@@ -161,12 +254,21 @@ export function activeTaskId(cwd, env = process.env) {
 }
 
 export function getTask(cwd, id, env = process.env) {
-  return readJson(path.join(tasksDir(cwd, env), `${id}.json`), null);
+  const ref = String(id ?? "").trim();
+  if (!ref) return null;
+  // `12` or `#12` is the human handle; anything else is the exact id.
+  const numeric = ref.replace(/^#/, "");
+  if (/^\d+$/.test(numeric)) {
+    const wanted = Number(numeric);
+    return listTasks(cwd, env).find((task) => taskNumber(task) === wanted) ?? null;
+  }
+  return readJson(path.join(tasksDir(cwd, env), `${ref}.json`), null);
 }
 
-export function listTasks(cwd, env = process.env) {
+/** Tasks as they are on disk: no numbering, no side effects. */
+function readTasks(cwd, env = process.env) {
+  const dir = tasksDir(cwd, env);
   try {
-    const dir = tasksDir(cwd, env);
     return fs
       .readdirSync(dir)
       .filter((f) => f.endsWith(".json"))
@@ -207,8 +309,10 @@ export function createTask(
   const mode = delegation ?? loadConfig(cwd, env).delegation ?? "inline";
   if (!DELEGATIONS.includes(mode)) throw new Error(`delegation must be one of ${DELEGATIONS.join(", ")}`);
   const id = `${slugify(title)}-${Date.now().toString(36)}`;
+  const number = nextTaskNumber(cwd, env);
   const task = {
     id,
+    number,
     title: String(title).trim(),
     phase: "authorized",
     risk,
@@ -750,7 +854,7 @@ export function renderStatus(cwd = process.cwd(), env = process.env) {
   if (s.activeTask) {
     const t = s.activeTask;
     lines.push(
-      `Tarea: ${t.id} · ${t.phase} · riesgo ${t.risk} · evidencia ${(t.evidence ?? []).length}`,
+      `Tarea: ${taskLabelOf(t)} · ${t.id} · ${t.phase} · riesgo ${t.risk} · evidencia ${(t.evidence ?? []).length}`,
       `Título: ${t.title}`,
     );
     const pressure = readContextPressure(cwd, env);

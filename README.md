@@ -186,12 +186,13 @@ conocida.
 Arriba del editor, hasta tres líneas, y por defecto **no existe**: aparece cuando algo pide atención.
 
 ```text
-📋 guard-de-contexto-mwvfp33 · ready · med · evidence 2 · next: review the frozen diff
+📋 #12 · guard de contexto · ready · med · evidence 2 · next: review the frozen diff
 🤖 worker 41.0s · 0.31cr     🤖 explorer 12.0s · ·
 ✓ 185/185 · review mwvis2b5 · 8 files uncommitted
 ```
 
-- `📋` la tarea activa completa: id, fase, riesgo, evidencia y `next`.
+- `📋` la tarea activa: `#12` (el número que ves vos), su título en minúscula, fase, riesgo,
+  evidencia y `next`. El id interno no aparece: no dice nada y ocupa media fila.
 - `🤖` los sub-agentes vivos, con elapsed y créditos; se repinta cada segundo **solo** mientras
   corre alguno, y los créditos aparecen cuando el hijo termina (antes se muestra `·`).
 - `✓` el último check, el review congelado y los archivos sin commitear.

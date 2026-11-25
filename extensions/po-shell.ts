@@ -49,6 +49,7 @@ import {
   listTasks,
   loadConfig,
   latestReview,
+  taskLabelOf,
   messagePromptTokens,
   saveContextPressure,
   poShellPath,
@@ -88,7 +89,7 @@ function snapshotTask(cwd: string, task: any) {
 function taskSummary(task: any) {
   if (!task) return "(sin tarea)";
   return [
-    `${task.id} · ${task.phase} · riesgo ${task.risk}`,
+    `${taskLabelOf(task)} · ${task.id} · ${task.phase} · riesgo ${task.risk}`,
     `título: ${task.title}`,
     task.scope ? `scope: ${task.scope}` : "",
     task.outOfScope ? `out of scope: ${task.outOfScope}` : "",
@@ -471,7 +472,11 @@ export default function poShellExtension(pi: ExtensionAPI) {
         ]),
       ),
       title: Type.Optional(Type.String()),
-      id: Type.Optional(Type.String()),
+      id: Type.Optional(
+        Type.String({
+          description: "Task id, or its human number (`#12` or `12`) as shown in the panel and `po-shell task list`.",
+        }),
+      ),
       phase: Type.Optional(Type.String()),
       risk: Type.Optional(Type.Union([Type.Literal("low"), Type.Literal("medium"), Type.Literal("high")])),
       scope: Type.Optional(Type.String()),
@@ -574,7 +579,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
         if (!tasks.length) return text("(sin tareas)");
         return text(
           tasks
-            .map((t: any) => `${t.id} · ${t.phase} · ${t.risk} · ${t.title}`)
+            .map((t: any) => `${taskLabelOf(t)} · ${t.phase} · ${t.risk} · ${t.title}`)
             .join("\n"),
         );
       } catch (error) {

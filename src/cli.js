@@ -23,6 +23,7 @@ import {
   init,
   isInitialized,
   listTasks,
+  taskLabelOf,
   loadConfig,
   memoryIndex,
   poShellPath,
@@ -70,7 +71,7 @@ function requireInit(cwd) {
 
 function printTask(task) {
   if (!task) return console.log("(sin tarea)");
-  console.log(`${task.id} · ${task.phase} · riesgo ${task.risk}`);
+  console.log(`${taskLabelOf(task)} · ${task.id} · ${task.phase} · riesgo ${task.risk}`);
   console.log(`  ${task.title}`);
   if (task.scope) console.log(`  scope: ${task.scope}`);
   if (task.outOfScope) console.log(`  out: ${task.outOfScope}`);
@@ -338,7 +339,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
         outOfScope: options.out ?? "",
         acceptance,
       });
-      console.log(`Tarea creada: ${task.id}`);
+      console.log(`Tarea creada: ${taskLabelOf(task)} · ${task.id}`);
       printTask(task);
       return;
     }
@@ -348,7 +349,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
       const id = positional[1];
       if (!phase) fail(`falta la fase. Opciones: ${PHASES.join(", ")}`);
       const task = updateTask(cwd, id, { phase });
-      console.log(`Tarea ${task.id} → ${task.phase}`);
+      console.log(`Tarea ${taskLabelOf(task)} → ${task.phase}`);
       return;
     }
 
@@ -358,7 +359,9 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
       if (!tasks.length) return console.log("(sin tareas)");
       for (const task of tasks) {
         const active = activeTask(cwd)?.id === task.id ? "*" : " ";
-        console.log(`${active} ${task.id}  ${task.phase.padEnd(12)} ${task.risk.padEnd(6)} ${task.title}`);
+        console.log(
+          `${active} ${taskLabelOf(task).padEnd(5)} ${task.phase.padEnd(12)} ${task.risk.padEnd(6)} ${task.title}`,
+        );
       }
       return;
     }

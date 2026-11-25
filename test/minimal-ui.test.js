@@ -339,9 +339,11 @@ test("footerLine cuts the model block, not the padding, when nothing fits", () =
   assert.ok(cut.endsWith("…"));
 });
 
-test("panelRowTask shows the whole task, not just its id", () => {
+test("panelRowTask leads with the number and the title, not the id", () => {
   const row = panelRowTask({
     id: "guard-de-contexto-mwvfpt33",
+    number: 12,
+    title: "Guard de contexto",
     phase: "ready",
     risk: "medium",
     next: "review the frozen diff",
@@ -349,9 +351,10 @@ test("panelRowTask shows the whole task, not just its id", () => {
   });
   assert.equal(
     row,
-    "📋 guard-de-contexto-mwvfpt33 · ready · med · evidence 2 · next: review the frozen diff",
+    "📋 #12 · guard de contexto · ready · med · evidence 2 · next: review the frozen diff",
   );
   assert.equal(panelRowTask({ id: "x", phase: "planned" }), "📋 x · planned · evidence 0");
+  assert.equal(panelRowTask({ id: "y", title: "Sin número" }), "📋 y · sin número · evidence 0");
   assert.equal(panelRowTask(null), "");
   assert.equal(panelRowTask({}), "");
 });
@@ -378,15 +381,17 @@ test("panelRowEvidence says pass or fail, review and dirty files", () => {
 
 test("panelRows hides a row that does not fit instead of cutting it", () => {
   const state = {
-    task: { id: "guard-de-contexto-mwvfpt33", phase: "ready", risk: "medium", evidence: [] },
+    task: { id: "guard-de-contexto-mwvfpt33", number: 3, phase: "ready", risk: "medium", evidence: [] },
     children: [{ role: "worker", elapsedMs: 41_000, credits: 0.31 }],
     checks: { total: 185, failed: 0 },
     dirty: 3,
   };
   assert.equal(panelRows(state, { width: 120 }).length, 3);
 
-  const narrow = panelRows(state, { width: 40 });
-  assert.deepEqual(narrow, ["🤖 worker 41.0s · 0.31cr", "✓ 185/185 · 3 files uncommitted"]);
+  // The task row is 33 columns and the evidence row is wider than 30: only the
+  // child row survives, and it survives whole, not cut.
+  const narrow = panelRows(state, { width: 30 });
+  assert.deepEqual(narrow, ["🤖 worker 41.0s · 0.31cr"]);
   assert.equal(panelRows(state, { maxRows: 2 }).length, 2);
   assert.deepEqual(panelRows({}, { width: 80 }), []);
 });

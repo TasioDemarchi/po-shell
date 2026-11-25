@@ -408,10 +408,19 @@ export function footerLine(blocks, options = {}) {
 
 const RISK_WORD = { low: "low", medium: "med", high: "high" };
 
-/** `📋 guard-… · ready · med · evidence 2 · next: …`, or empty with no task. */
+/**
+ * `📋 #12 · panel de tarea · ready · med · evidence 2 · next: …`, or empty
+ * without a task. The number is the human handle and the title the subject; the
+ * machine id only shows up when a task predates numbering.
+ */
 export function panelRowTask(task) {
   if (!task?.id) return "";
-  const bits = [oneLine(task.id, 48), oneLine(task.phase, 12)];
+  const number = Number(task.number);
+  const handle = Number.isFinite(number) && number > 0 ? `#${number}` : oneLine(task.id, 32);
+  const bits = [handle];
+  const title = oneLine(String(task.title ?? "").toLowerCase(), 40);
+  if (title) bits.push(title);
+  bits.push(oneLine(task.phase, 12));
   const risk = RISK_WORD[task.risk] ?? oneLine(task.risk, 8);
   if (risk) bits.push(risk);
   const evidence = (Array.isArray(task.evidence) ? task.evidence : []).length;

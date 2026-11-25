@@ -8,10 +8,13 @@ import {
   activeTask,
   attributableTask,
   createTask,
+  ensureTaskNumbers,
   freezeReview,
+  getTask,
   init,
   isInitialized,
   latestReview,
+  listTasks,
   memoryIndex,
   saveConfig,
   saveMemory,
@@ -319,4 +322,57 @@ test("a review of untracked files counts their lines and trips maxChangedLines",
   assert.ok(meta.added >= 500, `added=${meta.added}`);
   assert.equal(meta.overLimit, true);
   assert.equal(meta.limit, 100);
+});
+
+test("tasks carry a human number that never gets reused", () => {
+  const dir = tempRepo();
+  init(dir);
+  const first = createTask(dir, { title: "Uno", risk: "low" });
+  const second = createTask(dir, { title: "Dos", risk: "low" });
+  assert.equal(first.number, 1);
+  assert.equal(second.number, 2);
+
+  // Removing the newest task must not hand its number to the next one.
+  fs.rmSync(path.join(poShellPath(dir), "tasks", `${second.id}.json`));
+  const third = createTask(dir, { title: "Tres", risk: "low" });
+  assert.equal(third.number, 3);
+});
+
+test("a task is addressable by number, by #number and by id", () => {
+  const dir = tempRepo();
+  init(dir);
+  const task = createTask(dir, { title: "Buscame", risk: "low" });
+  assert.equal(getTask(dir, task.id)?.id, task.id);
+  assert.equal(getTask(dir, String(task.number))?.id, task.id);
+  assert.equal(getTask(dir, `#${task.number}`)?.id, task.id);
+  assert.equal(getTask(dir, "999"), null);
+
+  const updated = updateTask(dir, `#${task.number}`, { phase: "implementing" });
+  assert.equal(updated.id, task.id, "updating by number writes the same task");
+});
+
+test("tasks created before the number existed get one, once", () => {
+  const dir = tempRepo();
+  init(dir);
+  const tasksDir = path.join(poShellPath(dir), "tasks");
+  const legacy = {
+    id: "vieja-abc123",
+    title: "Vieja",
+    phase: "ready",
+    risk: "low",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    evidence: [],
+  };
+  fs.writeFileSync(path.join(tasksDir, `${legacy.id}.json`), JSON.stringify(legacy));
+
+  // Listing is enough: the legacy task is numbered on the first read.
+  assert.equal(listTasks(dir)[0].number, 1);
+  const numbered = getTask(dir, legacy.id);
+  assert.equal(numbered.number, 1);
+  assert.equal(ensureTaskNumbers(dir), 0, "a second pass changes nothing");
+  assert.equal(getTask(dir, "#1")?.id, legacy.id, "the backfilled number resolves");
+
+  const fresh = createTask(dir, { title: "Nueva", risk: "low" });
+  assert.equal(fresh.number, 2);
 });
