@@ -163,7 +163,7 @@ Verificado end-to-end: una delegación real con `max_tokens=2000` completó y gu
 
 ### v0.12 — delegación real y perfil full delegation
 
-- Contratos por rol en `prompts/subagents/`: `explore`, `worker`, `reviewer`, `planner` (~30 líneas cada uno). El hijo recibe protocolo común + contrato del rol, condensados de los `.md` de gentle-shell.
+- Contratos por rol en `prompts/subagents/`: `explore`, `worker`, `reviewer` (~30 líneas cada uno). El hijo recibe protocolo común + contrato del rol, condensados de los `.md` de gentle-shell.
 - `worker` exige `surfaces`: el guard del hijo rechaza `write`/`edit` fuera y las escrituras por shell (`>`, `tee`, `sed -i`, `cp`/`mv`).
 - El reporte del hijo entra capado (16 KiB, cabeza + cola + puntero al artefacto); un JSON nunca se corta.
 - Perfil `delegation: inline | delegate-writes` como dato de la tarea, visible en `po-shell status` y en `<po_shell_state>`. En `delegate-writes` el kernel bloquea la escritura de código del padre y deja `docs/features/`, commits, checks y estado.

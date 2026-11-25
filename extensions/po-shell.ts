@@ -39,6 +39,7 @@ import { mutatingCommand } from "../src/policy.js";
 import { semanticConfig } from "../src/semantic.js";
 import { planLines, sessionMetrics, statsLines } from "../src/stats.js";
 import { windowFrame, windowWidth } from "../src/window.js";
+import { roleBudgets, roleTools } from "../src/subagent-roles.js";
 import { fetchUsage } from "../src/nan-usage.js";
 import {
   activeTask,
@@ -939,7 +940,6 @@ export default function poShellExtension(pi: ExtensionAPI) {
   const subagentPrompt = path.join(PACKAGE_ROOT, "prompts", "po-shell-subagent.md");
   const rolePrompts: Record<string, string> = {
     explorer: path.join(PACKAGE_ROOT, "prompts", "subagents", "explore.md"),
-    planner: path.join(PACKAGE_ROOT, "prompts", "subagents", "planner.md"),
     worker: path.join(PACKAGE_ROOT, "prompts", "subagents", "worker.md"),
     reviewer: path.join(PACKAGE_ROOT, "prompts", "subagents", "reviewer.md"),
   };
@@ -952,7 +952,6 @@ export default function poShellExtension(pi: ExtensionAPI) {
     parameters: Type.Object({
       role: Type.Union([
         Type.Literal("explorer"),
-        Type.Literal("planner"),
         Type.Literal("worker"),
         Type.Literal("reviewer"),
       ]),
@@ -965,12 +964,6 @@ export default function poShellExtension(pi: ExtensionAPI) {
       max_turns: Type.Optional(Type.Number()),
     }),
     async execute(_id, params, _signal, _onUpdate, ctx) {
-      const defaults: Record<string, string[]> = {
-        explorer: ["read", "grep", "find", "ls"],
-        planner: ["read", "grep", "find", "ls"],
-        reviewer: ["read", "grep", "find", "ls"],
-        worker: ["read", "bash", "edit", "write", "grep", "find", "ls"],
-      };
       const surfaces = (params.surfaces ?? []).map((value: string) => String(value).trim()).filter(Boolean);
       if (params.role === "worker" && surfaces.length === 0) {
         return {
@@ -980,7 +973,23 @@ export default function poShellExtension(pi: ExtensionAPI) {
           isError: true,
         };
       }
-      const tools = params.tools?.length ? params.tools : defaults[params.role] ?? defaults.worker;
+      // The role matrix decides the tools: asking for one the role cannot have is
+      // an error the parent must see now, not a silently narrowed child.
+      let tools: string[];
+      try {
+        tools = roleTools(params.role, params.tools);
+      } catch (error) {
+        return { ...text(`po_shell_delegate: ${(error as Error).message}`), isError: true };
+      }
+      const budgets = roleBudgets(params.role, {
+        maxTurns: params.max_turns,
+        maxTokens: params.max_tokens,
+        timeoutSeconds: params.timeout_seconds,
+      });
+      const readOutside = (params.read_outside ?? [])
+        .map((value: string) => String(value).trim())
+        .filter(Boolean)
+        .map((value: string) => (value.startsWith("~") ? path.join(process.env.HOME ?? "", value.slice(1)) : path.resolve(ctx.cwd, value)));
       let model = params.model;
       if (!model) {
         try {
@@ -1004,7 +1013,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
         model,
         mission: prompt,
       });
-      const timeoutMs = Math.max(10, Math.min(3600, params.timeout_seconds ?? 300)) * 1000;
+      const timeoutMs = budgets.timeoutSeconds * 1000;
       const started = Date.now();
       let childScratch: any = null;
       const childId = trackChild(params.role);
@@ -1018,11 +1027,13 @@ export default function poShellExtension(pi: ExtensionAPI) {
         }
         const result = await runPiJson(ctx.cwd, args, {
           signal: _signal,
-          maxTokens: params.max_tokens,
-          maxTurns: params.max_turns,
+          maxTokens: budgets.maxTokens || undefined,
+          maxTurns: budgets.maxTurns,
           timeoutMs,
           tmpDir: childScratch?.dir,
           surfaces,
+          role: params.role,
+          readOutside,
         });
         const output = result.text.trim() || result.stderr.trim() || "(sin salida)";
         const runId = `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;

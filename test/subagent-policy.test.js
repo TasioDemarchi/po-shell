@@ -54,3 +54,52 @@ test("without surfaces nothing new is blocked", () => {
   assert.equal(subagentToolBlock("write", { path: "src/app.js" }, "/repo", {}), null);
   assert.equal(subagentToolBlock("bash", { command: "echo x > anywhere.txt" }, "/repo"), null);
 });
+
+/* --------------------------- role matrix --------------------------- */
+
+const repoCwd = "/home/dev/project";
+const roleCase = (tool, input, options) => subagentToolBlock(tool, input, repoCwd, options);
+
+test("the role matrix refuses a write tool a role does not have", () => {
+  assert.match(roleCase("edit", { path: "src/a.js" }, { role: "explorer" }), /explorer no escribe/);
+  assert.match(roleCase("write", { path: "src/a.js" }, { role: "reviewer" }), /reviewer no escribe/);
+  assert.equal(roleCase("write", { path: "src/a.js", content: "x" }, { role: "worker", surfaces: ["src"] }), null);
+});
+
+test("a worker without surfaces cannot write, even with the tool", () => {
+  assert.match(roleCase("write", { path: "src/a.js", content: "x" }, { role: "worker" }), /sin superficies/);
+});
+
+test("the explorer reads the repo, its scratch and only the granted prefixes", () => {
+  assert.equal(roleCase("read", { path: "src/a.js" }, { role: "explorer" }), null);
+  assert.equal(roleCase("read", { path: `${repoCwd}/src/a.js` }, { role: "explorer" }), null);
+  assert.equal(roleCase("grep", { pattern: "x", path: "src" }, { role: "explorer" }), null);
+  assert.equal(roleCase("read", { path: "/etc/passwd" }, {}), null, "no role means the old behaviour");
+  assert.match(roleCase("read", { path: "/etc/passwd" }, { role: "explorer" }), /queda fuera/);
+  assert.equal(
+    roleCase("read", { path: "/home/tachii/dev/gentle-shell/lib/a.ts" }, { role: "explorer", readOutside: ["/home/tachii/dev/gentle-shell"] }),
+    null,
+    "a mission can grant a prefix",
+  );
+  assert.match(
+    roleCase("read", { path: "/home/tachii/notes/private.md" }, { role: "explorer", readOutside: ["/home/tachii/dev/gentle-shell"] }),
+    /queda fuera/,
+  );
+});
+
+test("a worker reads its own scratch but not the user's home", () => {
+  const scratch = "/home/tachii/.po-shell/tmp/po-shell-sub-abc";
+  assert.equal(roleCase("read", { path: `${scratch}/probe.js` }, { role: "worker", scratch }), null);
+  assert.match(roleCase("read", { path: "/home/tachii/some-file" }, { role: "worker", scratch }), /queda fuera/);
+});
+
+test("only the explorer gets the web, and only the reviewer and worker run bash", () => {
+  assert.equal(roleCase("web_search", { query: "x" }, { role: "explorer" }), null);
+  assert.match(roleCase("web_search", { query: "x" }, { role: "worker" }), /no tiene acceso a la web/);
+  assert.match(roleCase("bash", { command: "npm test" }, { role: "explorer" }), /no ejecuta comandos/);
+  assert.equal(roleCase("bash", { command: "npm test" }, { role: "reviewer", scratch: "/tmp/x" }), null);
+});
+
+test("an unknown role is refused instead of falling back to worker", () => {
+  assert.match(roleCase("read", { path: "src/a.js" }, { role: "planner" }), /unknown subagent role/);
+});

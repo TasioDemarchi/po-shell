@@ -640,13 +640,15 @@ contrato corto (`prompts/subagents/*.md`) además del protocolo común.
 
 | Rol | Puede | No puede |
 |---|---|---|
-| `explorer` | leer, buscar, mapear | editar, mutar, arreglar |
-| `planner` | leer y planificar | implementar |
-| `worker` | editar **solo** las `surfaces` declaradas, correr los checks de la misión | commit, push, delegar, salir de sus superficies |
-| `reviewer` | leer y probar por su cuenta | editar, repetir la suite del escritor |
+| `explorer` | leer y buscar dentro del proyecto, leer los prefijos que la misión habilita (`read_outside`), usar la web | editar, correr comandos, salir de esos prefijos |
+| `worker` | editar **solo** las `surfaces` declaradas, correr los checks de la misión | commit, push, delegar, leer fuera del proyecto y su scratch |
+| `reviewer` | leer y **ejecutar** la verificación en su propia copia scratch | editar, tocar el repo, repetir la suite del escritor |
 
-Un `worker` sin `surfaces` no arranca: el guard del hijo rechaza `write`/`edit` fuera de ellas y
-también las redirecciones de shell hacia afuera.
+La matriz de roles vive en `src/subagent-roles.js` y se aplica en los dos lados: el padre valida la
+delegación antes de lanzarla (pedirle `edit` a un explorer es un error, no un hijo más suelto) y el
+guard del hijo la vuelve a aplicar en `tool_call`, aunque le hayan pasado una lista de tools más
+ancha. Un `worker` sin `surfaces` no arranca, y los presupuestos por rol tienen techo propio:
+explorer 12 turnos / 300 s, reviewer 15 / 600 s, worker 40 / 900 s.
 
 Los hijos corren con `--no-context-files`: **no leen el `AGENTS.md` del proyecto** ni comparten el
 historial del padre. Por eso cada misión lleva un bloque corto con las instrucciones, los comandos de
@@ -764,7 +766,6 @@ No hay cambio automático de modelo entre fases: eso rompería cache y consisten
 {
   "models": {
     "explorer": "nan/glm5.3-flash",
-    "planner": "nan/deepseek-v4-flash",
     "worker": "nan/glm5.3-flash",
     "reviewer": "nan/deepseek-v4-flash"
   }
@@ -778,7 +779,6 @@ Sugerencia basada en la comparativa de NaN:
 | Rol | Modelo | Motivo |
 |---|---|---|
 | `explorer` | GLM 5.3 Flash | Barato y parejo para leer/buscar |
-| `planner` | DeepSeek V4 Flash | El más confiable sin palancas |
 | `worker` | GLM 5.3 Flash | Perfecto en código y el más barato |
 | `reviewer` | DeepSeek V4 Flash | Mejor agente/revisión sin ayudas |
 

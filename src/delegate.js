@@ -196,6 +196,10 @@ export function runPiJson(cwd, args, options = {}) {
     if (Array.isArray(options.surfaces) && options.surfaces.length) {
       childEnv.PO_SHELL_SUBAGENT_SURFACES = options.surfaces.join(",");
     }
+    if (options.role) childEnv.PO_SHELL_SUBAGENT_ROLE = String(options.role);
+    if (Array.isArray(options.readOutside) && options.readOutside.length) {
+      childEnv.PO_SHELL_SUBAGENT_READ_OUTSIDE = options.readOutside.join(",");
+    }
     if (options.tmpDir) {
       childEnv.TMPDIR = options.tmpDir;
       if (process.platform === "win32") {

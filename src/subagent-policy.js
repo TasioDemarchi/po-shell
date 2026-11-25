@@ -1,5 +1,7 @@
+import path from "node:path";
 import { recognizeDestructive } from "./destructive.js";
 import { testScratchViolation } from "./scratch-guard.js";
+import { READ_TOOLS, WEB_TOOLS, WRITE_TOOLS, roleRules, withinPrefixes } from "./subagent-roles.js";
 
 const isMarkdown = (value) => /\.md$/i.test(String(value ?? "").replace(/\\/g, "/"));
 const isPoShellState = (value) => {
@@ -65,10 +67,64 @@ export function shellWriteTargets(command) {
   return [...new Set(targets)];
 }
 
+/** Absolute path of a tool argument, resolved against the child's cwd. */
+function absoluteTarget(target, cwd) {
+  return path.resolve(String(cwd ?? process.cwd()), String(target ?? ""));
+}
+
+function insideDir(target, dir) {
+  const base = String(dir ?? "").split("\\").join("/").replace(/\/$/, "");
+  if (!base) return false;
+  const value = String(target ?? "").split("\\").join("/");
+  return value === base || value.startsWith(`${base}/`);
+}
+
+/**
+ * The role matrix, enforced on the child.
+ *
+ * The parent validates the tool list before launching, and this refuses again at
+ * `tool_call`: a child handed a wider list than its role allows — by a bug, by an
+ * older parent — still cannot use it. Defense in depth, not decoration.
+ */
+function roleBlock(toolName, input, cwd, options) {
+  const role = String(options.role ?? "").trim().toLowerCase();
+  if (!role) return null;
+  let rules;
+  try {
+    rules = roleRules(role);
+  } catch (error) {
+    return `Subagente: ${(error instanceof Error ? error.message : String(error))}`;
+  }
+
+  if (WEB_TOOLS.includes(toolName) && !rules.web) {
+    return `${role} no tiene acceso a la web; devolvé la pregunta al padre.`;
+  }
+  if (WRITE_TOOLS.includes(toolName) && !rules.write) {
+    return `${role} no escribe archivos: solo un worker edita, y solo dentro de sus superficies.`;
+  }
+  if (toolName === "bash" && !rules.bash) {
+    return `${role} no ejecuta comandos; pedí al padre que corra la verificación.`;
+  }
+
+  if (READ_TOOLS.includes(toolName)) {
+    const target = input.path ?? input.file_path ?? input.file;
+    if (target == null || target === "") return null;
+    const absolute = absoluteTarget(target, cwd);
+    const granted = withinPrefixes(absolute, options.readOutside);
+    if (insideDir(absolute, cwd) || insideDir(absolute, options.scratch) || granted) return null;
+    return `Un subagente lee dentro del proyecto${options.scratch ? " y su scratch" : ""}; ${target} queda fuera. El padre habilita rutas con read_outside.`;
+  }
+
+  return null;
+}
+
 export function subagentToolBlock(toolName, input = {}, cwd = process.cwd(), options = {}) {
   if (String(toolName).startsWith("po_shell_")) {
     return "Un subagente no puede usar tools de memoria, tareas, review ni estado de po-shell.";
   }
+
+  const byRole = roleBlock(toolName, input, cwd, options);
+  if (byRole) return byRole;
 
   const scratchViolation = testScratchViolation({ toolName, input, cwd });
   if (scratchViolation) return `Subagente: ${scratchViolation}`;
@@ -82,6 +138,9 @@ export function subagentToolBlock(toolName, input = {}, cwd = process.cwd(), opt
       return "Un subagente no puede tocar el estado central.";
     }
     const surfaces = options.surfaces;
+    if (String(options.role ?? "") === "worker" && (!Array.isArray(surfaces) || surfaces.length === 0)) {
+      return "Un worker sin superficies declaradas no escribe: el padre tiene que fijarlas.";
+    }
     if (Array.isArray(surfaces) && surfaces.length > 0 && !withinSurfaces(file, surfaces, cwd)) {
       return `Un subagente de escritura solo toca las superficies declaradas (${surfaces.join(", ")}); ${file} queda fuera.`;
     }

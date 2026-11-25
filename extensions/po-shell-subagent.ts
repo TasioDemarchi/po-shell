@@ -15,10 +15,26 @@ function declaredSurfaces() {
     .filter(Boolean);
 }
 
+function declaredOutside() {
+  const raw = process.env.PO_SHELL_SUBAGENT_READ_OUTSIDE ?? "";
+  return raw
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
 export default function poShellSubagent(pi: ExtensionAPI) {
   const surfaces = declaredSurfaces();
+  const role = process.env.PO_SHELL_SUBAGENT_ROLE ?? "";
+  const readOutside = declaredOutside();
+  const scratch = process.env.TMPDIR ?? "";
   pi.on("tool_call", (event, ctx) => {
-    const reason = subagentToolBlock(event.toolName, event.input ?? {}, ctx.cwd, { surfaces });
+    const reason = subagentToolBlock(event.toolName, event.input ?? {}, ctx.cwd, {
+      surfaces,
+      role,
+      readOutside,
+      scratch,
+    });
     return reason ? { block: true, reason } : undefined;
   });
 }

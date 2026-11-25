@@ -32,7 +32,7 @@ tools: [read, grep, find, codegraph, web_search, ...]
 `maxConcurrency: 5`, `historyMaxTasks`, `report_max_bytes: 16384`.
 Hay 10 agentes incluidos en `assets/agents/`.
 
-En po-shell los roles (`explorer`, `planner`, `worker`, `reviewer`) solo eligen modelo; el
+En po-shell los roles (`explorer`, `worker`, `reviewer`) eligen modelo y capacidades; el
 prompt y el tool set son los mismos para todos.
 
 ### 2. Lanzamiento
@@ -146,7 +146,7 @@ que delegar sea barato en contexto y seguro en tiempo.
 
 | Pieza | Dónde | Qué hace |
 |---|---|---|
-| Contratos por rol | `prompts/subagents/{explore,worker,reviewer,planner}.md` | ~30 líneas por rol: qué puede tocar, qué nunca, qué devuelve. El hijo recibe el protocolo común + su contrato (`--append-system-prompt` repetido) |
+| Contratos por rol | `prompts/subagents/{explore,worker,reviewer}.md` | ~30 líneas por rol: qué puede tocar, qué nunca, qué devuelve. El hijo recibe el protocolo común + su contrato (`--append-system-prompt` repetido) |
 | Superficies de escritura | `surfaces` en `po_shell_delegate`, `src/subagent-policy.js` | un `worker` sin superficies no arranca; el guard del hijo rechaza `write`/`edit` fuera y también redirecciones de shell (`>`, `tee`, `sed -i`, `cp`/`mv`) |
 | Cap del reporte | `capReport` en `src/delegate.js`, `reportMaxBytes` | 16 KiB por defecto, cabeza + cola + puntero al artefacto; un reporte JSON nunca se corta |
 | Perfil full delegation | `delegation` en la tarea, gate en `checkPolicy` | `delegate-writes`: el padre decide, explora, escribe `docs/features/` y commitea; toda mutación de código va a un worker. Aplicado por el kernel, no por el prompt |

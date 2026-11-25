@@ -83,7 +83,7 @@ src/util.js            helpers
 extensions/po-shell.ts     tools + hooks for Pi
 prompts/po-shell-protocol.md   orchestrator protocol (global)
 prompts/po-shell-subagent.md   common subagent contract
-prompts/subagents/<role>.md    short role contracts: explore, planner, worker, reviewer
+prompts/subagents/<role>.md    short role contracts: explore, worker, reviewer
 skills/po-shell-workflow/  agent procedure
 skills/agents-md-authoring/  skill for writing AGENTS.md
 skills/skill-md-authoring/   skill for writing SKILL.md
