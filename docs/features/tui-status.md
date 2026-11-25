@@ -126,7 +126,7 @@ de sesión, contadores de tools. Son diagnóstico, no decisión: van a `/stats`.
       modelo y por rol.
   - [x] Panel: modos `auto|on|off`, `ctrl+shift+p`, ticker con hijos vivos, tres filas sin
         comprimir (una fila que no entra se oculta), trigger por anomalía.
-  - [ ] `/stats` en el transcript: session, turns, tool calls, créditos con desglose por
+  - [x] `/stats` en el transcript: session, turns, tool calls, créditos con desglose por
         orquestador/hijos, tokens con hit de caché, y desglose por modelo y por tarea.
 
 ## Follow-ups
@@ -192,7 +192,11 @@ vez, al primer `listTasks`, por `createdAt`. `getTask` acepta `12`, `#12` y el i
 que el humano puede decir "la 12" y el modelo no traduce nada a mano. Panel, `status`,
 `po-shell task list/show` y la salida de `po_shell_task` muestran `#N · id · …`.
 
-Falta `/stats`.
+`/stats` implementado (2026-11-25): `src/stats.js` arma el bloque (`formatSpan`,
+`formatTokensShort`, `cacheHit`, `sessionMetrics`, `statsLines`) y la extensión lo imprime con
+`pi.appendEntry("po-shell-stats", …)` + `registerEntryRenderer`, que es TUI-only: preguntar los
+números no gasta tokens. Los créditos salen de `costSummary({ sessionId })`, así que el
+desglose orquestador/hijos usa el `session_id` de la fase 2. La fase 3 queda cerrada.
 
 ## Log
 
@@ -213,6 +217,11 @@ Falta `/stats`.
   no entra el bloque de créditos. Cuando la izquierda desaparece el bloque del modelo queda
   alineado a la derecha, no salta a la izquierda. `textWidth` pasó a medir columnas, no code
   points: `📋` ocupa dos y con el conteo anterior la barra se desbordaba una columna.
+- 2026-11-25: `/stats`. Se usó `pi.appendEntry` + `registerEntryRenderer` y no `sendMessage`:
+  el bloque no debe entrar al contexto del modelo, y `sendMessage` sí participa. `sessionMetrics`
+  cuenta turnos por mensajes `assistant` y tool calls por mensajes `toolResult` (el único lugar que
+  sabe si fallaron). El desglose por rol reusa `costSummary({ sessionId })` de la fase 2, sin
+  volver a tocar SQLite. Ningún comando nuevo de CLI: `po-shell costs` ya cubre el caso sin sesión.
 - 2026-11-25: identidad. El id (`slug-timestamp36`) no le dice nada al humano y ocupa media
   fila; el número sí. Se descartó derivarlo del orden de las tareas (cambiaría al borrar) y
   usarlo como clave de archivo (rompería memoria, reviews y costos históricos). El contador

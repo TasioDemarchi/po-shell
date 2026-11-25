@@ -209,6 +209,23 @@ po-shell ui panel auto      # auto (default) | on | off
 En sesión: `/panel on|off|auto` y `ctrl+shift+p` para prenderlo o apagarlo. Vive en
 `~/.po-shell/ui.json` junto al modo `minimal|full`.
 
+### `/stats`
+
+A demanda, un bloque en el transcript con lo que costó la sesión. No entra al contexto del
+modelo: `appendEntry` es solo TUI, así que preguntar los números no gasta tokens.
+
+```text
+session  1h 42m · 14 turns · 96 tool calls · 2 failed
+spent    18.6cr  (orchestrator 16.5cr · subagents 2.10cr)
+tokens   in 412k · out 38k · cache R 9.1M (95.7% hit) · W 0
+models   deepseek-v4-flash  12 turns · 320k · 0.90cr
+         deepseek-v4-pro  2 turns · 130k · 15.6cr
+task     #12 · guard de contexto · medium · evidence 2 · review mwvis2b5
+```
+
+Los créditos son estimaciones con tarifas publicadas; `unpriced` avisa que algún modelo de la
+sesión no tiene tarifa conocida. Nunca es el saldo de Nan: la API key no puede leer el pool.
+
 ```bash
 po-shell ui            # muestra el modo y las rutas que toca
 po-shell ui minimal    # una línea por acción (default)

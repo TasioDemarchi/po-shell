@@ -31,12 +31,13 @@ import { applyUiMode, panelMode, setPanelMode, uiMode } from "../src/ui.js";
 import { activeDirectives, getContext, searchContext } from "../src/context.js";
 import { confirmDestructive, planApprovalTitle, PLAN_APPROVE, PLAN_REJECT } from "../src/confirm.js";
 import { buildSubagentArgs, capReport, delegationMeta, runPiJson, usageTotal } from "../src/delegate.js";
-import { formatCredits, recordCost } from "../src/costs.js";
+import { formatCredits, costSummary, recordCost } from "../src/costs.js";
 import { createSubagentScratch } from "../src/scratch.js";
 import { memoryAction, taskAction } from "../src/tool-defaults.js";
 import { PACKAGE_ROOT } from "../src/shell.js";
 import { mutatingCommand } from "../src/policy.js";
 import { semanticConfig } from "../src/semantic.js";
+import { sessionMetrics, statsLines } from "../src/stats.js";
 import {
   activeTask,
   attributableTask,
@@ -406,6 +407,36 @@ export default function poShellExtension(pi: ExtensionAPI) {
         return;
       }
       ctx.ui.notify(renderStatus(cwd), "info");
+    },
+  });
+
+  // `/stats` prints a block in the transcript that the model never sees:
+  // appendEntry is TUI-only, so asking for the numbers costs no tokens.
+  pi.registerEntryRenderer("po-shell-stats", (entry: any, _options: any, theme: any) => {
+    const lines = Array.isArray(entry?.data?.lines) ? entry.data.lines : [];
+    return new Text(lines.map((line: string) => theme.fg("dim", line)).join("\n"), 0, 0);
+  });
+
+  pi.registerCommand("stats", {
+    description: "Créditos, tokens y modelos de la sesión (no entra al contexto del modelo)",
+    handler: async (_args, ctx) => {
+      const cwd = ctx.cwd;
+      if (!isInitialized(cwd)) {
+        ctx.ui.notify("po-shell is not initialized. Run: po-shell init", "warning");
+        return;
+      }
+      try {
+        const cost = costSummary({ sessionId: sessionIdOf(ctx), env: process.env });
+        const lines = statsLines({
+          session: sessionMetrics(ctx.sessionManager?.getEntries?.() ?? []),
+          cost,
+          task: activeTask(cwd),
+          review: latestReview(cwd),
+        });
+        pi.appendEntry("po-shell-stats", { lines: lines.length ? lines : ["stats   (nothing recorded yet)"] });
+      } catch (error) {
+        ctx.ui.notify(String((error as Error).message), "warning");
+      }
     },
   });
 
