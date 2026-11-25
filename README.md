@@ -216,7 +216,7 @@ conversación. Nada llega al modelo: la ventana solo pinta, así que preguntar l
 tokens.
 
 ```text
-┌ usage ────────────────────────────────────────────┐
+┌──────────────────────────────────────────── usage ┐
 │ session  1h 42m · 14 turns · 96 tool calls · 2 …  │
 │ spent    18.6cr  (orchestrator 16.5cr · subagent… │
 │ ...                                               │

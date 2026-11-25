@@ -43,8 +43,10 @@ export function windowFrame({ title = "", body = [], hint = "", width = 80 } = {
   );
   const horizontal = (size) => BORDER.horizontal.repeat(Math.max(0, size));
 
+  // The title sits on the right of the top border: on the left it reads as the
+  // first row of the body, and the body rows are what the eye is looking for.
   const head = label
-    ? `${BORDER.topLeft} ${label} ${horizontal(inner - textWidth(label))}${BORDER.topRight}`
+    ? `${BORDER.topLeft}${horizontal(inner - textWidth(label))} ${label} ${BORDER.topRight}`
     : `${BORDER.topLeft}${horizontal(inner + 2)}${BORDER.topRight}`;
 
   const rows = (Array.isArray(body) ? body : []).map((line) => ({

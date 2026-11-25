@@ -12,7 +12,7 @@ test("windowFrame draws a titled box around the body", () => {
     width: 40,
   });
   assert.deepEqual(texts(rows), [
-    `┌ plan ${"─".repeat(32)}┐`,
+    `┌${"─".repeat(32)} plan ┐`,
     `│ ${"plan     6387.7cr left".padEnd(36)} │`,
     `│ ${"period   612.3cr".padEnd(36)} │`,
     `│ ${" ".repeat(36)} │`,
@@ -26,8 +26,8 @@ test("windowFrame draws a titled box around the body", () => {
 
 test("windowFrame never cuts the title, and grows for it", () => {
   const rows = windowFrame({ title: "subscriptions of nan", body: [], width: 10 });
-  assert.ok(rows[0].text.includes("subscriptions of nan"));
-  assert.ok(rows[0].text.startsWith("┌ subscriptions of nan "));
+  assert.ok(rows[0].text.endsWith(" subscriptions of nan ┐"));
+  assert.ok(rows[0].text.length > 10);
 });
 
 test("windowFrame truncates a long row instead of breaking the box", () => {
