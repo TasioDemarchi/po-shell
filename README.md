@@ -212,7 +212,8 @@ En sesión: `/panel on|off|auto` y `ctrl+shift+p` para prenderlo o apagarlo. Viv
 ### `/usage` y `/plan`
 
 Dos ventanas a demanda: se abren centradas, se cierran con `esc` (o `q`) y no ensucian la
-conversación. El ancho es el del contenido: no tapa líneas del chat que no tiene nada que decir. Nada llega al modelo: la ventana solo pinta, así que preguntar los números no gasta
+conversación. El ancho es el del contenido —con un piso de 48 columnas para que una sesión recién empezada no
+se vea como un sello— y centrada: no tapa líneas del chat que no tiene nada que decir. Nada llega al modelo: la ventana solo pinta, así que preguntar los números no gasta
 tokens.
 
 ```text

@@ -225,7 +225,8 @@ es la sesión, `/plan` es la cuenta de Nan. Los dos se muestran en una ventana c
   siempre: cambió a `ctx.ui.custom` con `overlay: true`. El marco es puro (`windowFrame` en
   `src/window.js`): ancho fijo con filas truncadas, título alineado a la derecha del borde
   superior (`… plan ┐`, para no confundirlo con la primera fila del cuerpo) y `esc close` en el
-  pie. El ancho es el del contenido (`windowWidth`), no un porcentaje de la terminal: una
+  pie. El ancho es el del contenido (`windowWidth`, con piso de `WINDOW_MIN_COLUMNS` = 48), no un
+  porcentaje de la terminal: una
   superposición que se estira deja líneas del chat cortadas a la derecha sin motivo. La
   ventana va anclada al centro (`anchor: "center"`). `/plan` espera a la API con un toast y abre la ventana cuando el cuerpo está completo: un overlay
   conserva el ancho con el que nació, y crecerlo después (`fetching…` → cuatro filas de modelos)

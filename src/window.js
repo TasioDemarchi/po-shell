@@ -29,13 +29,19 @@ function fit(text, width) {
   return `${value}${" ".repeat(width - size)}`;
 }
 
+// A window narrower than this reads as a postage stamp, not as a window, and
+// `/usage` legitimately has few rows on a fresh session.
+export const WINDOW_MIN_COLUMNS = 48;
+
 /**
  * The width the box actually needs: the widest row plus the two border columns
- * on each side. A window that stretches to a percentage of the terminal paints
- * background over chat lines it has nothing to say about.
+ * on each side, never below `WINDOW_MIN_COLUMNS`. A window that stretches to a
+ * percentage of the terminal paints background over chat lines it has nothing to
+ * say about; a window narrower than its own title is just as wrong.
  */
-export function windowWidth({ title = "", body = [], hint = "" } = {}) {
+export function windowWidth({ title = "", body = [], hint = "", min = WINDOW_MIN_COLUMNS } = {}) {
   const widths = [
+    Number(min) || 0,
     textWidth(String(title)),
     ...(Array.isArray(body) ? body : []).map((line) => textWidth(line)),
     textWidth(String(hint)),

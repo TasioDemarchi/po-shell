@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { windowFrame, windowWidth } from "../src/window.js";
+import { WINDOW_MIN_COLUMNS, windowFrame, windowWidth } from "../src/window.js";
 
 const texts = (rows) => rows.map((row) => row.text);
 
@@ -45,13 +45,13 @@ test("windowFrame without a title or hint still closes cleanly", () => {
 });
 
 test("windowWidth is the content, not the terminal", () => {
-  assert.equal(
-    windowWidth({ title: "plan", body: ["plan     6387.7cr left · renews (19d)", "period   612.3cr"], hint: "esc close" }),
-    "plan     6387.7cr left · renews (19d)".length + 4,
-  );
+  const widest = "models   deepseek-v4-flash  75.6% · 760.6M t · 3640 req";
+  assert.equal(windowWidth({ title: "plan", body: ["period   612.3cr", widest], hint: "esc close" }), widest.length + 4);
   // The title can be the longest row; the hint never wins against a body line.
-  assert.equal(windowWidth({ title: "subscriptions" }), "subscriptions".length + 4);
-  assert.equal(windowWidth({}), 16, "a floor of 12 keeps an empty box readable");
+  assert.equal(windowWidth({ title: "x".repeat(60) }), 64);
+  assert.equal(windowWidth({}), WINDOW_MIN_COLUMNS + 4, "a short body is still a window");
+  assert.equal(windowWidth({ body: ["a"] }), WINDOW_MIN_COLUMNS + 4);
+  assert.equal(windowWidth({ min: 20 }), 24, "the floor is configurable");
 });
 
 test("windowFrame at the needed width fits the content exactly", () => {
