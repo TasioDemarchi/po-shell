@@ -409,3 +409,11 @@ test("shouldShowPanel stays quiet in auto until something is wrong", () => {
     assert.equal(shouldShowPanel({ mode: "auto", ...trigger }), true, JSON.stringify(trigger));
   }
 });
+
+test("panelRowEvidence does not repeat the review prefix", () => {
+  assert.equal(
+    panelRowEvidence({ checks: { total: 9, failed: 0 }, review: { id: "review-mwvis2b5" } }),
+    "✓ 9/9 · review mwvis2b5",
+  );
+  assert.equal(panelRowEvidence({ review: { id: "mwvis2b5" } }), "review mwvis2b5");
+});

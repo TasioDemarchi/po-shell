@@ -445,7 +445,11 @@ export function panelRowEvidence(state = {}) {
     const mark = failed > 0 || checks.ok === false ? "✗" : "✓";
     bits.push(`${mark} ${passed}/${total}`);
   }
-  if (state.review?.id) bits.push(`review ${oneLine(state.review.id, 12)}`);
+  // The meta id already carries the word (`review-mwvis2b5`): strip it, or the
+  // row reads `review review-mwvi…`.
+  if (state.review?.id) {
+    bits.push(`review ${oneLine(String(state.review.id).replace(/^review-/, ""), 12)}`);
+  }
   const dirty = Number(state.dirty) || 0;
   if (dirty > 0) bits.push(`${dirty} ${dirty === 1 ? "file" : "files"} uncommitted`);
   return bits.join(" · ");
