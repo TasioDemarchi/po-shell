@@ -9,6 +9,7 @@ import { directorySize, formatSize, listScratch, sweepScratch } from "./scratch.
 import { activeDirectives, getContext, searchContext } from "./context.js";
 import { indexProject } from "./indexer.js";
 import { listProjectStates, poShellHome, projectInfo, pruneProjectStates } from "./project.js";
+import { agentSettingsPath, applyUiMode, uiConfigPath, uiMode } from "./ui.js";
 import {
   PHASES,
   RISKS,
@@ -83,6 +84,7 @@ function help() {
 Uso:
   po-shell                     inicia el agente (Pi) con po-shell cargado
   po-shell doctor              chequea Node, Pi, git y archivos
+  po-shell ui [minimal|full]   estética de la terminal (una línea por acción)
   po-shell install [--json]    verifica la instalación (no instala nada)
   po-shell update [--yes] [--json]     muestra o ejecuta la actualización
   po-shell uninstall [--yes] [--json]  desinstala el paquete, nunca tu estado
@@ -241,6 +243,39 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
     const result = init(cwd);
     console.log(`po-shell inicializado en ${result.root}`);
     if (result.migratedFrom) console.log(`Estado migrado desde ${result.migratedFrom}`);
+    return;
+  }
+
+  if (command === "ui") {
+    const mode = String(rest[0] ?? "")
+      .trim()
+      .toLowerCase();
+    if (!mode) {
+      if (json) {
+        return console.log(
+          JSON.stringify(
+            { mode: uiMode(process.env), config: uiConfigPath(process.env), settings: agentSettingsPath(process.env) },
+            null,
+            2,
+          ),
+        );
+      }
+      console.log(`UI: ${uiMode(process.env)}`);
+      console.log(`  config: ${uiConfigPath(process.env)}`);
+      console.log(`  settings: ${agentSettingsPath(process.env)}`);
+      return;
+    }
+    let result;
+    try {
+      result = applyUiMode(mode, process.env);
+    } catch (error) {
+      return fail(error instanceof Error ? error.message : String(error));
+    }
+    if (json) return console.log(JSON.stringify(result, null, 2));
+    console.log(`UI: ${result.mode}`);
+    console.log(`  thinking: ${result.mode === "minimal" ? "oculto" : "visible"} (${result.settings})`);
+    if (result.backup) console.log(`  backup: ${result.backup}`);
+    if (result.mode === "minimal") console.log("  expandir una acción: ctrl+o · el thinking: ctrl+t");
     return;
   }
 

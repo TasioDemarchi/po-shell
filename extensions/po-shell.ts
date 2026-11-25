@@ -8,6 +8,9 @@
 
 import { Type } from "typebox";
 import path from "node:path";
+import { Container, Text } from "@earendil-works/pi-tui";
+import { formatCall, formatResult, resultText } from "../src/minimal-ui.js";
+import { applyUiMode, uiMode } from "../src/ui.js";
 import { activeDirectives, getContext, searchContext } from "../src/context.js";
 import { confirmDestructive, planApprovalTitle, PLAN_APPROVE, PLAN_REJECT } from "../src/confirm.js";
 import { buildSubagentArgs, capReport, delegationMeta, runPiJson, usageTotal } from "../src/delegate.js";
@@ -83,6 +86,84 @@ ${task.plan}` : "",
 
 export default function poShellExtension(pi: ExtensionAPI) {
   let pendingCheckpoint = "";
+
+  /* ------------------------------- display ------------------------------- */
+
+  // The mode is read at render time, so `/ui` switches without a reload.
+  let minimal = uiMode(process.env) === "minimal";
+
+  function applyUi(ctx: any) {
+    if (!ctx.hasUI) return;
+    ctx.ui.setToolsExpanded(!minimal);
+    if (minimal) {
+      ctx.ui.setHiddenThinkingLabel("💭 pensando…");
+      ctx.ui.setWorkingIndicator({
+        frames: ["·  ", "·· ", "···"],
+        intervalMs: 280,
+      });
+    } else {
+      ctx.ui.setHiddenThinkingLabel();
+      ctx.ui.setWorkingIndicator();
+    }
+  }
+
+  pi.on("session_start", async (_event, ctx) => {
+    minimal = uiMode(process.env) === "minimal";
+    applyUi(ctx);
+  });
+
+  pi.registerCommand("ui", {
+    description: "Cambiar la estética: /ui minimal | /ui full",
+    handler: async (args, ctx) => {
+      const value = String(args ?? "")
+        .trim()
+        .toLowerCase();
+      if (!value) {
+        ctx.ui.notify(`UI: ${minimal ? "minimal" : "full"}`, "info");
+        return;
+      }
+      try {
+        const result = applyUiMode(value, process.env);
+        minimal = result.mode === "minimal";
+        applyUi(ctx);
+        const thinking = result.changed ? " · thinking en la próxima sesión (o ctrl+t)" : "";
+        ctx.ui.notify(`UI: ${result.mode}${thinking}`, "info");
+      } catch (error) {
+        ctx.ui.notify(String((error as Error).message), "warning");
+      }
+    },
+  });
+
+  // One line per tool call. Collapsed is ours; expanded delegates to Pi, so
+  // ctrl+o still shows the native command, output and diff.
+  pi.registerToolRenderer((toolName: string, next: any) => {
+    const base = next();
+    return {
+      renderCall(args: any, theme: any, context: any) {
+        if (!minimal) return base?.renderCall?.(args, theme, context) ?? new Text(toolName, 0, 0);
+        if (context.expanded && base?.renderCall) return base.renderCall(args, theme, context);
+        const call = formatCall(toolName, args ?? {}, { cwd: context.cwd });
+        const meta = call.meta ? `  ${theme.fg("dim", call.meta)}` : "";
+        return new Text(`${theme.fg(call.tone, call.icon)} ${theme.fg("text", call.text)}${meta}`, 0, 0);
+      },
+      renderResult(result: any, options: any, theme: any, context: any) {
+        const expanded = options?.expanded ?? context?.expanded;
+        if (!minimal) return base?.renderResult?.(result, options, theme, context) ?? new Container();
+        if (expanded && base?.renderResult) return base.renderResult(result, options, theme, context);
+        if (expanded) {
+          const full = resultText(result);
+          return full ? new Text(full.split("\n").map((line) => theme.fg("toolOutput", line)).join("\n"), 0, 0) : new Container();
+        }
+        const rows = formatResult(toolName, context?.args ?? {}, result, {
+          isPartial: options?.isPartial,
+          isError: context?.isError,
+          durationMs: context?.durationMs,
+        });
+        if (!rows.length) return new Container();
+        return new Text(rows.map((row) => theme.fg(row.tone, row.text)).join("\n"), 0, 0);
+      },
+    };
+  });
 
   pi.registerCommand("semantic", {
     description: "Turn semantic memory search on or off for this session: /semantic on|off",

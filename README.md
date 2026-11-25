@@ -142,6 +142,35 @@ Configurá tus checks en `~/.po-shell/projects/<id>/config.json`:
 }
 ```
 
+## Estética
+
+Por defecto la terminal muestra **una línea por acción**: el icono de la herramienta, qué tocó y la
+meta (líneas del diff, duración).
+
+```text
+🐚 npm test                      ✓ 6.5s
+✏ src/kernel.js  +12 −3
+📝 docs/status.md  18 L
+📋 task · new · Guard de contexto: medir la presión…
+🧠 memory · save · El hijo no ve AGENTS.md
+💭 pensando…
+```
+
+El thinking arranca oculto con esa etiqueta y el indicador de trabajo anima puntos. Nada se pierde:
+`ctrl+o` expande la acción y muestra el comando, la salida y el diff nativos; `ctrl+t` muestra el
+razonamiento completo.
+
+```bash
+po-shell ui            # muestra el modo y las rutas que toca
+po-shell ui minimal    # una línea por acción (default)
+po-shell ui full       # vuelve a la vista de Pi
+```
+
+El modo vive en `~/.po-shell/ui.json`. `po-shell ui` también alinea `hideThinkingBlock` en
+`~/.pi/agent/settings.json` (con backup y sin tocar otras claves); Pi lo lee al arrancar, así que el
+cambio de thinking aplica en la próxima sesión o con `ctrl+t`. En una sesión abierta, `/ui minimal`
+y `/ui full` cambian el resto en caliente. `PO_SHELL_UI=full` gana sobre el archivo.
+
 ## Uso
 
 ```bash

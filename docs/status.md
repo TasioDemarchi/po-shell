@@ -114,6 +114,14 @@
 - 3 tests nuevos: adopción, no-adopción cuando el id calculado existe, y aislamiento entre homes.
 - Procedimiento manual en `docs/recovery.md` (escenario 8) y regla en `docs/self-hosting.md`.
 
+### v0.16 — estética minimalista
+
+- `src/minimal-ui.js` formatea cada herramienta en una línea: icono con color por familia, el comando o el archivo, y la meta (`+12 −3`, `3 L`, `6.5s`). Los éxitos no agregan líneas; los errores muestran hasta tres.
+- `src/ui.js` guarda el modo `minimal|full` en `~/.po-shell/ui.json` y alinea `hideThinkingBlock` en `<agent-dir>/settings.json`, con backup y sin tocar otras claves.
+- La extensión registra un `registerToolRenderer`: colapsado usa nuestra línea, expandido (ctrl+o) delega al renderer nativo, así el diff y la salida completa siguen intactos. En `session_start` deja las herramientas colapsadas, la etiqueta `💭 pensando…` y un indicador de puntos animado.
+- `po-shell ui minimal|full` y el comando `/ui` cambian el modo; el thinking requiere la próxima sesión o ctrl+t porque Pi lo lee al arrancar.
+- 17 tests nuevos (`test/minimal-ui.test.js`, `test/ui.test.js`).
+
 ### v0.15 — el hijo no ve AGENTS.md
 
 - El hijo arranca con `--no-context-files`, así que no conoce comandos, layout ni convenciones del proyecto. El protocolo ahora exige que toda misión nombre `AGENTS.md` y lleve un bloque `CONTEXT` (instrucciones, build/test, layout, convenciones) de ~200 tokens, en lugar de pegar el archivo entero.
