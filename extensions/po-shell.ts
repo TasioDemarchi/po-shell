@@ -39,7 +39,7 @@ import { mutatingCommand } from "../src/policy.js";
 import { semanticConfig } from "../src/semantic.js";
 import { planLines, sessionMetrics, statsLines } from "../src/stats.js";
 import { windowFrame, windowWidth } from "../src/window.js";
-import { roleBudgets, roleTools } from "../src/subagent-roles.js";
+import { roleBudgets, roleTools, validateMission } from "../src/subagent-roles.js";
 import { fetchUsage } from "../src/nan-usage.js";
 import {
   activeTask,
@@ -1001,13 +1001,20 @@ export default function poShellExtension(pi: ExtensionAPI) {
       const done = (params.done ?? []).map((value: string) => String(value).trim()).filter(Boolean);
       const contextFiles = (params.context_files ?? []).map((value: string) => String(value).trim()).filter(Boolean);
       const buildTest = String(params.build_test ?? "").trim();
-      // A worker without a definition of done and a command to prove it is a
-      // mission that ends when the child gets bored. Refuse it here.
-      if (params.role === "worker" && (done.length === 0 || !buildTest)) {
+      // The contract is a kernel predicate, not a paragraph: a delegation that
+      // fails it never launches, for any role.
+      const contract = validateMission({
+        role: params.role,
+        task: params.task,
+        done,
+        buildTest,
+        surfaces,
+        contextFiles,
+        readOutside: params.read_outside,
+      });
+      if (!contract.ok) {
         return {
-          ...text(
-            "po_shell_delegate: un worker necesita `done` (qué significa terminado) y `build_test` (el comando exacto que lo prueba). Sin eso no hay handoff verificable.",
-          ),
+          ...text(`po_shell_delegate: mission incomplete — ${contract.errors.join("; ")}`),
           isError: true,
         };
       }

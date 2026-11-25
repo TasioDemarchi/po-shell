@@ -104,6 +104,49 @@ export function roleBudgets(role, { maxTurns, maxTokens, timeoutSeconds } = {}) 
   };
 }
 
+// Every role declares what "finished" means. The roles that run commands must
+// name them: a child with a shell and no authorized check invents one.
+const NEEDS = {
+  explorer: { done: true, buildTest: false, surfaces: false },
+  worker: { done: true, buildTest: true, surfaces: true },
+  reviewer: { done: true, buildTest: true, surfaces: false },
+};
+
+/**
+ * The delegation contract, as a predicate the kernel owns.
+ *
+ * This is not advice printed in a prompt: a delegation that fails here never
+ * launches, so a child can never start without knowing what finished looks like,
+ * which command proves it, or where it may write.
+ */
+export function validateMission({ role, task, done, buildTest, surfaces, contextFiles, readOutside } = {}) {
+  const errors = [];
+  let rules;
+  try {
+    rules = roleRules(role);
+  } catch (error) {
+    return { ok: false, errors: [error instanceof Error ? error.message : String(error)] };
+  }
+  const needs = NEEDS[String(role).trim().toLowerCase()];
+  const goal = String(task ?? "").trim();
+  const items = (Array.isArray(done) ? done : []).map((item) => String(item).trim()).filter(Boolean);
+  const command = String(buildTest ?? "").trim();
+  const writeSurfaces = (Array.isArray(surfaces) ? surfaces : []).map((item) => String(item).trim()).filter(Boolean);
+  const outside = (Array.isArray(readOutside) ? readOutside : []).map((item) => String(item).trim()).filter(Boolean);
+
+  const article = /^[aeiou]/i.test(String(role).trim()) ? "an" : "a";
+  if (goal.length < 10) errors.push("`task` must state the mission in at least 10 characters");
+  if (needs.done && items.length === 0) errors.push(`${article} ${role} needs \`done\`: what finished looks like`);
+  if (needs.buildTest && !command) errors.push(`${article} ${role} needs \`build_test\`: the exact command that proves it`);
+  if (needs.surfaces && writeSurfaces.length === 0) errors.push(`${article} ${role} needs \`surfaces\`: where it may write`);
+  if (writeSurfaces.length && !rules.write) errors.push(`${role} does not write, so \`surfaces\` makes no sense`);
+  if (outside.length && rules.outside !== "granted") {
+    errors.push(`only an explorer reads outside the repo; ${role} keeps reads inside the project and its scratch`);
+  }
+
+  return { ok: errors.length === 0, errors, rules };
+}
+
 /** True when `target` (absolute) sits under one of the granted prefixes (absolute). */
 export function withinPrefixes(target, prefixes) {
   const value = String(target ?? "").replace(/\\/g, "/").replace(/\/$/, "");

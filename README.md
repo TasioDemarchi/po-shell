@@ -642,8 +642,18 @@ contrato corto (`prompts/subagents/*.md`) además del protocolo común.
 ```
 
 La misión no es un párrafo: `buildMission` la arma en secciones (`MISSION`, `CONTEXT`, `EDIT SURFACES`,
-`DONE WHEN`, `OUT OF SCOPE`). Un `worker` **no arranca** sin `done` y `build_test`: una misión sin
-definición de terminado ni comando que la pruebe termina cuando el hijo se aburre.
+`DONE WHEN`, `OUT OF SCOPE`) y `validateMission` la **rechaza antes de lanzar** si no cumple el
+contrato. No es prosa en un prompt: es un predicado del kernel, con tests, que corre en la tool.
+
+| Rol | Exige |
+|---|---|
+| todos | `task` con el objetivo escrito (≥10 caracteres) |
+| `explorer` | `done` (qué evidencia devuelve) |
+| `worker` | `done` + `build_test` + `surfaces` |
+| `reviewer` | `done` + `build_test` (los comandos que puede correr) |
+
+Y rechaza contradicciones: `surfaces` en un explorer o en un reviewer, `read_outside` fuera del
+explorer. Devuelve todos los problemas juntos, no el primero, para no jugar al ping-pong.
 
 Si el hijo se queda sin turnos, sin presupuesto o sin tiempo, el padre no recibe su última frase:
 recibe `partialReport` con el estado, las últimas notas de progreso, el `git diff --stat` de lo que

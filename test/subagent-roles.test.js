@@ -8,6 +8,7 @@ import {
   roleBudgets,
   roleRules,
   roleTools,
+  validateMission,
   withinPrefixes,
 } from "../src/subagent-roles.js";
 
@@ -60,4 +61,51 @@ test("withinPrefixes matches the prefix itself and below it, never a sibling", (
   assert.equal(withinPrefixes("/home/dev/gentle-shell-extra/a.ts", ["/home/dev/gentle-shell"]), false);
   assert.equal(withinPrefixes("/home/dev/x", []), false);
   assert.equal(withinPrefixes("/home/dev/x", [""]), false);
+});
+
+const workerMission = {
+  role: "worker",
+  task: "Give the rows a two-line frame",
+  done: ["the frame closes at the same width"],
+  buildTest: "npm test",
+  surfaces: ["src/a.js"],
+};
+
+test("a worker mission needs done, build_test and surfaces", () => {
+  assert.equal(validateMission(workerMission).ok, true);
+  assert.match(validateMission({ ...workerMission, done: [] }).errors[0], /needs `done`/);
+  assert.match(validateMission({ ...workerMission, buildTest: "  " }).errors[0], /needs `build_test`/);
+  assert.match(validateMission({ ...workerMission, surfaces: [] }).errors[0], /needs `surfaces`/);
+});
+
+test("every role declares what finished looks like", () => {
+  assert.match(validateMission({ role: "explorer", task: "Map the upload flow" }).errors[0], /an explorer needs `done`/);
+  assert.equal(validateMission({ role: "explorer", task: "Map the upload flow", done: ["path:line evidence"] }).ok, true);
+  assert.match(
+    validateMission({ role: "reviewer", task: "Verify the frame change", done: ["verdict per item"] }).errors[0],
+    /needs `build_test`/,
+  );
+  assert.equal(
+    validateMission({ role: "reviewer", task: "Verify the frame change", done: ["verdict per item"], buildTest: "npm test" }).ok,
+    true,
+  );
+});
+
+test("the contract refuses contradictions instead of ignoring them", () => {
+  assert.match(
+    validateMission({ ...workerMission, readOutside: ["/home/dev/other"] }).errors[0],
+    /only an explorer reads outside the repo/,
+  );
+  assert.match(
+    validateMission({ role: "explorer", task: "Map the upload flow", done: ["x"], surfaces: ["src/a.js"] }).errors[0],
+    /does not write, so `surfaces` makes no sense/,
+  );
+  assert.match(validateMission({ ...workerMission, task: "short" }).errors[0], /at least 10 characters/);
+  assert.match(validateMission({ ...workerMission, role: "planner" }).errors[0], /unknown subagent role/);
+});
+
+test("one delegation returns every problem at once, not the first", () => {
+  const result = validateMission({ role: "worker", task: "short" });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.length >= 4, `expected several errors, got ${result.errors.join(" | ")}`);
 });
