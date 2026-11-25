@@ -30,6 +30,20 @@ function fit(text, width) {
 }
 
 /**
+ * The width the box actually needs: the widest row plus the two border columns
+ * on each side. A window that stretches to a percentage of the terminal paints
+ * background over chat lines it has nothing to say about.
+ */
+export function windowWidth({ title = "", body = [], hint = "" } = {}) {
+  const widths = [
+    textWidth(String(title)),
+    ...(Array.isArray(body) ? body : []).map((line) => textWidth(line)),
+    textWidth(String(hint)),
+  ];
+  return Math.max(12, ...widths) + 4;
+}
+
+/**
  * `{ kind, text }` rows for a box of `width` columns: a title in the top border,
  * one line per body row, a hint in the footer, and an empty line before it.
  * The minimum width is the title plus the corners, so a title is never cut.

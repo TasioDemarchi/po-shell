@@ -38,7 +38,7 @@ import { PACKAGE_ROOT } from "../src/shell.js";
 import { mutatingCommand } from "../src/policy.js";
 import { semanticConfig } from "../src/semantic.js";
 import { planLines, sessionMetrics, statsLines } from "../src/stats.js";
-import { windowFrame } from "../src/window.js";
+import { windowFrame, windowWidth } from "../src/window.js";
 import { fetchUsage } from "../src/nan-usage.js";
 import {
   activeTask,
@@ -432,6 +432,14 @@ export default function poShellExtension(pi: ExtensionAPI) {
 
     let body = options.body;
     let repaint = () => {};
+    const hint = options.hint ?? "esc close";
+    // As wide as the content and no wider, capped by the terminal: an overlay
+    // that fills a percentage paints over chat lines it is not talking about.
+    const needed = () => {
+      const columns = Number(process.stdout.columns) || 0;
+      const width = windowWidth({ title: options.title, body, hint });
+      return columns > 0 ? Math.min(width, Math.max(24, columns - 2)) : width;
+    };
     const pending = ctx.ui.custom(
       (tui: any, theme: any, keybindings: any, done: (value?: unknown) => void) => {
         repaint = () => tui.requestRender();
@@ -440,8 +448,8 @@ export default function poShellExtension(pi: ExtensionAPI) {
             const frame = windowFrame({
               title: options.title,
               body,
-              hint: options.hint ?? "esc close",
-              width: Math.min(width, 92),
+              hint,
+              width: Math.min(width, needed()),
             });
             return frame.map((row: any) =>
               theme.fg(row.kind === "border" || row.kind === "hint" ? "dim" : "text", row.text),
@@ -455,7 +463,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
       },
       {
         overlay: true,
-        overlayOptions: { width: "80%", maxHeight: "80%", margin: 2 },
+        overlayOptions: () => ({ width: needed(), anchor: "center", margin: 1 }),
         blocked: { kind: "question", message: options.title },
       },
     );

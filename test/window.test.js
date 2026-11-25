@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { windowFrame } from "../src/window.js";
+import { windowFrame, windowWidth } from "../src/window.js";
 
 const texts = (rows) => rows.map((row) => row.text);
 
@@ -42,4 +42,25 @@ test("windowFrame without a title or hint still closes cleanly", () => {
   assert.equal(rows.at(-1).text, "└──────────────────┘");
   assert.equal(rows.length, 3);
   assert.deepEqual(windowFrame({}).length, 2);
+});
+
+test("windowWidth is the content, not the terminal", () => {
+  assert.equal(
+    windowWidth({ title: "plan", body: ["plan     6387.7cr left · renews (19d)", "period   612.3cr"], hint: "esc close" }),
+    "plan     6387.7cr left · renews (19d)".length + 4,
+  );
+  // The title can be the longest row; the hint never wins against a body line.
+  assert.equal(windowWidth({ title: "subscriptions" }), "subscriptions".length + 4);
+  assert.equal(windowWidth({}), 16, "a floor of 12 keeps an empty box readable");
+});
+
+test("windowFrame at the needed width fits the content exactly", () => {
+  const body = ["plan     6387.7cr left · renews (19d)", "period   612.3cr"];
+  const width = windowWidth({ title: "plan", body, hint: "esc close" });
+  const rows = windowFrame({ title: "plan", body, hint: "esc close", width });
+  assert.equal(rows.length, 6);
+  for (const row of rows) {
+    assert.equal(row.text.length, width);
+    assert.ok(!row.text.includes("…"), "nothing is cut when the box asks for what it needs");
+  }
 });
