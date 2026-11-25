@@ -198,7 +198,9 @@ que el humano puede decir "la 12" y el modelo no traduce nada a mano. Panel, `st
 `pi.appendEntry("po-shell-stats", …)` + `registerEntryRenderer`, que es TUI-only: preguntar los
 números no gasta tokens. Los créditos salen de `costSummary({ sessionId })`, así que el
 desglose orquestador/hijos usa el `session_id` de la fase 2. La fase 3 queda cerrada. Después se agregó `/plan` (suscripción) como comando aparte: `/usage`
-es la sesión, `/plan` es la cuenta de Nan.
+es la sesión, `/plan` es la cuenta de Nan. Los dos se muestran en una ventana con borde
+(`src/window.js`) y no como bloques en el transcript: `ctx.ui.custom` con `overlay: true`,
+`render(width)` con el marco y `handleInput` cerrando con `esc` (`tui.select.cancel`) o `q`.
 
 ## Log
 
@@ -219,6 +221,11 @@ es la sesión, `/plan` es la cuenta de Nan.
   no entra el bloque de créditos. Cuando la izquierda desaparece el bloque del modelo queda
   alineado a la derecha, no salta a la izquierda. `textWidth` pasó a medir columnas, no code
   points: `📋` ocupa dos y con el conteo anterior la barra se desbordaba una columna.
+- 2026-11-25: ventana. Un bloque en el transcript ensucia la conversación y queda ahí para
+  siempre: cambió a `ctx.ui.custom` con `overlay: true`. El marco es puro (`windowFrame` en
+  `src/window.js`): ancho fijo con filas truncadas, título en el borde superior y `esc close` en
+  el pie. Mientras `/plan` espera a la API muestra `fetching…` y repinta con `tui.requestRender()`
+  al llegar. Sin TUI (RPC) cae a `ctx.ui.notify` para no perder los números.
 - 2026-11-25: `/plan`. `GET /v1/usage` es el único endpoint de la API de Nan que expone el pool:
   `/credits`, `/balance`, `/me`, `/subscription`, `/quota`, `/billing` responden 404. Devuelve
   `credits` (allowance/used/remaining/period_start/period_end/pack/frozen) y `totals.by_model`.

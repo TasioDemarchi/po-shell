@@ -211,8 +211,19 @@ En sesión: `/panel on|off|auto` y `ctrl+shift+p` para prenderlo o apagarlo. Viv
 
 ### `/usage` y `/plan`
 
-Dos bloques a demanda, en el transcript y fuera del contexto del modelo: `appendEntry` es solo
-TUI, así que preguntar los números no gasta tokens.
+Dos ventanas a demanda: se abren arriba del chat, se cierran con `esc` (o `q`) y no ensucian la
+conversación. Nada llega al modelo: la ventana solo pinta, así que preguntar los números no gasta
+tokens.
+
+```text
+┌ usage ────────────────────────────────────────────┐
+│ session  1h 42m · 14 turns · 96 tool calls · 2 …  │
+│ spent    18.6cr  (orchestrator 16.5cr · subagent… │
+│ ...                                               │
+│                                                   │
+│ esc close                                         │
+└───────────────────────────────────────────────────┘
+```
 
 `/usage` es **la sesión**: qué costó esta conversación.
 
@@ -228,7 +239,8 @@ task     #12 · guard de contexto · medium · evidence 2 · review mwvis2b5
 Los créditos de `/usage` son estimaciones con tarifas publicadas; `unpriced` avisa que algún
 modelo de la sesión no tiene tarifa conocida.
 
-`/plan` es **la suscripción**: lo que dice Nan sobre tus créditos.
+`/plan` es **la suscripción**: lo que dice Nan sobre tus créditos. Mientras consulta muestra
+`fetching…` y se repinta al llegar la respuesta (~2.4 s).
 
 ```text
 plan     6389.4cr left · renews (19d)

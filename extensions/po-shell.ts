@@ -38,6 +38,7 @@ import { PACKAGE_ROOT } from "../src/shell.js";
 import { mutatingCommand } from "../src/policy.js";
 import { semanticConfig } from "../src/semantic.js";
 import { planLines, sessionMetrics, statsLines } from "../src/stats.js";
+import { windowFrame } from "../src/window.js";
 import { fetchUsage } from "../src/nan-usage.js";
 import {
   activeTask,
@@ -411,20 +412,71 @@ export default function poShellExtension(pi: ExtensionAPI) {
     },
   });
 
-  // `/usage` and `/plan` print blocks in the transcript that the model never
-  // sees: appendEntry is TUI-only, so asking for the numbers costs no tokens.
-  function registerBlock(customType: string) {
-    pi.registerEntryRenderer(customType, (entry: any, _options: any, theme: any) => {
-      const lines = Array.isArray(entry?.data?.lines) ? entry.data.lines : [];
-      return new Text(lines.map((line: string) => theme.fg("dim", line)).join("\n"), 0, 0);
-    });
+  // `/usage` and `/plan` open a window over the chat instead of printing into
+  // it: the numbers are a detour, not part of the conversation. esc closes it,
+  // and it only paints: nothing reaches the model's context.
+  function openWindow(
+    ctx: any,
+    options: { title: string; body: string[]; hint?: string; load?: () => Promise<string[]> },
+  ) {
+    if (ctx.mode !== "tui" || !ctx.hasUI) {
+      // No TUI to draw on: the numbers still have to be reachable somehow.
+      const show = (lines: string[]) => ctx.ui.notify(lines.join("\n"), "info");
+      if (options.load) {
+        void options.load().then(show, (error: any) => show([`${options.title} unavailable (${error?.message ?? error})`]));
+      } else {
+        show(options.body);
+      }
+      return Promise.resolve();
+    }
+
+    let body = options.body;
+    let repaint = () => {};
+    const pending = ctx.ui.custom(
+      (tui: any, theme: any, keybindings: any, done: (value?: unknown) => void) => {
+        repaint = () => tui.requestRender();
+        return {
+          render(width: number) {
+            const frame = windowFrame({
+              title: options.title,
+              body,
+              hint: options.hint ?? "esc close",
+              width: Math.min(width, 92),
+            });
+            return frame.map((row: any) =>
+              theme.fg(row.kind === "border" || row.kind === "hint" ? "dim" : "text", row.text),
+            );
+          },
+          handleInput(data: string) {
+            if (keybindings.matches(data, "tui.select.cancel") || data === "q") done(undefined);
+          },
+          invalidate() {},
+        };
+      },
+      {
+        overlay: true,
+        overlayOptions: { width: "80%", maxHeight: "80%", margin: 2 },
+        blocked: { kind: "question", message: options.title },
+      },
+    );
+
+    if (options.load) {
+      options.load().then(
+        (lines) => {
+          body = lines;
+          repaint();
+        },
+        (error: any) => {
+          body = [`${options.title} unavailable (${error?.message ?? error})`];
+          repaint();
+        },
+      );
+    }
+    return pending;
   }
 
-  registerBlock("po-shell-usage");
-  registerBlock("po-shell-plan");
-
   pi.registerCommand("usage", {
-    description: "Créditos, tokens y modelos de la sesión (no entra al contexto del modelo)",
+    description: "Créditos, tokens y modelos de la sesión (ventana, no entra al contexto)",
     handler: async (_args, ctx) => {
       const cwd = ctx.cwd;
       if (!isInitialized(cwd)) {
@@ -439,7 +491,10 @@ export default function poShellExtension(pi: ExtensionAPI) {
           task: activeTask(cwd),
           review: latestReview(cwd),
         });
-        pi.appendEntry("po-shell-usage", { lines: lines.length ? lines : ["usage   (nothing recorded yet)"] });
+        await openWindow(ctx, {
+          title: "usage",
+          body: lines.length ? lines : ["(nothing recorded yet)"],
+        });
       } catch (error) {
         ctx.ui.notify(String((error as Error).message), "warning");
       }
@@ -454,16 +509,16 @@ export default function poShellExtension(pi: ExtensionAPI) {
   pi.registerCommand("plan", {
     description: "Créditos de la suscripción Nan: disponibles, renovación y por modelo",
     handler: async (_args, ctx) => {
-      let usage: any;
-      try {
-        if (!planCache || Date.now() - planCache.at > PLAN_TTL_MS) {
-          planCache = { at: Date.now(), value: await fetchUsage({ env: process.env }) };
-        }
-        usage = planCache.value;
-      } catch (error) {
-        usage = { ok: false, reason: String((error as Error).message) };
-      }
-      pi.appendEntry("po-shell-plan", { lines: planLines(usage) });
+      await openWindow(ctx, {
+        title: "plan",
+        body: ["plan     fetching…"],
+        load: async () => {
+          if (!planCache || Date.now() - planCache.at > PLAN_TTL_MS) {
+            planCache = { at: Date.now(), value: await fetchUsage({ env: process.env }) };
+          }
+          return planLines(planCache.value);
+        },
+      });
     },
   });
 
