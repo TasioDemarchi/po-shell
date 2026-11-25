@@ -44,6 +44,7 @@ import { createWorktree, worktreeChanges } from "../src/worktree.js";
 import { fetchUsage } from "../src/nan-usage.js";
 import {
   activeTask,
+  appendEvent,
   attributableTask,
   checkPolicy,
   createTask,
@@ -102,6 +103,7 @@ function taskSummary(task: any) {
     task.plan ? `plan:
 ${task.plan}` : "",
     `delegación: ${task.delegation ?? "inline"}`,
+    task.isolation === "worktree" ? `aislamiento: worktree · ${isolationCommand(task)}` : "",
     task.next ? `próximo paso: ${task.next}` : "",
     `evidencia: ${(task.evidence ?? []).length}`,
   ]
@@ -586,9 +588,16 @@ export default function poShellExtension(pi: ExtensionAPI) {
           Type.Literal("show"),
           Type.Literal("update"),
           Type.Literal("approve"),
+          Type.Literal("isolation"),
         ]),
       ),
       title: Type.Optional(Type.String()),
+      isolation: Type.Optional(
+        Type.Union([Type.Literal("worktree"), Type.Literal("none")], {
+          description:
+            "Only with action=isolation, and only as a request: the kernel asks the human before changing it.",
+        }),
+      ),
       id: Type.Optional(
         Type.String({
           description: "Task id, or its human number (`#12` or `12`) as shown in the panel and `po-shell task list`.",
@@ -689,6 +698,35 @@ export default function poShellExtension(pi: ExtensionAPI) {
           snapshotTask(cwd, task);
           return text(taskSummary(task));
         }
+        if (action === "isolation") {
+          const task = params.id ? getTask(cwd, params.id) : activeTask(cwd);
+          if (!task) return { ...text("(sin tarea)"), isError: true };
+          const wanted = String(params.isolation ?? "worktree").trim().toLowerCase();
+          const command = isolationCommand(task, wanted);
+          if (!ctx.hasUI) {
+            return text(
+              `Sin UI no hay quién decida. Pedile al humano: ${command}`,
+            );
+          }
+          const ask = task.isolation === "worktree"
+            ? `Desaislar ${taskLabelOf(task)} (volver a escribir en tu árbol)?`
+            : `Aislar ${taskLabelOf(task)} en un worktree? Los hijos escribirán en una rama propia y tu árbol no cambia.`;
+          const options = task.isolation === "worktree"
+            ? ["Sí, volver al árbol", "No, seguir aislada"]
+            : ["Sí, aislar en un worktree", "No, seguir en el árbol"];
+          const choice = await ctx.ui.select(ask, options);
+          const accepted = String(choice ?? "").startsWith("Sí");
+          if (!accepted) {
+            return text(`El humano decidió no cambiar el aislamiento. Tarea ${taskLabelOf(task)} · ${task.isolation}.`);
+          }
+          const next = wanted === "worktree" ? "none" : "worktree";
+          const updated = setTaskIsolation(cwd, task.id, next);
+          appendEvent(cwd, "task.isolation", { id: updated.id, isolation: next, via: "po_shell_task" });
+          return text(
+            `Aislamiento de ${taskLabelOf(updated)}: ${updated.isolation}.${next === "worktree" ? `\nEquivale a: ${command}` : ""}`,
+          );
+        }
+
         if (action === "show") {
           return text(taskSummary(params.id ? getTask(cwd, params.id) : activeTask(cwd)));
         }

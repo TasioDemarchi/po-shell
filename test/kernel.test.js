@@ -18,6 +18,8 @@ import {
   memoryIndex,
   saveConfig,
   saveMemory,
+  isolationCommand,
+  renderStatus,
   setTaskIsolation,
   searchMemory,
   status,
@@ -392,3 +394,22 @@ test("isolation is off by default and only the human's path can turn it on", () 
   assert.equal(back.isolation, "none");
   assert.throws(() => setTaskIsolation(dir, task.id, "sandbox"), /none, worktree/);
 });
+
+test("the isolation command names the task with the handle the human reads", () => {
+  const dir = tempRepo();
+  init(dir);
+  const task = createTask(dir, { title: "Aislar esto", risk: "low" });
+  assert.equal(isolationCommand(task), `po-shell task isolation worktree #${task.number}`);
+  assert.equal(isolationCommand(task, "none"), `po-shell task isolation none #${task.number}`);
+
+  setTaskIsolation(dir, task.id, "worktree");
+  const rendered = renderStatus(dir);
+  assert.match(rendered, /Aislamiento: worktree/);
+  assert.ok(!renderStatus(tempRepoOfTask(dir, task)).includes("Aislamiento"), "sin aislamiento no se anuncia");
+});
+
+function tempRepoOfTask(dir, task) {
+  const other = tempRepo();
+  init(other);
+  return other;
+}

@@ -387,6 +387,15 @@ export function updateTask(cwd, id, patch = {}, env = process.env) {
   return next;
 }
 
+/**
+ * The exact command a human copies to isolate a task. The orchestrator shows this
+ * instead of deciding: the command is the decision.
+ */
+export function isolationCommand(task, target = "worktree") {
+  const handle = taskLabelOf(task);
+  return `po-shell task isolation ${target}${handle ? ` ${handle}` : ""}`;
+}
+
 /** Only a human runs this (CLI). The orchestrator's tools do not expose it. */
 export function setTaskIsolation(cwd, id, isolation, env = process.env) {
   const next = String(isolation ?? "").trim().toLowerCase();
@@ -874,6 +883,9 @@ export function renderStatus(cwd = process.cwd(), env = process.env) {
       `Tarea: ${taskLabelOf(t)} · ${t.id} · ${t.phase} · riesgo ${t.risk} · evidencia ${(t.evidence ?? []).length}`,
       `Título: ${t.title}`,
     );
+    if (t.isolation === "worktree") {
+      lines.push(`Aislamiento: worktree (rama por hijo, sin tocar tu árbol)`);
+    }
     const pressure = readContextPressure(cwd, env);
     const shownContext = formatPressure(pressure);
     lines.push(`Delegación: ${effectiveDelegation(cwd, env)}${shownContext ? ` · Contexto: ${shownContext}` : ""}`);
@@ -921,6 +933,9 @@ export function renderContext(cwd = process.cwd(), env = process.env) {
     }
     if (t.scope) lines.push(`scope: ${t.scope}`);
     if (t.planSummary) lines.push(`plan_summary: ${t.planSummary}`);
+    if (t.isolation === "worktree") {
+      lines.push(`Aislamiento: worktree (rama por hijo, sin tocar tu árbol)`);
+    }
     const pressure = readContextPressure(cwd, env);
     const shown = formatPressure(pressure);
     if (shown) lines.push(`context: ${shown}`);

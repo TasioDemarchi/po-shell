@@ -687,7 +687,15 @@ po-shell task isolation worktree    # la tarea activa; `none` lo deshace
 ```
 
 El orquestador **no puede** habilitarlo: `po_shell_delegate` rechaza cualquier `isolation` que le
-pase el modelo, y el campo solo se escribe desde la CLI. Con la tarea aislada, el hijo corre en
+pase el modelo. La decisión es del humano y tiene dos caminos equivalentes:
+
+- **desde la CLI**: `po-shell task isolation worktree #12` (el número de la tarea, el mismo del panel).
+  Cuando vuelve a mirar el estado, el orquestador ve `Aislamiento: worktree` y sigue sin preguntar nada;
+- **desde la sesión**: `po_shell_task action=isolation`, que abre un diálogo con las dos opciones y
+  registra la decisión en el evento `task.isolation`. El orquestador continúa en el mismo turno.
+
+Cuando conviene recomendarlo, el orquestador muestra el comando exacto
+(`isolationCommand(task)`), no "podrías aislar la tarea". Con la tarea aislada, el hijo corre en
 `git worktree add` dentro de su scratch: recibe una rama `po-shell/<run>` y un directorio propio, y el
 `git status` del padre no cambia. Al terminar, el padre reporta la ruta, la rama y los archivos
 tocados; mergear o descartar (`git worktree remove --force` + `git branch -D`) es una decisión del
