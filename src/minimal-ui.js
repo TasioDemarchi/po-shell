@@ -7,27 +7,31 @@
 
 import path from "node:path";
 
-/** Icon, tone and label per tool. Tones are pi theme color names. */
+/**
+ * Icon, tone and label per tool. Tones are pi theme color names.
+ * The label is the word that says what happened; the icon alone does not.
+ * Chrome words are English, by project rule.
+ */
 export const TOOL_STYLE = {
-  bash: { icon: "🐚", tone: "accent" },
-  edit: { icon: "✏", tone: "warning" },
-  write: { icon: "📝", tone: "warning" },
-  read: { icon: "📖", tone: "muted" },
-  grep: { icon: "🔍", tone: "muted" },
-  find: { icon: "🔎", tone: "muted" },
-  ls: { icon: "📁", tone: "muted" },
-  po_shell_status: { icon: "📊", tone: "accent" },
-  po_shell_task: { icon: "📋", tone: "accent" },
-  po_shell_memory: { icon: "🧠", tone: "accent" },
-  po_shell_check: { icon: "✅", tone: "success" },
-  po_shell_review: { icon: "🔒", tone: "accent" },
-  po_shell_ask: { icon: "❓", tone: "warning" },
-  po_shell_delegate: { icon: "🤖", tone: "accent" },
-  context_search: { icon: "🔍", tone: "muted" },
-  context_get: { icon: "📄", tone: "muted" },
+  bash: { icon: "🐚", tone: "accent", label: "shell" },
+  edit: { icon: "✏", tone: "warning", label: "edit" },
+  write: { icon: "📝", tone: "warning", label: "write" },
+  read: { icon: "📖", tone: "muted", label: "read" },
+  grep: { icon: "🔍", tone: "muted", label: "search" },
+  find: { icon: "🔎", tone: "muted", label: "search" },
+  ls: { icon: "📁", tone: "muted", label: "list" },
+  po_shell_status: { icon: "📊", tone: "accent", label: "status" },
+  po_shell_task: { icon: "📋", tone: "accent", label: "task" },
+  po_shell_memory: { icon: "🧠", tone: "accent", label: "memory" },
+  po_shell_check: { icon: "✅", tone: "success", label: "check" },
+  po_shell_review: { icon: "🔒", tone: "accent", label: "review" },
+  po_shell_ask: { icon: "❓", tone: "warning", label: "ask" },
+  po_shell_delegate: { icon: "🤖", tone: "accent", label: "delegate" },
+  context_search: { icon: "🔍", tone: "muted", label: "search" },
+  context_get: { icon: "📄", tone: "muted", label: "get" },
 };
 
-export const DEFAULT_STYLE = { icon: "•", tone: "muted" };
+export const DEFAULT_STYLE = { icon: "•", tone: "muted", label: "" };
 export const MAX_TEXT = 72;
 export const MAX_RESULT = 90;
 
@@ -114,8 +118,9 @@ function range(args) {
 }
 
 /**
- * The collapsed call row: `{ icon, tone, text, meta }`.
- * `text` is the primary string, `meta` the dim detail at the end.
+ * The collapsed call row: `{ icon, tone, label, text, meta }`.
+ * `label` is the English word for the action, `text` the subject, `meta` the
+ * dim detail at the end. The renderer joins them as `icon label text  meta`.
  */
 export function formatCall(name, args = {}, options = {}) {
   const style = toolStyle(name);
@@ -157,25 +162,24 @@ export function formatCall(name, args = {}, options = {}) {
     case "po_shell_task": {
       const action = oneLine(args.action, 12);
       const subject = oneLine(args.title || args.id || "", 46);
-      return { ...style, text: subject ? `task · ${action} · ${subject}` : `task · ${action}`, meta: "" };
+      return { ...style, text: subject ? `${action} · ${subject}` : action, meta: "" };
     }
     case "po_shell_memory": {
       const action = oneLine(args.action, 10);
       const subject = oneLine(args.query || args.title || args.topic || "", 44);
-      return { ...style, text: subject ? `memory · ${action} · ${subject}` : `memory · ${action}`, meta: "" };
+      return { ...style, text: subject ? `${action} · ${subject}` : action, meta: "" };
     }
     case "po_shell_review":
-      return { ...style, text: `review · ${oneLine(args.action || "", 12)}`, meta: "" };
+      return { ...style, text: oneLine(args.action || "", 12), meta: "" };
     case "po_shell_ask":
       return { ...style, text: oneLine(args.question, MAX_TEXT), meta: "" };
     case "po_shell_delegate": {
       const role = oneLine(args.role || "worker", 12);
-      return { ...style, text: `delegate · ${role}`, meta: oneLine(args.task, 40) };
+      return { ...style, text: role, meta: oneLine(args.task, 40) };
     }
     case "po_shell_check":
-      return { ...style, text: "check", meta: "" };
     case "po_shell_status":
-      return { ...style, text: "status", meta: "" };
+      return { ...style, text: "", meta: "" };
     case "context_search":
       return { ...style, text: oneLine(args.query, MAX_TEXT), meta: "" };
     case "context_get":

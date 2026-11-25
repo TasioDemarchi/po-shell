@@ -143,8 +143,10 @@ export default function poShellExtension(pi: ExtensionAPI) {
         if (!minimal) return base?.renderCall?.(args, theme, context) ?? new Text(toolName, 0, 0);
         if (context.expanded && base?.renderCall) return base.renderCall(args, theme, context);
         const call = formatCall(toolName, args ?? {}, { cwd: context.cwd });
+        const label = call.label ? theme.fg("dim", call.label) : "";
+        const head = call.text ? `${label}${label ? theme.fg("dim", " · ") : ""}${theme.fg("text", call.text)}` : label;
         const meta = call.meta ? `  ${theme.fg("dim", call.meta)}` : "";
-        return new Text(`${theme.fg(call.tone, call.icon)} ${theme.fg("text", call.text)}${meta}`, 0, 0);
+        return new Text(`${theme.fg(call.tone, call.icon)} ${head}${meta}`, 0, 0);
       },
       renderResult(result: any, options: any, theme: any, context: any) {
         const expanded = options?.expanded ?? context?.expanded;

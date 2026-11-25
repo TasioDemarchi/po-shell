@@ -105,7 +105,7 @@ de sesión, contadores de tools. Son diagnóstico, no decisión: van a `/stats`.
 
 ## Tasks
 
-- [ ] **Fase 0 — título en cada fila.** `TOOL_STYLE.label` + `formatCall` con el formato
+- [x] **Fase 0 — título en cada fila.** `TOOL_STYLE.label` + `formatCall` con el formato
       `icono · etiqueta · sujeto · meta`; tests de las seis etiquetas nuevas.
 - [ ] **Fase 1 — footer de una línea.** `src/minimal-ui.js` (formato de la barra),
       `src/ui.js` (`ui.json` con `minimal|full`), extensión con `setFooter`.
@@ -130,10 +130,10 @@ Cada fila pasa a `icono · etiqueta · sujeto · meta`, con la etiqueta en ingl�
 y en dim, para que el ojo barra por palabra:
 
 ```text
-🐚 shell  · cd ~/dev/po-dots && sed -n 158,182p …
-✏ edit   · docs/features/po-dots-mvp.md  +23 −15
-📝 write  · PROJECT.md  +6 −5
-📖 read   · src/kernel.js:11-15
+🐚 shell · cd ~/dev/po-dots && sed -n 158,182p …
+✏ edit · docs/features/po-dots-mvp.md  +23 −15
+📝 write · PROJECT.md  +6 −5
+📖 read · src/kernel.js:11-15
 🔍 search · "Falta la proactividad"  · 2 results
 ```
 
@@ -143,10 +143,22 @@ el mismo formato para todas. `TOOL_STYLE` gana el campo `label` y `formatCall` l
 
 ## State
 
-Sin implementar. Diseño acordado en sesión (2026-11-25). La fase 1 es la que más
-cambia la sensación; el panel puede esperar sin dejar la TUI a medias.
+Fase 0 implementada (2026-11-25): `TOOL_STYLE` lleva `label` en inglés y `formatCall`
+devuelve `{ icon, tone, label, text, meta }`; la extensión pinta
+`icono etiqueta · sujeto  meta` con la etiqueta en dim. Las tools de po-shell dejaron de
+duplicar su palabra en el texto (`task · new · …` sale de `label` + `text`), y las que no
+tienen sujeto (`check`, `status`) pintan solo `icono etiqueta`.
+
+Las fases 1–3 siguen sin implementar. La fase 1 es la que más cambia la sensación; el panel
+puede esperar sin dejar la TUI a medias.
 
 ## Log
+
+- 2026-11-25: fase 0. Etiquetas `shell`, `edit`, `write`, `read`, `search` (grep/find), `list`
+  (ls), `status`, `task`, `memory`, `check`, `review`, `ask`, `delegate`, `get` (context_get).
+  Un tool desconocido degrada a `label: ""`: la fila queda `icono sujeto`, sin inventar palabra.
+  Se descartó alinear las etiquetas con padding: `delegate` (8) obligaría a cuatro espacios
+  muertos en todas las filas.
 
 - 2026-11-25: propuesta escrita. Relevado: footer nativo de Pi (2 líneas + estados,
   con tokens, `$`, `ctx%`, modelo), barra de gentle-shell (branch+dirty, permiso,

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  TOOL_STYLE,
   editStats,
   formatCall,
   formatDuration,
@@ -64,6 +65,64 @@ test("resultText joins text parts and ignores the rest", () => {
 test("toolStyle falls back to a neutral bullet", () => {
   assert.equal(toolStyle("bash").icon, "🐚");
   assert.equal(toolStyle("nope").icon, "•");
+  assert.equal(toolStyle("nope").label, "");
+});
+
+test("every known tool carries an English label", () => {
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(TOOL_STYLE).map(([name, style]) => [name, style.label])),
+    {
+      bash: "shell",
+      edit: "edit",
+      write: "write",
+      read: "read",
+      grep: "search",
+      find: "search",
+      ls: "list",
+      po_shell_status: "status",
+      po_shell_task: "task",
+      po_shell_memory: "memory",
+      po_shell_check: "check",
+      po_shell_review: "review",
+      po_shell_ask: "ask",
+      po_shell_delegate: "delegate",
+      context_search: "search",
+      context_get: "get",
+    },
+  );
+});
+
+test("formatCall carries the label and drops it from the text", () => {
+  const bash = formatCall("bash", { command: "npm test" }, { cwd });
+  assert.equal(bash.label, "shell");
+  assert.equal(bash.text, "npm test");
+
+  assert.equal(formatCall("edit", { path: "src/a.js", edits: [] }, { cwd }).label, "edit");
+  assert.equal(formatCall("write", { path: "a.md", content: "" }, { cwd }).label, "write");
+  assert.equal(formatCall("read", { path: "a.md" }, { cwd }).label, "read");
+  assert.equal(formatCall("grep", { pattern: "x" }, { cwd }).label, "search");
+  assert.equal(formatCall("find", { pattern: "x" }, { cwd }).label, "search");
+  assert.equal(formatCall("ls", { path: "." }, { cwd }).label, "list");
+
+  const wordless = formatCall("po_shell_check", {}, { cwd });
+  assert.equal(wordless.label, "check");
+  assert.equal(wordless.text, "");
+  assert.equal(formatCall("po_shell_status", {}, { cwd }).text, "");
+
+  const task = formatCall("po_shell_task", { action: "new", title: "Un título largo" }, { cwd });
+  assert.equal(task.label, "task");
+  assert.equal(task.text, "new · Un título largo");
+
+  const delegate = formatCall("po_shell_delegate", { role: "worker", task: "Implementar U1" }, { cwd });
+  assert.equal(delegate.text, "worker");
+  assert.equal(delegate.meta, "Implementar U1");
+});
+
+test("label plus subject fits in 80 columns", () => {
+  const call = formatCall("bash", { command: `echo ${"x".repeat(200)}` }, { cwd });
+  assert.ok(`${call.label} · ${call.text}`.length <= 80);
+  const edit = formatCall("edit", { path: "src/a.js", edits: [{ oldText: "a", newText: "b" }] }, { cwd });
+  assert.ok(`${edit.label} · ${edit.text}  ${edit.meta}`.length <= 80);
 });
 
 test("formatCall renders one line per tool", () => {
@@ -83,10 +142,10 @@ test("formatCall renders one line per tool", () => {
   assert.equal(read.text, "src/a.js:11-15");
 
   const task = formatCall("po_shell_task", { action: "new", title: "Un título largo" }, { cwd });
-  assert.equal(task.text, "task · new · Un título largo");
+  assert.equal(task.text, "new · Un título largo");
 
   const delegate = formatCall("po_shell_delegate", { role: "worker", task: "Implementar U1" }, { cwd });
-  assert.equal(delegate.text, "delegate · worker");
+  assert.equal(delegate.text, "worker");
   assert.equal(delegate.meta, "Implementar U1");
 });
 
