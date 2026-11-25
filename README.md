@@ -177,7 +177,7 @@ contexto usado y modelo con nivel de thinking pegados al borde derecho. Al angos
 achica en cascada y la separación se mantiene: primero se compacta (`~/dev/po-shell` → `po-shell`,
 `main ±3` → `main`, `deepseek-v4-flash · low` → `flash`), después se suelta el bloque del proyecto
 (path, rama, fase) y por último el modelo; créditos y `ctx` son los últimos en irse. El `git status`
-se cachea 2 s y los créditos son del orquestador (los hijos necesitan `session_id` en
+se cachea 2 s y los créditos suman orquestador + sub-agentes de la sesión (`session_id` en
 `cost_events`). Un `~` delante de los créditos avisa que algún modelo de la sesión no tiene tarifa
 conocida.
 

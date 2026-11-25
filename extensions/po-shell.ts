@@ -119,6 +119,21 @@ export default function poShellExtension(pi: ExtensionAPI) {
   let gitCache: { cwd: string; at: number; branch: string; dirty: number } | null = null;
   let taskCache: { cwd: string; at: number; task: any } | null = null;
 
+  /** Pi's session id, so costs can be summed per session, orchestrator plus children. */
+  function sessionIdOf(ctx: any) {
+    try {
+      return String(ctx.sessionManager?.getSessionId?.() ?? "").trim();
+    } catch {
+      return "";
+    }
+  }
+
+  function addSessionCredits(cost: any) {
+    if (!cost) return;
+    sessionCredits += Number(cost.credits) || 0;
+    if (!cost.known) sessionCreditsKnown = false;
+  }
+
   /** Branch and dirty count. The footer renders on every frame, so this caches. */
   function gitState(cwd: string, branch: string) {
     const now = Date.now();
@@ -775,9 +790,11 @@ export default function poShellExtension(pi: ExtensionAPI) {
               model: costModel,
               role: params.role,
               source: "subagent",
+              sessionId: sessionIdOf(ctx),
               taskId: task?.id ?? null,
               taskTitle: task?.title ?? null,
             });
+            addSessionCredits(subagentCost);
           } catch {
             // El ledger no debe romper la delegación.
           }
@@ -902,11 +919,11 @@ export default function poShellExtension(pi: ExtensionAPI) {
         model: (ctx.model as any)?.id ?? (ctx.model as any)?.name ?? "unknown",
         role: "orchestrator",
         source: "chat",
+        sessionId: sessionIdOf(ctx),
         taskId: task?.id ?? null,
         taskTitle: task?.title ?? null,
       });
-      sessionCredits += Number(recorded.credits) || 0;
-      if (!recorded.known) sessionCreditsKnown = false;
+      addSessionCredits(recorded);
       // Context pressure is measured from the prompt the provider just saw, and
       // the window comes from the active model: a hardcoded size would lie for
       // every model with a different one.

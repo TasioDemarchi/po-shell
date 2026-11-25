@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { indexProject, isIndexableSection, openContextDb, splitSections } from "../src/indexer.js";
 import { init, poShellPath, saveMemory } from "../src/kernel.js";
 
@@ -238,4 +239,49 @@ test("rebuild preserves canonical memories", () => {
   const row = db.prepare("SELECT title FROM memories WHERE memory_key = ?").get("lesson-canonical");
   assert.equal(row.title, "Canonical memory");
   db.close();
+});
+
+test("migrate adds session_id to an old cost_events without losing rows", () => {
+  const dir = tempProject();
+  const file = path.join(dir, "context.db");
+  const legacy = new DatabaseSync(file);
+  legacy.exec(`
+    CREATE TABLE cost_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id TEXT NOT NULL,
+      task_id TEXT,
+      task_title TEXT,
+      role TEXT NOT NULL DEFAULT 'orchestrator',
+      source TEXT NOT NULL DEFAULT 'chat',
+      model TEXT NOT NULL,
+      input_tokens INTEGER NOT NULL DEFAULT 0,
+      cached_tokens INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0,
+      cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+      credits REAL NOT NULL DEFAULT 0,
+      known_rates INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL
+    );
+    INSERT INTO cost_events (project_id, model, credits, created_at)
+    VALUES ('p1', 'deepseek-v4-flash', 1.5, '2026-01-01T00:00:00.000Z');
+  `);
+  legacy.close();
+
+  const db = openContextDb(file);
+  const columns = db.prepare("PRAGMA table_info(cost_events)").all().map((row) => row.name);
+  assert.ok(columns.includes("session_id"));
+  const row = db.prepare("SELECT model, credits, session_id FROM cost_events").get();
+  assert.equal(row.model, "deepseek-v4-flash");
+  assert.equal(row.credits, 1.5);
+  assert.equal(row.session_id, null);
+  const index = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'cost_events_session'")
+    .get();
+  assert.ok(index);
+  db.close();
+
+  // Reopening must not try to add the column again.
+  const again = openContextDb(file);
+  assert.equal(again.prepare("SELECT COUNT(*) AS n FROM cost_events").get().n, 1);
+  again.close();
 });

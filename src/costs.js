@@ -117,12 +117,13 @@ export function recordCost(cwd = process.cwd(), entry = {}, options = {}) {
   try {
     db.prepare(
       `INSERT INTO cost_events (
-        project_id, task_id, task_title, role, source, model,
+        project_id, session_id, task_id, task_title, role, source, model,
         input_tokens, cached_tokens, output_tokens, cache_write_tokens,
         credits, known_rates, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       project.id,
+      entry.sessionId ?? null,
       entry.taskId ?? null,
       entry.taskTitle ?? null,
       entry.role ?? "orchestrator",
@@ -139,7 +140,7 @@ export function recordCost(cwd = process.cwd(), entry = {}, options = {}) {
   } finally {
     db.close();
   }
-  return { ...calc, projectId: project.id };
+  return { ...calc, projectId: project.id, sessionId: entry.sessionId ?? null };
 }
 
 export function costSummary(options = {}) {
@@ -173,6 +174,10 @@ export function costSummary(options = {}) {
     if (options.taskId) {
       clauses.push("task_id = ?");
       params.push(options.taskId);
+    }
+    if (options.sessionId) {
+      clauses.push("session_id = ?");
+      params.push(options.sessionId);
     }
     if (options.model) {
       clauses.push("model = ?");

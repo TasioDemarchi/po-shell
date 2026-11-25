@@ -118,7 +118,7 @@ de sesión, contadores de tools. Son diagnóstico, no decisión: van a `/stats`.
       `src/ui.js` (`ui.json` con `minimal|full`), extensión con `setFooter`.
       Incluye caché de `git status` y `~` para créditos incompletos.
       Créditos solo del orquestador: los da Pi por sesión, sin tocar el kernel.
-- [ ] **Fase 2 — créditos de sesión con hijos.** `session_id` en `cost_events`
+- [x] **Fase 2 — créditos de sesión con hijos.** `session_id` en `cost_events`
       (`ALTER TABLE` idempotente), que la extensión lo pase al registrar, y suma
       orquestador + hijos por sesión. Entrada `18.6cr` con desglose en el panel.
 - [ ] **Fase 3 — panel y `/stats`.** Widget con modos `on|off|auto`, shortcut
@@ -161,10 +161,18 @@ Fase 1 implementada (2026-11-25): `footerLine(parts, { width })` y los segmentos
 `shortModel`) viven en `src/minimal-ui.js`; la extensión registra `ctx.ui.setFooter` en
 modo minimal y lo devuelve a Pi (`setFooter(undefined)`) en `full`. `git status` se cachea
 2 s, la lectura de la tarea 1 s, y los créditos salen de la suma de `recordCost` del
-turno en `message_end` (solo orquestador, `~` si faltó tarifa). El modo sigue siendo el
+turno en `message_end` con `~` si faltó tarifa. El modo sigue siendo el
 `minimal|full` de `~/.po-shell/ui.json`; no se agregó un tercer estado para el footer.
 
-Las fases 2 y 3 siguen sin implementar: créditos con hijos y panel/`/stats`.
+Fase 2 implementada (2026-11-25): `cost_events` gana `session_id` (+ índice
+`cost_events_session`) con migración idempotente en `migrate()`; `recordCost` lo escribe y
+deja `NULL` cuando el llamador no tiene sesión, `costSummary({ sessionId })` filtra. La
+extensión pasa `ctx.sessionManager.getSessionId()` en los dos registros —orquestador en
+`message_end`, hijo en `po_shell_delegate`— y suma los créditos del hijo a la misma
+variable del footer, así que `18.6cr` ya incluye a los sub-agentes. El desglose por rol
+sigue en `costSummary` y se mostrará en el panel de la fase 3.
+
+Falta solo la fase 3: panel y `/stats`.
 
 ## Log
 
@@ -185,7 +193,12 @@ Las fases 2 y 3 siguen sin implementar: créditos con hijos y panel/`/stats`.
   no entra el bloque de créditos. Cuando la izquierda desaparece el bloque del modelo queda
   alineado a la derecha, no salta a la izquierda. `textWidth` pasó a medir columnas, no code
   points: `📋` ocupa dos y con el conteo anterior la barra se desbordaba una columna.
-
+- 2026-11-25: fase 2. La migración de `session_id` corre en `migrate()` y no en el `SCHEMA`:
+  el índice `cost_events_session` sobre una base vieja fallaría si se creara junto al
+  `CREATE TABLE`, porque la columna todavía no existe. Los eventos anteriores quedan con
+  `session_id = NULL`: no hay forma honesta de atribuirlos a una sesión. Antes de tocar la
+  base compartida: `po-shell integrity` (OK, 8 checks) y `po-shell backup`
+  (`~/.po-shell/backups/f6832fc558ef09dd/2026-11-25T10-22-26-986Z`).
 - 2026-11-25: propuesta escrita. Relevado: footer nativo de Pi (2 líneas + estados,
   con tokens, `$`, `ctx%`, modelo), barra de gentle-shell (branch+dirty, permiso,
   modelo·effort, gauge de ctx con headroom, costo, quota, jobs), y qué datos expone

@@ -6,6 +6,7 @@ import path from "node:path";
 import { creditsFor, costSummary, formatCredits, recordCost } from "../src/costs.js";
 import { projectIdentity } from "../src/project.js";
 import { createTask, init } from "../src/kernel.js";
+import { openContextDb } from "../src/indexer.js";
 
 process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-costs-home-"));
 
@@ -95,4 +96,74 @@ test("recordCost persists events and costSummary groups them", () => {
 test("formatCredits is stable", () => {
   assert.equal(formatCredits(0), "0");
   assert.equal(formatCredits(1.234), "1.23");
+});
+
+test("recordCost stores the session id and costSummary sums one session", () => {
+  const dir = tempProject();
+  const env = envFor(dir);
+  init(dir, env);
+
+  const first = recordCost(
+    dir,
+    {
+      usage: { input: 1_000_000, cacheRead: 0, output: 0 },
+      model: "nan/deepseek-v4-flash",
+      role: "orchestrator",
+      sessionId: "sess-a",
+    },
+    { env },
+  );
+  assert.equal(first.sessionId, "sess-a");
+
+  recordCost(
+    dir,
+    {
+      usage: { input: 0, cacheRead: 0, output: 1_000_000 },
+      model: "nan/deepseek-v4-flash",
+      role: "worker",
+      source: "subagent",
+      sessionId: "sess-a",
+    },
+    { env },
+  );
+  recordCost(
+    dir,
+    {
+      usage: { input: 1_000_000, cacheRead: 0, output: 0 },
+      model: "nan/deepseek-v4-flash",
+      role: "orchestrator",
+      sessionId: "sess-b",
+    },
+    { env },
+  );
+
+  const sessionA = costSummary({ env, sessionId: "sess-a" });
+  assert.equal(sessionA.events, 2);
+  assert.ok(Math.abs(sessionA.credits - (10.5 + 42)) < 1e-9);
+  assert.deepEqual(sessionA.byRole.map((role) => role.key).sort(), ["orchestrator", "worker"]);
+  const workerGroup = sessionA.byRole.find((role) => role.key === "worker");
+  assert.ok(Math.abs(workerGroup.credits - 42) < 1e-9);
+
+  const sessionB = costSummary({ env, sessionId: "sess-b" });
+  assert.equal(sessionB.events, 1);
+  assert.ok(Math.abs(sessionB.credits - 10.5) < 1e-9);
+
+  assert.equal(costSummary({ env }).events, 3);
+});
+
+test("recordCost leaves the session empty when the caller has none", () => {
+  const dir = tempProject();
+  const env = envFor(dir);
+  init(dir, env);
+  const cost = recordCost(
+    dir,
+    { usage: { input: 1_000_000 }, model: "deepseek-v4-flash" },
+    { env },
+  );
+  assert.equal(cost.sessionId, null);
+
+  const db = openContextDb(path.join(dir, "context.db"));
+  const row = db.prepare("SELECT session_id FROM cost_events ORDER BY id DESC LIMIT 1").get();
+  assert.equal(row.session_id, null);
+  db.close();
 });

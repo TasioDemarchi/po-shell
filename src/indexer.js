@@ -127,6 +127,7 @@ CREATE INDEX IF NOT EXISTS memories_project ON memories(project_id);
 CREATE TABLE IF NOT EXISTS cost_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   project_id TEXT NOT NULL,
+  session_id TEXT,
   task_id TEXT,
   task_title TEXT,
   role TEXT NOT NULL DEFAULT 'orchestrator',
@@ -197,6 +198,17 @@ function migrate(db) {
   ]) {
     if (!columns.has(name)) db.exec(`ALTER TABLE memories ADD COLUMN ${sql}`);
   }
+  // `session_id` arrived with the credits-per-session work: rows recorded before
+  // it keep NULL, which is honest, they cannot be attributed to a session.
+  // The index lives here and not in SCHEMA: on an old file the column does not
+  // exist yet when SCHEMA runs, and indexing it would fail.
+  const costColumns = new Set(
+    db.prepare("PRAGMA table_info(cost_events)").all().map((row) => row.name),
+  );
+  if (!costColumns.has("session_id")) {
+    db.exec("ALTER TABLE cost_events ADD COLUMN session_id TEXT");
+  }
+  db.exec("CREATE INDEX IF NOT EXISTS cost_events_session ON cost_events(session_id)");
 }
 
 export function openContextDb(dbPath = contextDbPath()) {
