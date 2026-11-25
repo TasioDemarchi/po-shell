@@ -33,6 +33,66 @@ function assistantText(message) {
     .trim();
 }
 
+/**
+ * The mission is a contract with sections, not a paragraph.
+ *
+ * A child gets its role, the files it must read first, what "done" means, the
+ * exact command that proves it and what it must not touch. Everything the parent
+ * knows and the child does not has to be written here: the child cannot ask.
+ */
+export function buildMission({
+  role,
+  task,
+  contextFiles = [],
+  buildTest = "",
+  surfaces = [],
+  done = [],
+  outOfScope = "",
+} = {}) {
+  const files = (Array.isArray(contextFiles) ? contextFiles : []).map((file) => String(file).trim()).filter(Boolean);
+  const items = (Array.isArray(done) ? done : []).map((item) => String(item).trim()).filter(Boolean);
+  const lines = [`MISSION (role: ${role}):`, String(task ?? "").trim()];
+
+  const context = [];
+  if (files.length) context.push(`- Instructions: ${files.join(", ")}`);
+  if (buildTest) context.push(`- Build/test: ${buildTest}`);
+  if (context.length) lines.push("", "CONTEXT (read before touching anything)", ...context);
+
+  if (surfaces.length) {
+    lines.push("", "EDIT SURFACES (the only paths you may write):", ...surfaces.map((surface) => `- ${surface}`));
+  }
+  if (items.length) lines.push("", "DONE WHEN", ...items.map((item) => `- ${item}`));
+  if (outOfScope) lines.push("", "OUT OF SCOPE", String(outOfScope).trim());
+
+  return lines.filter((line) => line !== undefined).join("\n").trim();
+}
+
+/**
+ * What the parent gets when the child did not finish: a report, not a sentence.
+ *
+ * `text` on a killed child is whatever it was saying when the axe fell, so the
+ * notes and the pending work are what make the handoff usable.
+ */
+export function partialReport({ status, turns = 0, maxTurns = 0, text = "", notes = [], diffStat = "", artifactPath = "" } = {}) {
+  const reason = String(status ?? "partial");
+  const budget = maxTurns ? ` (${turns}/${maxTurns} turns)` : "";
+  const last = String(text ?? "").trim();
+  const history = (Array.isArray(notes) ? notes : []).map((note) => String(note).trim()).filter(Boolean);
+  const lines = [`status: ${reason}${budget}`];
+  if (last) lines.push("", "last message:", last);
+  if (history.length > 1) {
+    lines.push("", "progress:");
+    for (const note of history.slice(-3)) lines.push(`- ${note.split("\n")[0].slice(0, 240)}`);
+  }
+  if (diffStat) lines.push("", `changed so far (uncommitted):`, diffStat.trim());
+  lines.push(
+    "",
+    "pending: the mission's DONE WHEN was not confirmed. Read the diff before trusting any of it.",
+  );
+  if (artifactPath) lines.push(`full transcript: ${artifactPath}`);
+  return lines.join("\n").trim();
+}
+
 export function buildSubagentArgs({ guardPath, promptPath, rolePath, tools, model, mission }) {
   const args = [
     "--mode",
@@ -146,6 +206,10 @@ export function delegationMeta({
   maxTokens,
   maxTurns,
   timeoutSeconds,
+  done,
+  buildTest,
+  contextFiles,
+  notes,
 } = {}) {
   return {
     role: role ?? null,
@@ -164,6 +228,10 @@ export function delegationMeta({
     maxTokens: maxTokens ?? null,
     maxTurns: maxTurns ?? null,
     timeoutSeconds: timeoutSeconds ?? null,
+    done: Array.isArray(done) ? [...done] : [],
+    buildTest: String(buildTest ?? ""),
+    contextFiles: Array.isArray(contextFiles) ? [...contextFiles] : [],
+    notes: Array.isArray(notes) ? [...notes] : [],
   };
 }
 
@@ -188,6 +256,7 @@ export function runPiJson(cwd, args, options = {}) {
         budgetExceeded: false,
         turnsExceeded: false,
         timedOut: false,
+        notes: [],
       });
       return;
     }
@@ -222,6 +291,7 @@ export function runPiJson(cwd, args, options = {}) {
     let text = "";
     let liveText = "";
     let lastLiveText = "";
+    const notes = [];
     let exitCode = null;
     let budgetExceeded = false;
     // Spend is completed output. Counting input or cache here killed children
@@ -263,6 +333,7 @@ export function runPiJson(cwd, args, options = {}) {
         budgetExceeded,
         turnsExceeded,
         timedOut,
+        notes,
       });
     };
 
@@ -322,7 +393,10 @@ export function runPiJson(cwd, args, options = {}) {
           }
         }
         const messageText = assistantText(event.message);
-        if (messageText) text = messageText;
+        if (messageText) {
+          text = messageText;
+          if (notes.length < 10) notes.push(messageText);
+        }
         liveText = "";
       }
 

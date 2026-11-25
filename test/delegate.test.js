@@ -3,7 +3,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildSubagentArgs, capReport, delegationMeta, runPiJson, usageTotal } from "../src/delegate.js";
+import {
+  buildMission,
+  buildSubagentArgs,
+  capReport,
+  delegationMeta,
+  partialReport,
+  runPiJson,
+  usageTotal,
+} from "../src/delegate.js";
 import { init, saveAgentArtifact } from "../src/kernel.js";
 
 process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-delegate-home-"));
@@ -254,4 +262,88 @@ test("a JSON report is never cut", () => {
   const capped = capReport(json, { maxBytes: 4096 });
   assert.equal(capped.truncated, false);
   assert.equal(capped.text, json);
+});
+
+test("buildMission writes the contract in sections, not a paragraph", () => {
+  const mission = buildMission({
+    role: "worker",
+    task: "Give rows a frame",
+    contextFiles: ["AGENTS.md"],
+    buildTest: "npm test",
+    surfaces: ["src/a.js"],
+    done: ["frame closes", "tests pass"],
+    outOfScope: "colors",
+  });
+  assert.equal(
+    mission,
+    [
+      "MISSION (role: worker):",
+      "Give rows a frame",
+      "",
+      "CONTEXT (read before touching anything)",
+      "- Instructions: AGENTS.md",
+      "- Build/test: npm test",
+      "",
+      "EDIT SURFACES (the only paths you may write):",
+      "- src/a.js",
+      "",
+      "DONE WHEN",
+      "- frame closes",
+      "- tests pass",
+      "",
+      "OUT OF SCOPE",
+      "colors",
+    ].join("\n"),
+  );
+});
+
+test("buildMission omits the sections a mission does not carry", () => {
+  const mission = buildMission({ role: "explorer", task: "map src/" });
+  assert.equal(mission, "MISSION (role: explorer):\nmap src/");
+  const withDone = buildMission({ role: "worker", task: "x", done: ["  ", "y"] });
+  assert.ok(withDone.includes("DONE WHEN\n- y"));
+  assert.ok(!withDone.includes("CONTEXT"));
+});
+
+test("partialReport says what the child did, not only what it was saying", () => {
+  const report = partialReport({
+    status: "turns_exceeded",
+    turns: 40,
+    maxTurns: 40,
+    text: "The guard misparses any > in a bash command",
+    notes: ["Read minimal-ui.js", "Wrote formatFrame", "Started tests"],
+    diffStat: " src/minimal-ui.js | 152 +++++",
+    artifactPath: "/tmp/run/result.md",
+  });
+  assert.ok(report.startsWith("status: turns_exceeded (40/40 turns)"));
+  assert.ok(report.includes("last message:\nThe guard misparses"));
+  assert.ok(report.includes("progress:\n- Read minimal-ui.js"));
+  assert.ok(report.includes("changed so far (uncommitted):\nsrc/minimal-ui.js"));
+  assert.ok(report.includes("pending: the mission's DONE WHEN was not confirmed"));
+  assert.ok(report.includes("full transcript: /tmp/run/result.md"));
+
+  const bare = partialReport({ status: "timeout" });
+  assert.equal(bare.split("\n")[0], "status: timeout");
+  assert.ok(!bare.includes("progress:"));
+});
+
+test("runPiJson keeps the assistant notes that became a partial report", async () => {
+  const dir = tempDir("po-shell-notes-");
+  const fake = fakePi(
+    dir,
+    [
+      `printf '%s\\n' '{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"first note"}]}}'`,
+      `printf '%s\\n' '{"type":"turn_end"}'`,
+      `printf '%s\\n' '{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"second note"}]}}'`,
+      `printf '%s\\n' '{"type":"turn_end"}'`,
+      "exit 0",
+    ].join("\n"),
+  );
+  const result = await runPiJson(dir, [], {
+    env: { ...process.env, PO_SHELL_PI_BIN: fake },
+    maxTurns: 5,
+    timeoutMs: 5000,
+  });
+  assert.equal(result.status, "ok");
+  assert.deepEqual(result.notes, ["first note", "second note"]);
 });

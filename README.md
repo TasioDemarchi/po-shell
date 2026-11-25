@@ -630,13 +630,25 @@ contrato corto (`prompts/subagents/*.md`) además del protocolo común.
 
 ```json
 {
-  "role": "explorer",
-  "task": "Mapeá el flujo de uploads",
-  "max_tokens": 20000,
-  "max_turns": 8,
-  "timeout_seconds": 300
+  "role": "worker",
+  "task": "Una fila de dos líneas con la forma pedida",
+  "context_files": ["AGENTS.md", "docs/features/tui-status.md"],
+  "build_test": "npm test && npm run check",
+  "surfaces": ["src/minimal-ui.js", "test/minimal-ui.test.js"],
+  "done": ["formatFrame devuelve top y bottom del mismo ancho", "hay un test de truncado"],
+  "out_of_scope": "colores, emoji",
+  "max_turns": 25
 }
 ```
+
+La misión no es un párrafo: `buildMission` la arma en secciones (`MISSION`, `CONTEXT`, `EDIT SURFACES`,
+`DONE WHEN`, `OUT OF SCOPE`). Un `worker` **no arranca** sin `done` y `build_test`: una misión sin
+definición de terminado ni comando que la pruebe termina cuando el hijo se aburre.
+
+Si el hijo se queda sin turnos, sin presupuesto o sin tiempo, el padre no recibe su última frase:
+recibe `partialReport` con el estado, las últimas notas de progreso, el `git diff --stat` de lo que
+quedó sin commitear y el recordatorio de que el `DONE WHEN` no se confirmó. El artefacto guarda el
+transcript completo.
 
 | Rol | Puede | No puede |
 |---|---|---|

@@ -181,6 +181,17 @@ Verificado end-to-end: una delegación real con `max_tokens=2000` completó y gu
 
 ### Pendiente
 
+### Replanteo de la delegación (en curso)
+
+| # | Unidad | Estado |
+|---|---|---|
+| 1 | Matriz de roles en runtime (padre valida + guard del hijo re-valida), `planner` eliminado | ✅ hecho |
+| 2 | Misión estructurada (`done`, `build_test`, `context_files`, `out_of_scope`) + `partialReport` en kill | ✅ hecho |
+| 3 | `reviewer` que ejecuta: contrato de `gentle-ai-verify` (comandos autorizados, copia scratch, veredicto por ítem, probes como tests) | pendiente |
+| 4 | Worktree por hijo, **aprobado por el humano** (campo de la tarea, no decisión del padre) | pendiente |
+| 5 | Extensión web propia para el explorer (`web_search`/`fetch`) y `.md` de rol alineados | pendiente |
+| 6 | **Gate de aprobación**: hoy el kernel bloquea escrituras de un padre con tarea `high` sin aprobar, pero **sin tarea activa no hay gate**. Exigir tarea en `implementing` para escribir código, de modo que "escribí antes de aprobar" sea imposible, no una regla de protocolo | pendiente |
+
 | Item | Descripción |
 |---|---|
 | Servidor MCP | Exponer el kernel a Claude Code/Codex y otros clientes. |

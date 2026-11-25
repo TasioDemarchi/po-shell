@@ -30,7 +30,7 @@ import {
 import { applyUiMode, panelMode, setPanelMode, uiMode } from "../src/ui.js";
 import { activeDirectives, getContext, searchContext } from "../src/context.js";
 import { confirmDestructive, planApprovalTitle, PLAN_APPROVE, PLAN_REJECT } from "../src/confirm.js";
-import { buildSubagentArgs, capReport, delegationMeta, runPiJson, usageTotal } from "../src/delegate.js";
+import { buildMission, buildSubagentArgs, capReport, delegationMeta, partialReport, runPiJson, usageTotal } from "../src/delegate.js";
 import { formatCredits, costSummary, recordCost } from "../src/costs.js";
 import { createSubagentScratch } from "../src/scratch.js";
 import { memoryAction, taskAction } from "../src/tool-defaults.js";
@@ -998,13 +998,28 @@ export default function poShellExtension(pi: ExtensionAPI) {
           model = undefined;
         }
       }
-      const prompt = [
-        `MISSION (role: ${params.role}):`,
-        params.task,
-        surfaces.length ? `\nEDIT SURFACES (the only paths you may write):\n${surfaces.map((s: string) => `- ${s}`).join("\n")}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n");
+      const done = (params.done ?? []).map((value: string) => String(value).trim()).filter(Boolean);
+      const contextFiles = (params.context_files ?? []).map((value: string) => String(value).trim()).filter(Boolean);
+      const buildTest = String(params.build_test ?? "").trim();
+      // A worker without a definition of done and a command to prove it is a
+      // mission that ends when the child gets bored. Refuse it here.
+      if (params.role === "worker" && (done.length === 0 || !buildTest)) {
+        return {
+          ...text(
+            "po_shell_delegate: un worker necesita `done` (qué significa terminado) y `build_test` (el comando exacto que lo prueba). Sin eso no hay handoff verificable.",
+          ),
+          isError: true,
+        };
+      }
+      const prompt = buildMission({
+        role: params.role,
+        task: params.task,
+        contextFiles,
+        buildTest,
+        surfaces,
+        done,
+        outOfScope: String(params.out_of_scope ?? ""),
+      });
       const args = buildSubagentArgs({
         guardPath: subagentGuard,
         promptPath: subagentPrompt,
@@ -1082,9 +1097,13 @@ export default function poShellExtension(pi: ExtensionAPI) {
                 totalTokens: total,
                 credits: subagentCost?.credits ?? null,
                 turns: result.turns,
-                maxTokens: params.max_tokens ?? null,
-                maxTurns: params.max_turns ?? null,
-                timeoutSeconds: params.timeout_seconds ?? 300,
+                maxTokens: budgets.maxTokens || null,
+                maxTurns: budgets.maxTurns,
+                timeoutSeconds: budgets.timeoutSeconds,
+                done,
+                buildTest,
+                contextFiles,
+                notes: result.notes ?? [],
               }),
             });
           } catch (error) {
@@ -1103,6 +1122,36 @@ export default function poShellExtension(pi: ExtensionAPI) {
           maxBytes: Number(config?.reportMaxBytes) || undefined,
           artifactPath: artifact?.resultPath,
         });
+        if (result.status !== "ok") {
+          const diffStat = (() => {
+            try {
+              return execFileSync("git", ["diff", "--stat"], { cwd: ctx.cwd, encoding: "utf8", timeout: 2000 }).trim();
+            } catch {
+              return "";
+            }
+          })();
+          return text(
+            [
+              `role: ${params.role}`,
+              `status: ${result.status}`,
+              `turns: ${result.turns}/${budgets.maxTurns}`,
+              `credits: ${subagentCost ? formatCredits(subagentCost.credits) : "n/a"}`,
+              artifact?.resultPath ? `artifact: ${artifact.resultPath}` : "",
+              "",
+              partialReport({
+                status: result.status,
+                turns: result.turns,
+                maxTurns: budgets.maxTurns,
+                text: output,
+                notes: result.notes ?? [],
+                diffStat,
+                artifactPath: artifact?.resultPath ?? "",
+              }),
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          );
+        }
         return {
           ...text(
             [
