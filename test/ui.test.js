@@ -7,6 +7,8 @@ import {
   agentSettingsPath,
   applyUiMode,
   assertUiMode,
+  panelMode,
+  setPanelMode,
   setUiMode,
   uiConfigPath,
   uiMode,
@@ -81,4 +83,23 @@ test("applyUiMode writes the mode and aligns Pi's setting with a backup", () => 
   assert.deepEqual(JSON.parse(fs.readFileSync(settings, "utf8")), { hideThinkingBlock: false });
   assert.deepEqual(JSON.parse(fs.readFileSync(full.backup, "utf8")), { hideThinkingBlock: true });
   assert.equal(uiMode(env), "full");
+});
+
+test("the panel defaults to auto and lives next to the mode", () => {
+  const { env } = sandbox();
+  assert.equal(panelMode(env), "auto");
+
+  assert.equal(setPanelMode("on", env), "on");
+  assert.equal(panelMode(env), "on");
+  assert.equal(uiMode(env), "minimal");
+
+  setUiMode("full", env);
+  assert.equal(uiMode(env), "full");
+  assert.equal(panelMode(env), "on", "changing the mode must not drop the panel");
+
+  setPanelMode("AUTO", env);
+  assert.equal(panelMode(env), "auto");
+
+  assert.throws(() => setPanelMode("sometimes", env), /panel mode must be one of/);
+  assert.equal(panelMode(env), "auto", "an invalid value leaves the file alone");
 });

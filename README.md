@@ -181,6 +181,33 @@ se cachea 2 s y los créditos suman orquestador + sub-agentes de la sesión (`se
 `cost_events`). Un `~` delante de los créditos avisa que algún modelo de la sesión no tiene tarifa
 conocida.
 
+### Panel de tarea
+
+Arriba del editor, hasta tres líneas, y por defecto **no existe**: aparece cuando algo pide atención.
+
+```text
+📋 guard-de-contexto-mwvfp33 · ready · med · evidence 2 · next: review the frozen diff
+🤖 worker 41.0s · 0.31cr     🤖 explorer 12.0s · ·
+✓ 185/185 · review mwvis2b5 · 8 files uncommitted
+```
+
+- `📋` la tarea activa completa: id, fase, riesgo, evidencia y `next`.
+- `🤖` los sub-agentes vivos, con elapsed y créditos; se repinta cada segundo **solo** mientras
+  corre alguno, y los créditos aparecen cuando el hijo termina (antes se muestra `·`).
+- `✓` el último check, el review congelado y los archivos sin commitear.
+
+En `auto` se muestra si hay un hijo corriendo, la última evidencia en rojo, un plan `high`
+esperando aprobación, el contexto en `warn`/`delegate` o archivos sin commitear. Sin compresión:
+si una fila no entra en el ancho, se oculta entera en vez de cortarse.
+
+```bash
+po-shell ui panel           # muestra el modo del panel
+po-shell ui panel auto      # auto (default) | on | off
+```
+
+En sesión: `/panel on|off|auto` y `ctrl+shift+p` para prenderlo o apagarlo. Vive en
+`~/.po-shell/ui.json` junto al modo `minimal|full`.
+
 ```bash
 po-shell ui            # muestra el modo y las rutas que toca
 po-shell ui minimal    # una línea por acción (default)

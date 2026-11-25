@@ -124,6 +124,10 @@ de sesión, contadores de tools. Son diagnóstico, no decisión: van a `/stats`.
 - [ ] **Fase 3 — panel y `/stats`.** Widget con modos `on|off|auto`, shortcut
       `ctrl+shift+p`, ticker solo con hijos vivos, `/stats` con el desglose por
       modelo y por rol.
+  - [x] Panel: modos `auto|on|off`, `ctrl+shift+p`, ticker con hijos vivos, tres filas sin
+        comprimir (una fila que no entra se oculta), trigger por anomalía.
+  - [ ] `/stats` en el transcript: session, turns, tool calls, créditos con desglose por
+        orquestador/hijos, tokens con hit de caché, y desglose por modelo y por tarea.
 
 ## Follow-ups
 
@@ -172,7 +176,15 @@ extensión pasa `ctx.sessionManager.getSessionId()` en los dos registros —orqu
 variable del footer, así que `18.6cr` ya incluye a los sub-agentes. El desglose por rol
 sigue en `costSummary` y se mostrará en el panel de la fase 3.
 
-Falta solo la fase 3: panel y `/stats`.
+Panel implementado (2026-11-25): `src/minimal-ui.js` arma las tres filas
+(`panelRowTask`, `panelRowChildren`, `panelRowEvidence`, `panelRows`) y decide
+(`shouldShowPanel`); `src/ui.js` guarda `panel: auto|on|off` junto al modo, así que
+`po-shell ui panel`, `/panel` y `ctrl+shift+p` escriben lo mismo. La extensión mantiene
+un registro en memoria de los hijos vivos (`po_shell_delegate` es sincrónico: se anota al
+arrancar y se borra en el `finally`), y repinta cada segundo solo mientras hay alguno.
+Las filas no se comprimen: la que no entra en el ancho se oculta entera.
+
+Falta `/stats`.
 
 ## Log
 
@@ -193,6 +205,14 @@ Falta solo la fase 3: panel y `/stats`.
   no entra el bloque de créditos. Cuando la izquierda desaparece el bloque del modelo queda
   alineado a la derecha, no salta a la izquierda. `textWidth` pasó a medir columnas, no code
   points: `📋` ocupa dos y con el conteo anterior la barra se desbordaba una columna.
+- 2026-11-25: panel. El umbral de contexto no es un knob nuevo: se reusa
+  `readContextPressure()`, que el kernel ya escribe en cada turno (`contextGuard`
+  `warnAt 0.15` / `delegateAt 0.3`) y que ya mueve el gate de delegación. El trigger de
+  `auto` es `children || lastCheckFailed || pendingHighPlan || contextLevel != ok || dirty > 0`.
+  Como ensuciar el worktree es el estado normal mientras se trabaja, el panel queda visible
+  la mayor parte de la sesión; si molesta, se acota a "dirty y tarea fuera de implementing".
+  `reviewUncommitted` no existe como trigger propio: la fila de evidencia muestra el review y
+  el dirty ya dispara.
 - 2026-11-25: fase 2. La migración de `session_id` corre en `migrate()` y no en el `SCHEMA`:
   el índice `cost_events_session` sobre una base vieja fallaría si se creara junto al
   `CREATE TABLE`, porque la columna todavía no existe. Los eventos anteriores quedan con

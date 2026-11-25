@@ -403,3 +403,86 @@ export function footerLine(blocks, options = {}) {
   // Too narrow even for the model block: cut that block, not the padding.
   return cutWidth(blockText(right) || line, width);
 }
+
+/* --------------------------------- panel --------------------------------- */
+
+const RISK_WORD = { low: "low", medium: "med", high: "high" };
+
+/** `📋 guard-… · ready · med · evidence 2 · next: …`, or empty with no task. */
+export function panelRowTask(task) {
+  if (!task?.id) return "";
+  const bits = [oneLine(task.id, 48), oneLine(task.phase, 12)];
+  const risk = RISK_WORD[task.risk] ?? oneLine(task.risk, 8);
+  if (risk) bits.push(risk);
+  const evidence = (Array.isArray(task.evidence) ? task.evidence : []).length;
+  bits.push(`evidence ${evidence}`);
+  if (task.next) bits.push(`next: ${oneLine(task.next, 56)}`);
+  return `📋 ${bits.filter(Boolean).join(" · ")}`;
+}
+
+/** `🤖 worker 41s · 0.31cr     🤖 explorer 12s · 0.05cr`. */
+export function panelRowChildren(children) {
+  const parts = (Array.isArray(children) ? children : [])
+    .filter((child) => child && child.role)
+    .map((child) => {
+      const elapsed = formatDuration(child.elapsedMs);
+      const credits = Number.isFinite(Number(child.credits)) && Number(child.credits) > 0
+        ? creditLabel(child.credits)
+        : "·";
+      return `🤖 ${oneLine(child.role, 16)} ${elapsed || "0s"} · ${credits}`;
+    });
+  return parts.join("     ");
+}
+
+/** `✓ 185/185 · review mwvis2b5 · 8 files uncommitted`. */
+export function panelRowEvidence(state = {}) {
+  const bits = [];
+  const checks = state.checks;
+  if (checks && Number(checks.total) > 0) {
+    const failed = Number(checks.failed ?? 0);
+    const total = Number(checks.total);
+    const passed = Number.isFinite(Number(checks.passed)) ? Number(checks.passed) : total - failed;
+    const mark = failed > 0 || checks.ok === false ? "✗" : "✓";
+    bits.push(`${mark} ${passed}/${total}`);
+  }
+  if (state.review?.id) bits.push(`review ${oneLine(state.review.id, 12)}`);
+  const dirty = Number(state.dirty) || 0;
+  if (dirty > 0) bits.push(`${dirty} ${dirty === 1 ? "file" : "files"} uncommitted`);
+  return bits.join(" · ");
+}
+
+/**
+ * The panel rows, top to bottom: task, live children, evidence.
+ *
+ * No compression: a row that does not fit in `width` is hidden, not cut, so the
+ * remaining rows keep their full meaning. `maxRows` caps the three.
+ */
+export function panelRows(state = {}, options = {}) {
+  const width = Math.max(0, Math.trunc(Number(options.width) || 0));
+  const maxRows = Math.max(0, Math.trunc(Number(options.maxRows ?? 3)));
+  const rows = [
+    panelRowTask(state.task),
+    panelRowChildren(state.children),
+    panelRowEvidence(state),
+  ].filter(Boolean);
+  const fits = width > 0 ? rows.filter((row) => textWidth(row) <= width) : rows;
+  return fits.slice(0, maxRows);
+}
+
+/**
+ * `auto` is the default and means "do not exist while everything is normal":
+ * the panel shows up for an anomaly, not for company.
+ */
+export function shouldShowPanel(state = {}) {
+  const mode = String(state.mode ?? "auto");
+  if (mode === "off") return false;
+  if (mode === "on") return true;
+  return Boolean(
+    (Array.isArray(state.children) && state.children.length > 0) ||
+      state.lastCheckFailed ||
+      state.pendingHighPlan ||
+      (state.contextLevel && state.contextLevel !== "ok") ||
+      state.reviewUncommitted ||
+      Number(state.dirty) > 0,
+  );
+}

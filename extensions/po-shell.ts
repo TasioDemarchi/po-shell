@@ -21,11 +21,13 @@ import {
   homePath,
   modelLabel,
   oneLine,
+  panelRows,
   resultText,
+  shouldShowPanel,
   shortModel,
   taskLabel,
 } from "../src/minimal-ui.js";
-import { applyUiMode, uiMode } from "../src/ui.js";
+import { applyUiMode, panelMode, setPanelMode, uiMode } from "../src/ui.js";
 import { activeDirectives, getContext, searchContext } from "../src/context.js";
 import { confirmDestructive, planApprovalTitle, PLAN_APPROVE, PLAN_REJECT } from "../src/confirm.js";
 import { buildSubagentArgs, capReport, delegationMeta, runPiJson, usageTotal } from "../src/delegate.js";
@@ -46,9 +48,11 @@ import {
   isInitialized,
   listTasks,
   loadConfig,
+  latestReview,
   messagePromptTokens,
   saveContextPressure,
   poShellPath,
+  readContextPressure,
   renderContext,
   renderStatus,
   reviewDiff,
@@ -169,6 +173,93 @@ export default function poShellExtension(pi: ExtensionAPI) {
     return task;
   }
 
+  /* --------------------------------- panel --------------------------------- */
+
+  // `auto` means "do not exist while everything is normal": the panel is a
+  // reaction to an anomaly, not a decoration above the editor.
+  const PANEL_ID = "po-shell";
+  let panel = panelMode(process.env);
+  const liveChildren = new Map<string, { role: string; startedAt: number }>();
+  let panelTimer: any = null;
+
+  function lastChecks(task: any) {
+    const entries = Array.isArray(task?.evidence) ? task.evidence : [];
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+      const entry = entries[index];
+      if (entry?.kind !== "checks" || !Array.isArray(entry.results)) continue;
+      const total = entry.results.length;
+      const failed = entry.results.filter((result: any) => !result?.ok).length;
+      return { total, failed, passed: total - failed, ok: entry.ok !== false };
+    }
+    return null;
+  }
+
+  function panelState(ctx: any) {
+    const task = currentTask(ctx.cwd);
+    let contextLevel = "ok";
+    try {
+      contextLevel = readContextPressure(ctx.cwd)?.level ?? "ok";
+    } catch {
+      contextLevel = "ok";
+    }
+    let review: any = null;
+    try {
+      review = latestReview(ctx.cwd);
+    } catch {
+      review = null;
+    }
+    const checks = lastChecks(task);
+    return {
+      mode: panel,
+      task,
+      children: [...liveChildren.values()].map((child) => ({
+        role: child.role,
+        elapsedMs: Date.now() - child.startedAt,
+      })),
+      checks,
+      lastCheckFailed: Boolean(checks && (checks.failed > 0 || checks.ok === false)),
+      pendingHighPlan: Boolean(
+        task && task.risk === "high" && task.planApproved !== true && task.phase === "planned",
+      ),
+      contextLevel,
+      review: review?.id ? { id: review.id } : null,
+      dirty: gitState(ctx.cwd, "").dirty,
+    };
+  }
+
+  function applyPanel(ctx: any) {
+    if (!ctx.hasUI) return;
+    const state = panelState(ctx);
+    const rows = shouldShowPanel(state)
+      ? panelRows(state, { width: Number(process.stdout.columns) || 0 })
+      : [];
+    ctx.ui.setWidget(PANEL_ID, rows.length ? rows : undefined);
+  }
+
+  /** A ticker only while a child runs: idle panels must not repaint the screen. */
+  function startPanelTicker(ctx: any) {
+    if (panelTimer || liveChildren.size === 0) return;
+    panelTimer = setInterval(() => {
+      if (liveChildren.size === 0) {
+        clearInterval(panelTimer);
+        panelTimer = null;
+        return;
+      }
+      try {
+        applyPanel(ctx);
+      } catch {
+        // Un panel que falla no debe romper la sesión.
+      }
+    }, 1000);
+    panelTimer.unref?.();
+  }
+
+  function trackChild(role: string) {
+    const id = `${role}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
+    liveChildren.set(id, { role, startedAt: Date.now() });
+    return id;
+  }
+
   /**
    * One line, replacing Pi's footer rather than sitting under it: two bars is
    * one bar too many. `full` restores the native one.
@@ -216,6 +307,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
       ctx.ui.setWorkingIndicator();
     }
     applyFooter(ctx);
+    applyPanel(ctx);
   }
 
   pi.on("session_start", async (_event, ctx) => {
@@ -313,6 +405,41 @@ export default function poShellExtension(pi: ExtensionAPI) {
         return;
       }
       ctx.ui.notify(renderStatus(cwd), "info");
+    },
+  });
+
+  pi.registerCommand("panel", {
+    description: "Panel de tarea e hijos: /panel on | off | auto",
+    handler: async (args, ctx) => {
+      const value = String(args ?? "")
+        .trim()
+        .toLowerCase();
+      if (!value) {
+        ctx.ui.notify(`Panel: ${panel}`, "info");
+        return;
+      }
+      try {
+        panel = setPanelMode(value, process.env);
+        applyPanel(ctx);
+        ctx.ui.notify(`Panel: ${panel}`, "info");
+      } catch (error) {
+        ctx.ui.notify(String((error as Error).message), "warning");
+      }
+    },
+  });
+
+  // The same toggle without typing: on shows it, off hides it. `auto` is one
+  // command away, because the shortcut is the emergency hatch.
+  pi.registerShortcut("ctrl+shift+p", {
+    description: "Toggle the po-shell panel",
+    handler: async (ctx) => {
+      try {
+        panel = setPanelMode(panel === "off" ? "on" : "off", process.env);
+        applyPanel(ctx);
+        ctx.ui.notify(`Panel: ${panel}`, "info");
+      } catch (error) {
+        ctx.ui.notify(String((error as Error).message), "warning");
+      }
     },
   });
 
@@ -760,6 +887,9 @@ export default function poShellExtension(pi: ExtensionAPI) {
       const timeoutMs = Math.max(10, Math.min(3600, params.timeout_seconds ?? 300)) * 1000;
       const started = Date.now();
       let childScratch: any = null;
+      const childId = trackChild(params.role);
+      startPanelTicker(ctx);
+      applyPanel(ctx);
       try {
         try {
           childScratch = createSubagentScratch(process.env);
@@ -867,7 +997,9 @@ export default function poShellExtension(pi: ExtensionAPI) {
       } catch (error) {
         return { ...text(`po-shell delegate error: ${(error as Error).message}`), isError: true };
       } finally {
+        liveChildren.delete(childId);
         if (childScratch) childScratch.cleanup();
+        applyPanel(ctx);
       }
     },
   });

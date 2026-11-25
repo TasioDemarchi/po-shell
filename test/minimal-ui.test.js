@@ -16,9 +16,14 @@ import {
   lineCount,
   modelLabel,
   oneLine,
+  panelRowChildren,
+  panelRowEvidence,
+  panelRowTask,
+  panelRows,
   resultText,
   shortModel,
   shortPath,
+  shouldShowPanel,
   taskLabel,
   textWidth,
   toolStyle,
@@ -332,4 +337,75 @@ test("footerLine cuts the model block, not the padding, when nothing fits", () =
   assert.ok(textWidth(cut) <= 12);
   assert.ok(cut.startsWith("18.6"));
   assert.ok(cut.endsWith("…"));
+});
+
+test("panelRowTask shows the whole task, not just its id", () => {
+  const row = panelRowTask({
+    id: "guard-de-contexto-mwvfpt33",
+    phase: "ready",
+    risk: "medium",
+    next: "review the frozen diff",
+    evidence: [{ kind: "checks" }, { kind: "review" }],
+  });
+  assert.equal(
+    row,
+    "📋 guard-de-contexto-mwvfpt33 · ready · med · evidence 2 · next: review the frozen diff",
+  );
+  assert.equal(panelRowTask({ id: "x", phase: "planned" }), "📋 x · planned · evidence 0");
+  assert.equal(panelRowTask(null), "");
+  assert.equal(panelRowTask({}), "");
+});
+
+test("panelRowChildren lists live children with elapsed and credits", () => {
+  const row = panelRowChildren([
+    { role: "worker", elapsedMs: 41_000, credits: 0.314 },
+    { role: "explorer", elapsedMs: 12_000 },
+  ]);
+  assert.equal(row, "🤖 worker 41.0s · 0.31cr     🤖 explorer 12.0s · ·");
+  assert.equal(panelRowChildren([]), "");
+  assert.equal(panelRowChildren([{ elapsedMs: 1 }]), "");
+});
+
+test("panelRowEvidence says pass or fail, review and dirty files", () => {
+  assert.equal(
+    panelRowEvidence({ checks: { total: 185, failed: 0 }, review: { id: "mwvis2b5" }, dirty: 8 }),
+    "✓ 185/185 · review mwvis2b5 · 8 files uncommitted",
+  );
+  assert.equal(panelRowEvidence({ checks: { total: 3, failed: 1 } }), "✗ 2/3");
+  assert.equal(panelRowEvidence({ dirty: 1 }), "1 file uncommitted");
+  assert.equal(panelRowEvidence({}), "");
+});
+
+test("panelRows hides a row that does not fit instead of cutting it", () => {
+  const state = {
+    task: { id: "guard-de-contexto-mwvfpt33", phase: "ready", risk: "medium", evidence: [] },
+    children: [{ role: "worker", elapsedMs: 41_000, credits: 0.31 }],
+    checks: { total: 185, failed: 0 },
+    dirty: 3,
+  };
+  assert.equal(panelRows(state, { width: 120 }).length, 3);
+
+  const narrow = panelRows(state, { width: 40 });
+  assert.deepEqual(narrow, ["🤖 worker 41.0s · 0.31cr", "✓ 185/185 · 3 files uncommitted"]);
+  assert.equal(panelRows(state, { maxRows: 2 }).length, 2);
+  assert.deepEqual(panelRows({}, { width: 80 }), []);
+});
+
+test("shouldShowPanel stays quiet in auto until something is wrong", () => {
+  assert.equal(shouldShowPanel({ mode: "auto" }), false);
+  assert.equal(shouldShowPanel({ mode: "auto", dirty: 0, contextLevel: "ok" }), false);
+  assert.equal(shouldShowPanel({ mode: "off", children: [{ role: "worker" }] }), false);
+  assert.equal(shouldShowPanel({ mode: "on" }), true);
+
+  const triggers = [
+    { children: [{ role: "worker" }] },
+    { lastCheckFailed: true },
+    { pendingHighPlan: true },
+    { contextLevel: "warn" },
+    { contextLevel: "delegate" },
+    { dirty: 2 },
+  ];
+  for (const trigger of triggers) {
+    assert.equal(shouldShowPanel({ mode: "auto", ...trigger }), true, JSON.stringify(trigger));
+  }
 });

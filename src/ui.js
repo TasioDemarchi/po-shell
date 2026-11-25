@@ -12,6 +12,34 @@ import { readJson, writeJson } from "./util.js";
 export const UI_MODES = ["minimal", "full"];
 export const DEFAULT_UI_MODE = "minimal";
 
+export const PANEL_MODES = ["auto", "on", "off"];
+export const DEFAULT_PANEL_MODE = "auto";
+
+export function panelMode(env = process.env) {
+  const stored = String(readJson(uiConfigPath(env), null)?.panel ?? "")
+    .trim()
+    .toLowerCase();
+  return PANEL_MODES.includes(stored) ? stored : DEFAULT_PANEL_MODE;
+}
+
+export function assertPanelMode(mode) {
+  const next = String(mode ?? "")
+    .trim()
+    .toLowerCase();
+  if (!PANEL_MODES.includes(next)) {
+    throw new Error(`panel mode must be one of: ${PANEL_MODES.join(", ")}`);
+  }
+  return next;
+}
+
+/** `mode` and `panel` live in the same file: they are both display, not state. */
+export function setPanelMode(mode, env = process.env) {
+  const next = assertPanelMode(mode);
+  const current = readJson(uiConfigPath(env), null) ?? {};
+  writeJson(uiConfigPath(env), { ...current, mode: uiMode(env), panel: next });
+  return next;
+}
+
 export function uiConfigPath(env = process.env) {
   return path.join(poShellHome(env), "ui.json");
 }
@@ -41,7 +69,8 @@ export function assertUiMode(mode) {
 
 export function setUiMode(mode, env = process.env) {
   const next = assertUiMode(mode);
-  writeJson(uiConfigPath(env), { mode: next });
+  const current = readJson(uiConfigPath(env), null) ?? {};
+  writeJson(uiConfigPath(env), { ...current, mode: next });
   return next;
 }
 

@@ -9,7 +9,7 @@ import { directorySize, formatSize, listScratch, sweepScratch } from "./scratch.
 import { activeDirectives, getContext, searchContext } from "./context.js";
 import { indexProject } from "./indexer.js";
 import { listProjectStates, poShellHome, projectInfo, pruneProjectStates } from "./project.js";
-import { agentSettingsPath, applyUiMode, uiConfigPath, uiMode } from "./ui.js";
+import { agentSettingsPath, applyUiMode, panelMode, setPanelMode, uiConfigPath, uiMode } from "./ui.js";
 import {
   PHASES,
   RISKS,
@@ -85,6 +85,7 @@ Uso:
   po-shell                     inicia el agente (Pi) con po-shell cargado
   po-shell doctor              chequea Node, Pi, git y archivos
   po-shell ui [minimal|full]   estética de la terminal (una línea por acción)
+  po-shell ui panel [auto|on|off]  panel de tarea e hijos arriba del editor
   po-shell install [--json]    verifica la instalación (no instala nada)
   po-shell update [--yes] [--json]     muestra o ejecuta la actualización
   po-shell uninstall [--yes] [--json]  desinstala el paquete, nunca tu estado
@@ -247,20 +248,45 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
   }
 
   if (command === "ui") {
-    const mode = String(rest[0] ?? "")
+    const [first, second] = rest;
+    const mode = String(first ?? "")
       .trim()
       .toLowerCase();
+    const sub = String(second ?? "")
+      .trim()
+      .toLowerCase();
+
+    if (mode === "panel") {
+      if (!sub) {
+        console.log(`Panel: ${panelMode(process.env)}`);
+        return;
+      }
+      try {
+        const next = setPanelMode(sub, process.env);
+        console.log(`Panel: ${next}`);
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error));
+      }
+      return;
+    }
+
     if (!mode) {
       if (json) {
         return console.log(
           JSON.stringify(
-            { mode: uiMode(process.env), config: uiConfigPath(process.env), settings: agentSettingsPath(process.env) },
+            {
+              mode: uiMode(process.env),
+              panel: panelMode(process.env),
+              config: uiConfigPath(process.env),
+              settings: agentSettingsPath(process.env),
+            },
             null,
             2,
           ),
         );
       }
       console.log(`UI: ${uiMode(process.env)}`);
+      console.log(`Panel: ${panelMode(process.env)}`);
       console.log(`  config: ${uiConfigPath(process.env)}`);
       console.log(`  settings: ${agentSettingsPath(process.env)}`);
       return;
