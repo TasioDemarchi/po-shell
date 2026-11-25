@@ -217,16 +217,19 @@ se vea como un sello— y centrada: no tapa líneas del chat que no tiene nada q
 tokens.
 
 ```text
-┌──────────────────────────────────────────── usage ┐
-│ session  1h 42m · 14 turns · 96 tool calls · 2 …  │
-│ spent    18.6cr  (orchestrator 16.5cr · subagent… │
-│ ...                                               │
-│                                                   │
-│ esc close                                         │
-└───────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────── usage ┐
+│ session  1h 42m · 14 turns · 96 tool calls · 2 failed       │
+│ spent    18.6cr  (orchestrator 16.5cr · subagents 2.10cr)   │
+│ tokens   in 412k · out 38k · cache R 9.1M (95.7% hit) · W 0 │
+│ models   deepseek-v4-flash  12 turns · 320k · 0.90cr        │
+│          deepseek-v4-pro  2 turns · 130k · 15.6cr           │
+│                                                             │
+│ esc close                                                   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-`/usage` es **la sesión**: qué costó esta conversación.
+`/usage` es **la sesión**: qué costó esta conversación. Sin fila de tarea: el id, el riesgo y el
+review ya están en el panel y en el footer, y solo ensanchaban la ventana al doble.
 
 ```text
 session  1h 42m · 14 turns · 96 tool calls · 2 failed

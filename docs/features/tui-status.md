@@ -85,6 +85,10 @@ contexto sobre el umbral de delegación, o un review congelado sin commitear.
 
 ### `/usage` y `/plan` (bajo demanda)
 
+La fila `task` salió de `/usage` (2026-11-25): el id, el riesgo, la evidencia y el hash del review
+ya viven en el panel y en el footer, y eran la fila más larga del bloque: ensanchaban la ventana al
+doble para repetir información que estaba a un `ctrl` de distancia.
+
 ```text
 session 1h 42m · 14 turns · 96 tool calls · 2 failed
 spent    18.6cr  (orchestrator 16.5 · subagents 2.1)

@@ -124,11 +124,15 @@ function splitRoles(byRole) {
 }
 
 /**
- * The block. `scope` names the first row: `session` for `/stats` in a session,
+ * The block. `scope` names the first row: `session` for `/usage` in a session,
  * `project` for the CLI, where there is no session to measure.
+ *
+ * No task row: the question this answers is "how much is this costing me", and
+ * the task id, the risk and the review hash made the window three times wider
+ * for something already on screen in the panel and in the footer.
  */
 export function statsLines(state = {}) {
-  const { scope = "session", session, cost, task, review, models = 4 } = state;
+  const { scope = "session", session, cost, models = 4 } = state;
   const lines = [];
 
   if (session && (session.turns > 0 || session.ms > 0)) {
@@ -168,16 +172,6 @@ export function statsLines(state = {}) {
       const text = `${group.key}  ${plural(group.events, "turn")} · ${formatTokensShort(used)} · ${creditLabel(group.credits)}`;
       lines.push(row(index === 0 ? "models" : "", text));
     });
-  }
-
-  if (task) {
-    const number = Number(task.number);
-    const handle = Number.isFinite(number) && number > 0 ? `#${number}` : String(task.id);
-    const bits = [handle, String(task.title ?? "").toLowerCase(), task.risk];
-    const evidence = (Array.isArray(task.evidence) ? task.evidence : []).length;
-    bits.push(`evidence ${evidence}`);
-    if (review?.id) bits.push(`review ${String(review.id).replace(/^review-/, "")}`);
-    lines.push(row("task", bits.filter(Boolean).join(" · ")));
   }
 
   return lines;

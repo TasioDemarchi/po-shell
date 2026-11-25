@@ -467,8 +467,6 @@ export default function poShellExtension(pi: ExtensionAPI) {
         const lines = statsLines({
           session: sessionMetrics(ctx.sessionManager?.getEntries?.() ?? []),
           cost,
-          task: activeTask(cwd),
-          review: latestReview(cwd),
         });
         await openWindow(ctx, {
           title: "usage",

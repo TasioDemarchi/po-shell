@@ -66,8 +66,6 @@ test("statsLines prints the block the doc describes", () => {
   const lines = statsLines({
     session: { ms: 6_120_000, turns: 14, toolCalls: 96, failed: 2 },
     cost: cost(),
-    task: { id: "guard-abc", number: 12, title: "Guard de contexto", risk: "medium", evidence: [{}, {}] },
-    review: { id: "review-mwvis2b5" },
   });
   assert.deepEqual(lines, [
     "session  1h 42m · 14 turns · 96 tool calls · 2 failed",
@@ -75,8 +73,17 @@ test("statsLines prints the block the doc describes", () => {
     "tokens   in 412k · out 38k · cache R 9.1M (95.7% hit) · W 0",
     "models   deepseek-v4-flash  12 turns · 320k · 0.90cr",
     "         deepseek-v4-pro  2 turns · 130k · 15.6cr",
-    "task     #12 · guard de contexto · medium · evidence 2 · review mwvis2b5",
   ]);
+});
+
+test("statsLines has no task row: it is not what /usage is asked", () => {
+  const lines = statsLines({
+    session: { ms: 1000, turns: 1, toolCalls: 0, failed: 0 },
+    cost: cost(),
+    task: { id: "x", number: 1, title: "a task with a very long title", risk: "high", evidence: [] },
+  });
+  assert.ok(!lines.some((line) => line.startsWith("task")));
+  assert.equal(lines.length, 5);
 });
 
 test("statsLines degrades without a session, costs or task", () => {
