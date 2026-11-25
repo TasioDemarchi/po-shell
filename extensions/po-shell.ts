@@ -169,14 +169,18 @@ export default function poShellExtension(pi: ExtensionAPI) {
         const git = gitState(ctx.cwd, footerData?.getGitBranch?.() ?? "");
         const usage = ctx.getContextUsage?.();
         const model = (ctx.model as any)?.id ?? (ctx.model as any)?.name ?? "";
-        const parts = [
-          { text: homePath(ctx.cwd), compact: path.basename(ctx.cwd) },
-          { text: gitLabel(git.branch, git.dirty), compact: git.branch },
-          { text: taskLabel(currentTask(ctx.cwd)) },
-          { text: creditLabel(sessionCredits, { known: sessionCreditsKnown }), keep: true },
-          { text: contextLabel(usage?.percent), keep: true },
-          { text: modelLabel(model, ctx.thinkingLevel), compact: shortModel(model) },
-        ];
+        const parts = {
+          left: [
+            { text: homePath(ctx.cwd), compact: path.basename(ctx.cwd) },
+            { text: gitLabel(git.branch, git.dirty), compact: git.branch },
+            { text: taskLabel(currentTask(ctx.cwd)) },
+          ],
+          right: [
+            { text: creditLabel(sessionCredits, { known: sessionCreditsKnown }), keep: true },
+            { text: contextLabel(usage?.percent), keep: true },
+            { text: modelLabel(model, ctx.thinkingLevel), compact: shortModel(model) },
+          ],
+        };
         return [theme.fg("dim", footerLine(parts, { width }))];
       },
       invalidate() {},

@@ -41,8 +41,13 @@ status`. Con un plan de ~70 créditos, el número que más importa es el que no 
 ### Footer (siempre, una línea)
 
 ```text
-~/dev/po-shell · main ±3 · 📋 ready · 18.6cr · ctx 12% · deepseek-v4-flash · low
+~/dev/po-shell · main ±3 · 📋 ready            18.6cr · ctx 12% · deepseek-v4-flash · low
 ```
+
+Dos bloques: **proyecto a la izquierda** (path, rama y archivos sucios, fase de la tarea activa) y
+**modelo a la derecha** (créditos de la sesión, contexto usado, modelo con nivel de thinking),
+pegado al borde derecho. La separación se estira con la terminal y nunca baja de dos columnas, así
+que el bloque del modelo no se mueve de lugar.
 
 | Segmento | Decisión que cambia | Fuente |
 |---|---|---|
@@ -53,8 +58,10 @@ status`. Con un plan de ~70 créditos, el número que más importa es el que no 
 | `ctx 12%` | cuándo delegar o compactar | `ctx.getContextUsage()` (`?` tras compactar) |
 | `deepseek-v4-flash · low` | por qué responde así y cuánto cuesta | `ctx.model` + `ctx.thinkingLevel` |
 
-Cascada al achicar: primero se cae el path (queda el basename), después `±3`,
-después el modelo (queda `flash`). Créditos y `ctx` son los últimos en irse.
+Cascada al achicar, manteniendo los dos bloques: primero se compacta todo (`~/dev/po-shell` →
+`po-shell`, `main ±3` → `main`, `deepseek-v4-flash · low` → `flash`), después se suelta el proyecto
+(path, rama, fase), después el modelo, y recién si no entra ni el bloque de créditos se corta con
+`…`. Créditos y `ctx` son los últimos en irse.
 
 ### Panel (toggleable, 0–3 líneas arriba del editor)
 
@@ -172,6 +179,12 @@ Las fases 2 y 3 siguen sin implementar: créditos con hijos y panel/`/stats`.
   segmentos sin `keep` (path, rama, tarea) y recién al final cortar con `…`. Créditos y `ctx`
   llevan `keep: true`. El ancho se mide en code points: alcanza para este chrome y no suma
   dependencias.
+- 2026-11-25: el footer pasó a dos bloques, proyecto a la izquierda y modelo pegado al borde
+  derecho. `footerLine` recibe `{ left, right }` y la cascada se mantiene: compactar los dos
+  bloques, soltar el proyecto (path → rama → fase), después el modelo, y cortar con `…` solo si
+  no entra el bloque de créditos. Cuando la izquierda desaparece el bloque del modelo queda
+  alineado a la derecha, no salta a la izquierda. `textWidth` pasó a medir columnas, no code
+  points: `📋` ocupa dos y con el conteo anterior la barra se desbordaba una columna.
 
 - 2026-11-25: propuesta escrita. Relevado: footer nativo de Pi (2 líneas + estados,
   con tokens, `$`, `ctx%`, modelo), barra de gentle-shell (branch+dirty, permiso,

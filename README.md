@@ -165,18 +165,21 @@ razonamiento completo.
 
 ### Footer de una línea
 
-En modo minimal el footer reemplaza al de Pi (no se suma debajo) y dice lo que cambia una decisión:
+En modo minimal el footer reemplaza al de Pi (no se suma debajo) y dice lo que cambia una decisión,
+con el proyecto a la izquierda y el modelo a la derecha:
 
 ```text
-~/dev/po-shell · main ±3 · 📋 ready · 18.6cr · ctx 12% · deepseek-v4-flash · low
+~/dev/po-shell · main ±3 · 📋 ready            18.6cr · ctx 12% · deepseek-v4-flash · low
 ```
 
-Repo, rama y archivos sucios, fase de la tarea activa, créditos de la sesión, contexto usado y
-modelo con nivel de thinking. Al angostarse la terminal se achica en cascada: primero el path queda
-en su último segmento, después `±3` se cae, después el modelo queda en su familia (`flash`);
-créditos y `ctx` son los últimos en irse. El `git status` se cachea 2 s y los créditos son del
-orquestador (los hijos necesitan `session_id` en `cost_events`). Un `~` delante de los créditos
-avisa que algún modelo de la sesión no tiene tarifa conocida.
+Repo, rama y archivos sucios, fase de la tarea activa a la izquierda; créditos de la sesión,
+contexto usado y modelo con nivel de thinking pegados al borde derecho. Al angostarse la terminal se
+achica en cascada y la separación se mantiene: primero se compacta (`~/dev/po-shell` → `po-shell`,
+`main ±3` → `main`, `deepseek-v4-flash · low` → `flash`), después se suelta el bloque del proyecto
+(path, rama, fase) y por último el modelo; créditos y `ctx` son los últimos en irse. El `git status`
+se cachea 2 s y los créditos son del orquestador (los hijos necesitan `session_id` en
+`cost_events`). Un `~` delante de los créditos avisa que algún modelo de la sesión no tiene tarifa
+conocida.
 
 ```bash
 po-shell ui            # muestra el modo y las rutas que toca

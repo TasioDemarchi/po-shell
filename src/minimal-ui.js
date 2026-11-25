@@ -242,9 +242,34 @@ export function formatResult(name, args = {}, result, options = {}) {
 
 export const FOOTER_SEP = " · ";
 
-/** Length in code points: enough for a footer, and no dependency. */
+/** Columns a code point occupies in a terminal: emoji and CJK are two. */
+const WIDE_RANGES = [
+  [0x1100, 0x115f],
+  [0x2600, 0x27bf],
+  [0x2e80, 0xa4cf],
+  [0xac00, 0xd7a3],
+  [0xf900, 0xfaff],
+  [0xfe30, 0xfe4f],
+  [0xff00, 0xff60],
+  [0xffe0, 0xffe6],
+  [0x1f000, 0x1faff],
+  [0x20000, 0x3fffd],
+];
+
+/**
+ * Terminal columns of a string, not UTF-16 units: `📋` is one code point and two
+ * columns, and a footer that trusts the unit count overflows the right edge.
+ * Approximate on purpose: it covers the emoji and CJK ranges this chrome uses,
+ * with no dependency and no grapheme table.
+ */
 export function textWidth(value) {
-  return [...String(value ?? "")].length;
+  let width = 0;
+  for (const char of String(value ?? "")) {
+    const code = char.codePointAt(0);
+    if (code === 0xfe0f || code === 0x200d) continue;
+    width += WIDE_RANGES.some(([start, end]) => code >= start && code <= end) ? 2 : 1;
+  }
+  return width;
 }
 
 /** Changed entries in `git status --porcelain`: one line per changed path. */
@@ -310,39 +335,71 @@ export function taskLabel(task) {
 }
 
 function cutWidth(text, width) {
-  const chars = [...text];
-  if (chars.length <= width) return text;
-  return `${chars.slice(0, Math.max(1, width - 1)).join("").trimEnd()}…`;
+  if (textWidth(text) <= width) return text;
+  let out = "";
+  for (const char of String(text ?? "")) {
+    if (textWidth(`${out}${char}…`) > width) break;
+    out += char;
+  }
+  return `${out.trimEnd()}…`;
+}
+
+/** At least two columns between the two blocks, more when the terminal is wide. */
+export const FOOTER_GAP = 2;
+
+function blockText(parts) {
+  return parts.map((part) => part.text).join(FOOTER_SEP);
+}
+
+/** Project on the left, the model on the right, the gap stretched between. */
+function padRow(width, left, right) {
+  const l = blockText(left);
+  const r = blockText(right);
+  if (!r) return l;
+  if (!l) return width > 0 ? `${" ".repeat(Math.max(0, width - textWidth(r)))}${r}` : r;
+  const gap = width > 0 ? Math.max(FOOTER_GAP, width - textWidth(l) - textWidth(r)) : FOOTER_GAP;
+  return `${l}${" ".repeat(gap)}${r}`;
 }
 
 /**
  * The one-line footer, shrunk to `width`.
  *
- * `parts` is `[{ text, compact?, keep? }]` in display order. Shrinking is a
- * cascade, not a truncation: first every part that offers a `compact` form
- * takes it (path → basename, `main ±3` → `main`, model → family word), then the
- * parts without `keep` are dropped, and only as a last resort the line is cut.
- * Credits and context are the last to go, as the design says.
+ * Two blocks: `left` is the project (path, branch, task phase), `right` is the
+ * model (credits, context, model name), flush against the right edge. Both are
+ * `[{ text, compact?, keep? }]`. Shrinking is a cascade, not a truncation:
+ * first every part that offers a `compact` form takes it, then the parts
+ * without `keep` are dropped, project first and the model last. Credits and
+ * context never leave: they are the reason the line exists. Only when even the
+ * model block does not fit is anything cut.
  */
-export function footerLine(parts, options = {}) {
+export function footerLine(blocks, options = {}) {
   const width = Math.max(0, Math.trunc(Number(options.width) || 0));
-  const items = (Array.isArray(parts) ? parts : [])
-    .filter((part) => part && typeof part.text === "string" && part.text.length > 0)
-    .map((part) => ({ ...part }));
-  const render = () => items.map((part) => part.text).join(FOOTER_SEP);
+  const clean = (parts) =>
+    (Array.isArray(parts) ? parts : [])
+      .filter((part) => part && typeof part.text === "string" && part.text.length > 0)
+      .map((part) => ({ ...part }));
 
-  if (!width) return render();
+  const left = clean(blocks?.left);
+  const right = clean(blocks?.right);
+  const row = () => padRow(width, left, right);
 
-  for (const item of items) {
-    if (textWidth(render()) <= width) break;
-    if (item.compact && item.compact !== item.text) item.text = item.compact;
+  if (!width) return row();
+
+  for (const part of [...left, ...right]) {
+    if (textWidth(row()) <= width) break;
+    if (part.compact && part.compact !== part.text) part.text = part.compact;
   }
 
-  let index = 0;
-  while (textWidth(render()) > width && index < items.length) {
-    if (items[index].keep) index += 1;
-    else items.splice(index, 1);
+  for (const parts of [left, right]) {
+    let index = 0;
+    while (textWidth(row()) > width && index < parts.length) {
+      if (parts[index].keep) index += 1;
+      else parts.splice(index, 1);
+    }
   }
 
-  return cutWidth(render(), width);
+  const line = row();
+  if (textWidth(line) <= width) return line;
+  // Too narrow even for the model block: cut that block, not the padding.
+  return cutWidth(blockText(right) || line, width);
 }

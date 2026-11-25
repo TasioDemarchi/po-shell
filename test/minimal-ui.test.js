@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  FOOTER_GAP,
   TOOL_STYLE,
   contextLabel,
   creditLabel,
@@ -257,45 +258,78 @@ test("taskLabel shows the phase, not the whole task", () => {
   assert.equal(taskLabel({}), "");
 });
 
-function footerParts() {
-  return [
-    { text: "~/dev/po-shell", compact: "po-shell" },
-    { text: "main ±3", compact: "main" },
-    { text: "📋 ready" },
-    { text: "18.6cr", keep: true },
-    { text: "ctx 12%", keep: true },
-    { text: "deepseek-v4-flash · low", compact: "flash" },
-  ];
+function footerBlocks() {
+  return {
+    left: [
+      { text: "~/dev/po-shell", compact: "po-shell" },
+      { text: "main ±3", compact: "main" },
+      { text: "📋 ready" },
+    ],
+    right: [
+      { text: "18.6cr", keep: true },
+      { text: "ctx 12%", keep: true },
+      { text: "deepseek-v4-flash · low", compact: "flash" },
+    ],
+  };
 }
 
-test("footerLine joins the segments and keeps them whole when they fit", () => {
-  const line = footerLine(footerParts(), { width: 120 });
-  assert.equal(
-    line,
-    "~/dev/po-shell · main ±3 · 📋 ready · 18.6cr · ctx 12% · deepseek-v4-flash · low",
-  );
-  assert.ok(textWidth(line) <= 120);
-  assert.equal(footerLine([], { width: 80 }), "");
-  assert.equal(footerLine([{ text: "" }]), "");
+const WIDE = "~/dev/po-shell · main ±3 · 📋 ready";
+const MODEL = "18.6cr · ctx 12% · deepseek-v4-flash · low";
+const COMPACT = "18.6cr · ctx 12% · flash";
+const COMPACT_LEFT = "po-shell · main · 📋 ready";
+
+function spaced(width, left, right) {
+  return `${left}${" ".repeat(Math.max(FOOTER_GAP, width - textWidth(left) - textWidth(right)))}${right}`;
+}
+
+test("textWidth counts columns, not code points", () => {
+  assert.equal(textWidth("main"), 4);
+  assert.equal(textWidth("📋 ready"), 8);
+  assert.equal(textWidth("✏️"), 2);
+  assert.equal(textWidth(""), 0);
 });
 
-test("footerLine shrinks before it drops, and never drops credits or ctx", () => {
-  const wide = footerLine(footerParts(), { width: 60 });
-  assert.equal(wide, "po-shell · main · 📋 ready · 18.6cr · ctx 12% · flash");
-  assert.ok(textWidth(wide) <= 60);
+test("footerLine puts the project left and the model right", () => {
+  const line = footerLine(footerBlocks(), { width: 120 });
+  assert.equal(line, spaced(120, WIDE, MODEL));
+  assert.equal(textWidth(line), 120);
+  assert.ok(line.startsWith(WIDE));
+  assert.ok(line.endsWith(MODEL));
 
-  const narrow = footerLine(footerParts(), { width: 30 });
-  assert.equal(narrow, "18.6cr · ctx 12% · flash");
-  assert.ok(textWidth(narrow) <= 30);
-
-  const tiny = footerLine(footerParts(), { width: 12 });
-  assert.ok(textWidth(tiny) <= 12);
-  assert.ok(tiny.endsWith("…"));
+  const wide = footerLine(footerBlocks(), { width: 200 });
+  assert.equal(textWidth(wide), 200);
+  assert.ok(wide.endsWith(MODEL));
 });
 
-test("footerLine without a width does not touch the line", () => {
-  assert.equal(
-    footerLine(footerParts()),
-    "~/dev/po-shell · main ±3 · 📋 ready · 18.6cr · ctx 12% · deepseek-v4-flash · low",
-  );
+test("footerLine without a width or without blocks stays plain", () => {
+  assert.equal(footerLine(footerBlocks()), `${WIDE}${" ".repeat(FOOTER_GAP)}${MODEL}`);
+  assert.equal(footerLine({}, { width: 80 }), "");
+  assert.equal(footerLine({ left: [{ text: "" }] }, { width: 80 }), "");
+});
+
+test("footerLine compacts both blocks before dropping anything", () => {
+  const line = footerLine(footerBlocks(), { width: 64 });
+  assert.equal(line, spaced(64, COMPACT_LEFT, COMPACT));
+  assert.equal(textWidth(line), 64);
+});
+
+test("footerLine drops the project before the model and never the credits", () => {
+  const narrow = footerLine(footerBlocks(), { width: 40 });
+  assert.equal(narrow, spaced(40, "📋 ready", COMPACT));
+  assert.ok(!narrow.includes("main"));
+
+  const tiny = footerLine(footerBlocks(), { width: 28 });
+  assert.equal(tiny, `${" ".repeat(28 - textWidth(COMPACT))}${COMPACT}`);
+  assert.equal(textWidth(tiny), 28);
+  assert.ok(tiny.startsWith(" "));
+
+  const exact = footerLine(footerBlocks(), { width: textWidth(COMPACT) });
+  assert.equal(exact, COMPACT);
+});
+
+test("footerLine cuts the model block, not the padding, when nothing fits", () => {
+  const cut = footerLine(footerBlocks(), { width: 12 });
+  assert.ok(textWidth(cut) <= 12);
+  assert.ok(cut.startsWith("18.6"));
+  assert.ok(cut.endsWith("…"));
 });
