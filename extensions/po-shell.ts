@@ -8,8 +8,23 @@
 
 import { Type } from "typebox";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { Container, Text } from "@earendil-works/pi-tui";
-import { formatCall, formatResult, resultText } from "../src/minimal-ui.js";
+import {
+  contextLabel,
+  creditLabel,
+  dirtyCount,
+  footerLine,
+  formatCall,
+  formatResult,
+  gitLabel,
+  homePath,
+  modelLabel,
+  oneLine,
+  resultText,
+  shortModel,
+  taskLabel,
+} from "../src/minimal-ui.js";
 import { applyUiMode, uiMode } from "../src/ui.js";
 import { activeDirectives, getContext, searchContext } from "../src/context.js";
 import { confirmDestructive, planApprovalTitle, PLAN_APPROVE, PLAN_REJECT } from "../src/confirm.js";
@@ -92,6 +107,82 @@ export default function poShellExtension(pi: ExtensionAPI) {
   // The mode is read at render time, so `/ui` switches without a reload.
   let minimal = uiMode(process.env) === "minimal";
 
+  /* -------------------------------- footer -------------------------------- */
+
+  // Session credits: the orchestrator's own turns, as Pi reports them. Children
+  // need `session_id` on cost_events, which is phase 2 of the design.
+  let sessionCredits = 0;
+  let sessionCreditsKnown = true;
+
+  const GIT_TTL_MS = 2000;
+  const TASK_TTL_MS = 1000;
+  let gitCache: { cwd: string; at: number; branch: string; dirty: number } | null = null;
+  let taskCache: { cwd: string; at: number; task: any } | null = null;
+
+  /** Branch and dirty count. The footer renders on every frame, so this caches. */
+  function gitState(cwd: string, branch: string) {
+    const now = Date.now();
+    if (gitCache && gitCache.cwd === cwd && now - gitCache.at < GIT_TTL_MS) return gitCache;
+    const name = oneLine(branch, 40);
+    let dirty = 0;
+    try {
+      dirty = dirtyCount(
+        execFileSync("git", ["status", "--porcelain"], {
+          cwd,
+          encoding: "utf8",
+          timeout: 1500,
+          stdio: ["ignore", "pipe", "ignore"],
+        }),
+      );
+    } catch {
+      // Not a repository, or no git on PATH: the branch alone has to do.
+    }
+    gitCache = { cwd, at: now, branch: name, dirty };
+    return gitCache;
+  }
+
+  function currentTask(cwd: string) {
+    const now = Date.now();
+    if (taskCache && taskCache.cwd === cwd && now - taskCache.at < TASK_TTL_MS) return taskCache.task;
+    let task: any = null;
+    try {
+      task = activeTask(cwd);
+    } catch {
+      task = null;
+    }
+    taskCache = { cwd, at: now, task };
+    return task;
+  }
+
+  /**
+   * One line, replacing Pi's footer rather than sitting under it: two bars is
+   * one bar too many. `full` restores the native one.
+   */
+  function applyFooter(ctx: any) {
+    if (!ctx.hasUI) return;
+    if (!minimal) {
+      ctx.ui.setFooter(undefined);
+      return;
+    }
+    ctx.ui.setFooter((_tui: any, theme: any, footerData: any) => ({
+      render(width: number) {
+        const git = gitState(ctx.cwd, footerData?.getGitBranch?.() ?? "");
+        const usage = ctx.getContextUsage?.();
+        const model = (ctx.model as any)?.id ?? (ctx.model as any)?.name ?? "";
+        const parts = [
+          { text: homePath(ctx.cwd), compact: path.basename(ctx.cwd) },
+          { text: gitLabel(git.branch, git.dirty), compact: git.branch },
+          { text: taskLabel(currentTask(ctx.cwd)) },
+          { text: creditLabel(sessionCredits, { known: sessionCreditsKnown }), keep: true },
+          { text: contextLabel(usage?.percent), keep: true },
+          { text: modelLabel(model, ctx.thinkingLevel), compact: shortModel(model) },
+        ];
+        return [theme.fg("dim", footerLine(parts, { width }))];
+      },
+      invalidate() {},
+    }));
+  }
+
   function applyUi(ctx: any) {
     if (!ctx.hasUI) return;
     ctx.ui.setToolsExpanded(!minimal);
@@ -105,6 +196,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
       ctx.ui.setHiddenThinkingLabel();
       ctx.ui.setWorkingIndicator();
     }
+    applyFooter(ctx);
   }
 
   pi.on("session_start", async (_event, ctx) => {
@@ -801,7 +893,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
     if (message?.role !== "assistant" || !message.usage) return;
     try {
       const task = attributableTask(ctx.cwd);
-      recordCost(ctx.cwd, {
+      const recorded = recordCost(ctx.cwd, {
         usage: message.usage,
         model: (ctx.model as any)?.id ?? (ctx.model as any)?.name ?? "unknown",
         role: "orchestrator",
@@ -809,6 +901,8 @@ export default function poShellExtension(pi: ExtensionAPI) {
         taskId: task?.id ?? null,
         taskTitle: task?.title ?? null,
       });
+      sessionCredits += Number(recorded.credits) || 0;
+      if (!recorded.known) sessionCreditsKnown = false;
       // Context pressure is measured from the prompt the provider just saw, and
       // the window comes from the active model: a hardcoded size would lie for
       // every model with a different one.

@@ -2,14 +2,24 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   TOOL_STYLE,
+  contextLabel,
+  creditLabel,
+  dirtyCount,
   editStats,
+  footerLine,
   formatCall,
   formatDuration,
   formatResult,
+  gitLabel,
+  homePath,
   lineCount,
+  modelLabel,
   oneLine,
   resultText,
+  shortModel,
   shortPath,
+  taskLabel,
+  textWidth,
   toolStyle,
 } from "../src/minimal-ui.js";
 
@@ -196,4 +206,96 @@ test("formatResult while streaming shows the last line", () => {
   const partial = formatResult("bash", {}, result("line 1\nline 2\n"), { isPartial: true });
   assert.deepEqual(partial, [{ tone: "dim", text: "line 2" }]);
   assert.deepEqual(formatResult("bash", {}, result(""), { isPartial: true }), [{ tone: "dim", text: "⋯" }]);
+});
+
+test("dirtyCount and gitLabel say how dirty the worktree is", () => {
+  assert.equal(dirtyCount(""), 0);
+  assert.equal(dirtyCount(" M a.js\n?? b.js\n"), 2);
+  assert.equal(dirtyCount(" \n\n"), 0);
+  assert.equal(gitLabel("main", 0), "main");
+  assert.equal(gitLabel("main", 3), "main ±3");
+  assert.equal(gitLabel("", 3), "");
+  assert.equal(gitLabel("main", "x"), "main");
+});
+
+test("homePath keeps the path short and the last segment shorter", () => {
+  assert.equal(homePath("/home/dev/po-shell", "/home/dev"), "~/po-shell");
+  assert.equal(homePath("/home/dev/po-shell", "/home/tachii"), "/home/dev/po-shell");
+  assert.equal(homePath("/home/dev", "/home/dev"), "~");
+  assert.equal(homePath("/srv/app", "/home/dev"), "/srv/app");
+  assert.equal(homePath("/srv/app", ""), "/srv/app");
+});
+
+test("creditLabel rounds by size and marks unknown rates", () => {
+  assert.equal(creditLabel(0), "0cr");
+  assert.equal(creditLabel(0.3141), "0.31cr");
+  assert.equal(creditLabel(18.62), "18.6cr");
+  assert.equal(creditLabel(2.5), "2.50cr");
+  assert.equal(creditLabel(18.62, { known: false }), "~18.6cr");
+  assert.equal(creditLabel(undefined), "0cr");
+});
+
+test("contextLabel says ctx ? when Pi has no estimate", () => {
+  assert.equal(contextLabel(12.4), "ctx 12%");
+  assert.equal(contextLabel(0), "ctx 0%");
+  assert.equal(contextLabel(null), "ctx ?");
+  assert.equal(contextLabel(undefined), "ctx ?");
+});
+
+test("modelLabel keeps the model and the thinking level", () => {
+  assert.equal(modelLabel("deepseek-v4-flash", "low"), "deepseek-v4-flash · low");
+  assert.equal(modelLabel("deepseek-v4-flash", undefined), "deepseek-v4-flash");
+  assert.equal(modelLabel("", "low"), "low");
+  assert.equal(shortModel("deepseek-v4-flash"), "flash");
+  assert.equal(shortModel("glm5.3"), "glm5.3");
+  assert.equal(shortModel(""), "");
+});
+
+test("taskLabel shows the phase, not the whole task", () => {
+  assert.equal(taskLabel({ phase: "ready", title: "algo" }), "📋 ready");
+  assert.equal(taskLabel(null), "");
+  assert.equal(taskLabel({}), "");
+});
+
+function footerParts() {
+  return [
+    { text: "~/dev/po-shell", compact: "po-shell" },
+    { text: "main ±3", compact: "main" },
+    { text: "📋 ready" },
+    { text: "18.6cr", keep: true },
+    { text: "ctx 12%", keep: true },
+    { text: "deepseek-v4-flash · low", compact: "flash" },
+  ];
+}
+
+test("footerLine joins the segments and keeps them whole when they fit", () => {
+  const line = footerLine(footerParts(), { width: 120 });
+  assert.equal(
+    line,
+    "~/dev/po-shell · main ±3 · 📋 ready · 18.6cr · ctx 12% · deepseek-v4-flash · low",
+  );
+  assert.ok(textWidth(line) <= 120);
+  assert.equal(footerLine([], { width: 80 }), "");
+  assert.equal(footerLine([{ text: "" }]), "");
+});
+
+test("footerLine shrinks before it drops, and never drops credits or ctx", () => {
+  const wide = footerLine(footerParts(), { width: 60 });
+  assert.equal(wide, "po-shell · main · 📋 ready · 18.6cr · ctx 12% · flash");
+  assert.ok(textWidth(wide) <= 60);
+
+  const narrow = footerLine(footerParts(), { width: 30 });
+  assert.equal(narrow, "18.6cr · ctx 12% · flash");
+  assert.ok(textWidth(narrow) <= 30);
+
+  const tiny = footerLine(footerParts(), { width: 12 });
+  assert.ok(textWidth(tiny) <= 12);
+  assert.ok(tiny.endsWith("…"));
+});
+
+test("footerLine without a width does not touch the line", () => {
+  assert.equal(
+    footerLine(footerParts()),
+    "~/dev/po-shell · main ±3 · 📋 ready · 18.6cr · ctx 12% · deepseek-v4-flash · low",
+  );
 });

@@ -107,7 +107,7 @@ de sesión, contadores de tools. Son diagnóstico, no decisión: van a `/stats`.
 
 - [x] **Fase 0 — título en cada fila.** `TOOL_STYLE.label` + `formatCall` con el formato
       `icono · etiqueta · sujeto · meta`; tests de las seis etiquetas nuevas.
-- [ ] **Fase 1 — footer de una línea.** `src/minimal-ui.js` (formato de la barra),
+- [x] **Fase 1 — footer de una línea.** `src/minimal-ui.js` (formato de la barra),
       `src/ui.js` (`ui.json` con `minimal|full`), extensión con `setFooter`.
       Incluye caché de `git status` y `~` para créditos incompletos.
       Créditos solo del orquestador: los da Pi por sesión, sin tocar el kernel.
@@ -149,8 +149,15 @@ devuelve `{ icon, tone, label, text, meta }`; la extensión pinta
 duplicar su palabra en el texto (`task · new · …` sale de `label` + `text`), y las que no
 tienen sujeto (`check`, `status`) pintan solo `icono etiqueta`.
 
-Las fases 1–3 siguen sin implementar. La fase 1 es la que más cambia la sensación; el panel
-puede esperar sin dejar la TUI a medias.
+Fase 1 implementada (2026-11-25): `footerLine(parts, { width })` y los segmentos
+(`homePath`, `gitLabel`, `taskLabel`, `creditLabel`, `contextLabel`, `modelLabel`,
+`shortModel`) viven en `src/minimal-ui.js`; la extensión registra `ctx.ui.setFooter` en
+modo minimal y lo devuelve a Pi (`setFooter(undefined)`) en `full`. `git status` se cachea
+2 s, la lectura de la tarea 1 s, y los créditos salen de la suma de `recordCost` del
+turno en `message_end` (solo orquestador, `~` si faltó tarifa). El modo sigue siendo el
+`minimal|full` de `~/.po-shell/ui.json`; no se agregó un tercer estado para el footer.
+
+Las fases 2 y 3 siguen sin implementar: créditos con hijos y panel/`/stats`.
 
 ## Log
 
@@ -160,6 +167,11 @@ puede esperar sin dejar la TUI a medias.
   Se descartó alinear las etiquetas con padding: `delegate` (8) obligaría a cuatro espacios
   muertos en todas las filas. El icono de `edit` pasó a `✏️` (U+270F + VS16): el lápiz sin
   selector mide una celda y el resto dos, y ese era el espacio que se comía la fila.
+- 2026-11-25: fase 1. La cascada del footer se probó con anchos reales (160/120/80/60/45/30) y
+  el orden quedó: compactar path → `main` sin `±N` → familia del modelo, después soltar los
+  segmentos sin `keep` (path, rama, tarea) y recién al final cortar con `…`. Créditos y `ctx`
+  llevan `keep: true`. El ancho se mide en code points: alcanza para este chrome y no suma
+  dependencias.
 
 - 2026-11-25: propuesta escrita. Relevado: footer nativo de Pi (2 líneas + estados,
   con tokens, `$`, `ctx%`, modelo), barra de gentle-shell (branch+dirty, permiso,

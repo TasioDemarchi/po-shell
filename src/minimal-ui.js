@@ -237,3 +237,112 @@ export function formatResult(name, args = {}, result, options = {}) {
     }
   }
 }
+
+/* --------------------------------- footer -------------------------------- */
+
+export const FOOTER_SEP = " · ";
+
+/** Length in code points: enough for a footer, and no dependency. */
+export function textWidth(value) {
+  return [...String(value ?? "")].length;
+}
+
+/** Changed entries in `git status --porcelain`: one line per changed path. */
+export function dirtyCount(porcelain) {
+  return String(porcelain ?? "")
+    .split("\n")
+    .filter((line) => line.trim().length > 0).length;
+}
+
+/** `main`, or `main ±3` when the worktree is dirty. Empty without a branch. */
+export function gitLabel(branch, dirty) {
+  const name = oneLine(branch, 40);
+  if (!name) return "";
+  const count = Math.max(0, Math.trunc(Number(dirty) || 0));
+  return count > 0 ? `${name} ±${count}` : name;
+}
+
+/** Home-relative path: `~/dev/po-shell`, or the absolute path outside home. */
+export function homePath(target, home = process.env.HOME ?? "") {
+  const absolute = path.resolve(String(target ?? "."));
+  const base = String(home ?? "");
+  if (base && absolute === base) return "~";
+  if (base && absolute.startsWith(`${base}${path.sep}`)) {
+    return `~/${path.relative(base, absolute)}`;
+  }
+  return absolute;
+}
+
+/** `18.6cr`, `0.31cr`, `0cr`; `~` when a model in the session had no rates. */
+export function creditLabel(credits, options = {}) {
+  const value = Number(credits) || 0;
+  if (value <= 0) return options.known === false ? "~0cr" : "0cr";
+  const body = `${value >= 10 ? value.toFixed(1) : value.toFixed(2)}cr`;
+  return options.known === false ? `~${body}` : body;
+}
+
+/** `ctx 12%`; `ctx ?` right after a compaction, when Pi has no estimate yet. */
+export function contextLabel(percent) {
+  const value = Number(percent);
+  if (percent === null || percent === undefined || !Number.isFinite(value)) return "ctx ?";
+  return `ctx ${Math.round(value)}%`;
+}
+
+/** `deepseek-v4-flash · low`, or just the model without a thinking level. */
+export function modelLabel(model, thinking) {
+  const name = oneLine(model, 40);
+  const level = oneLine(thinking, 12);
+  if (!name) return level;
+  return level ? `${name} · ${level}` : name;
+}
+
+/** The model's family word: `deepseek-v4-flash` → `flash`. */
+export function shortModel(model) {
+  const name = oneLine(model, 40);
+  if (!name) return "";
+  return oneLine(name.split("-").filter(Boolean).pop(), 12);
+}
+
+/** `📋 ready`, or empty with no active task. */
+export function taskLabel(task) {
+  const phase = oneLine(task?.phase, 12);
+  return phase ? `📋 ${phase}` : "";
+}
+
+function cutWidth(text, width) {
+  const chars = [...text];
+  if (chars.length <= width) return text;
+  return `${chars.slice(0, Math.max(1, width - 1)).join("").trimEnd()}…`;
+}
+
+/**
+ * The one-line footer, shrunk to `width`.
+ *
+ * `parts` is `[{ text, compact?, keep? }]` in display order. Shrinking is a
+ * cascade, not a truncation: first every part that offers a `compact` form
+ * takes it (path → basename, `main ±3` → `main`, model → family word), then the
+ * parts without `keep` are dropped, and only as a last resort the line is cut.
+ * Credits and context are the last to go, as the design says.
+ */
+export function footerLine(parts, options = {}) {
+  const width = Math.max(0, Math.trunc(Number(options.width) || 0));
+  const items = (Array.isArray(parts) ? parts : [])
+    .filter((part) => part && typeof part.text === "string" && part.text.length > 0)
+    .map((part) => ({ ...part }));
+  const render = () => items.map((part) => part.text).join(FOOTER_SEP);
+
+  if (!width) return render();
+
+  for (const item of items) {
+    if (textWidth(render()) <= width) break;
+    if (item.compact && item.compact !== item.text) item.text = item.compact;
+  }
+
+  let index = 0;
+  while (textWidth(render()) > width && index < items.length) {
+    if (items[index].keep) index += 1;
+    else items.splice(index, 1);
+  }
+
+  return cutWidth(render(), width);
+}

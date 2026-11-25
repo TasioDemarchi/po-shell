@@ -144,21 +144,39 @@ Configurá tus checks en `~/.po-shell/projects/<id>/config.json`:
 
 ## Estética
 
-Por defecto la terminal muestra **una línea por acción**: el icono de la herramienta, qué tocó y la
-meta (líneas del diff, duración).
+Por defecto la terminal muestra **una línea por acción**: el icono de la herramienta, la palabra que
+dice qué pasó, qué tocó y la meta (líneas del diff, duración).
 
 ```text
-🐚 npm test                      ✓ 6.5s
-✏ src/kernel.js  +12 −3
-📝 docs/status.md  18 L
+🐚 shell · npm test                       ✓ 6.5s
+✏️ edit · src/kernel.js  +12 −3
+📝 write · docs/status.md  18 L
 📋 task · new · Guard de contexto: medir la presión…
 🧠 memory · save · El hijo no ve AGENTS.md
 💭 thinking…
 ```
 
+La etiqueta va en inglés y en dim; sin ella una fila que dice `docs/x.md +23 −15` no aclara si el
+archivo se leyó, se editó o se escribió.
+
 El thinking arranca oculto con esa etiqueta y el indicador de trabajo anima puntos. Nada se pierde:
 `ctrl+o` expande la acción y muestra el comando, la salida y el diff nativos; `ctrl+t` muestra el
 razonamiento completo.
+
+### Footer de una línea
+
+En modo minimal el footer reemplaza al de Pi (no se suma debajo) y dice lo que cambia una decisión:
+
+```text
+~/dev/po-shell · main ±3 · 📋 ready · 18.6cr · ctx 12% · deepseek-v4-flash · low
+```
+
+Repo, rama y archivos sucios, fase de la tarea activa, créditos de la sesión, contexto usado y
+modelo con nivel de thinking. Al angostarse la terminal se achica en cascada: primero el path queda
+en su último segmento, después `±3` se cae, después el modelo queda en su familia (`flash`);
+créditos y `ctx` son los últimos en irse. El `git status` se cachea 2 s y los créditos son del
+orquestador (los hijos necesitan `session_id` en `cost_events`). Un `~` delante de los créditos
+avisa que algún modelo de la sesión no tiene tarifa conocida.
 
 ```bash
 po-shell ui            # muestra el modo y las rutas que toca
