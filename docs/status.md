@@ -190,7 +190,7 @@ Verificado end-to-end: una delegación real con `max_tokens=2000` completó y gu
 | 3 | `reviewer` que ejecuta: contrato de `gentle-ai-verify` (comandos autorizados, copia scratch, veredicto por ítem, probes como tests) | ✅ hecho |
 | 4 | Worktree por hijo, **aprobado por el humano**: CLI (`po-shell task isolation worktree #12`) o diálogo en sesión (`po_shell_task action=isolation`); el orquestador solo lo recomienda con el comando exacto y ve el resultado en el estado | ✅ hecho |
 | 5 | Extensión web propia para el explorer (`web_search`/`fetch`) y `.md` de rol alineados | pendiente |
-| 6 | **Gate de aprobación**: hoy el kernel bloquea escrituras de un padre con tarea `high` sin aprobar, pero **sin tarea activa no hay gate**. Exigir tarea en `implementing` para escribir código, de modo que "escribí antes de aprobar" sea imposible, no una regla de protocolo | pendiente |
+| 6 | **Gate de aprobación**: el perfil sale del riesgo (`low` → inline, `medium`/`high` → delegate-writes) y una tarea `high` sin plan aprobado no puede delegar — la única puerta al código queda cerrada por el kernel | ✅ hecho |
 
 | Item | Descripción |
 |---|---|

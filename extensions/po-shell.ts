@@ -1015,6 +1015,12 @@ export default function poShellExtension(pi: ExtensionAPI) {
       max_turns: Type.Optional(Type.Number()),
     }),
     async execute(_id, params, _signal, _onUpdate, ctx) {
+      // The same gate the tool_call hook applies, repeated where the work starts:
+      // a high-risk task without an approved plan never reaches a child.
+      const delegateVerdict = checkPolicy(ctx.cwd, "po_shell_delegate", {});
+      if (delegateVerdict.block) {
+        return { ...text(delegateVerdict.reason), isError: true };
+      }
       const surfaces = (params.surfaces ?? []).map((value: string) => String(value).trim()).filter(Boolean);
       if (params.role === "worker" && surfaces.length === 0) {
         return {

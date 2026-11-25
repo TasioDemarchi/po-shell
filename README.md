@@ -666,6 +666,23 @@ transcript completo.
 | `worker` | editar **solo** las `surfaces` declaradas, correr los checks de la misión | commit, push, delegar, leer fuera del proyecto y su scratch |
 | `reviewer` | leer y **ejecutar**: los comandos de `build_test` y probes propios derivados del `DONE WHEN`, siempre en una copia del repo en su scratch | editar, tocar el repo, commitear, instalar, usar la red, repetir la suite del escritor |
 
+### Quién escribe qué
+
+El perfil no se elige: sale del riesgo de la tarea.
+
+| Riesgo | Perfil | Quién escribe el código |
+|---|---|---|
+| `low` | `inline` | el orquestador, directo |
+| `medium` | `delegate-writes` | un worker con misión |
+| `high` | `delegate-writes` | un worker, **solo con el plan aprobado** |
+
+`config.delegation = "auto"` es el default y significa "lo decide el riesgo". Un valor explícito en la
+tarea o en el proyecto gana y no se discute: es la salida para un typo o para bajar el default.
+
+En riesgo alto, delegar es la única puerta al código, así que la aprobación la cierra ahí: sin
+`planApproved`, `checkPolicy` rechaza `po_shell_delegate` — en el hook `tool_call` y otra vez al
+empezar la delegación. Una tarea media no pide nada: se crea, se delega, listo.
+
 La matriz de roles vive en `src/subagent-roles.js` y se aplica en los dos lados: el padre valida la
 delegación antes de lanzarla (pedirle `edit` a un explorer es un error, no un hijo más suelto) y el
 guard del hijo la vuelve a aplicar en `tool_call`, aunque le hayan pasado una lista de tools más

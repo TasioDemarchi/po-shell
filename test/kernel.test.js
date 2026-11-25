@@ -7,7 +7,9 @@ import test from "node:test";
 import {
   activeTask,
   attributableTask,
+  checkPolicy,
   createTask,
+  delegationMode,
   ensureTaskNumbers,
   freezeReview,
   getTask,
@@ -413,3 +415,49 @@ function tempRepoOfTask(dir, task) {
   init(other);
   return other;
 }
+
+test("the profile follows the risk unless the human said otherwise", () => {
+  const dir = tempRepo();
+  init(dir);
+
+  const low = createTask(dir, { title: "Bajo", risk: "low" });
+  assert.equal(delegationMode(dir), "inline", "low risk edits in place");
+
+  const medium = createTask(dir, { title: "Medio", risk: "medium" });
+  assert.equal(delegationMode(dir), "delegate-writes", "medium and above go to a worker");
+
+  assert.equal(delegationMode(dir, { ...process.env }), "delegate-writes");
+
+  updateTask(dir, medium.id, { delegation: "inline" });
+  assert.equal(delegationMode(dir), "inline", "an explicit task setting wins");
+
+  saveConfig(dir, { delegation: "inline" });
+  updateTask(dir, medium.id, { delegation: "delegate-writes" });
+  assert.equal(delegationMode(dir), "delegate-writes", "task beats project");
+  assert.ok(low);
+});
+
+test("a high-risk task cannot delegate before the plan is approved", () => {
+  const dir = tempRepo();
+  init(dir);
+  const task = createTask(dir, { title: "Riesgo alto", risk: "high", plan: "1. tocar auth" });
+
+  const blocked = checkPolicy(dir, "po_shell_delegate", {});
+  assert.equal(blocked.block, true);
+  assert.match(blocked.reason, /riesgo alto sin plan aprobado/);
+  assert.match(blocked.reason, /action="approve"/);
+
+  updateTask(dir, task.id, { phase: "planned" });
+  assert.equal(checkPolicy(dir, "po_shell_delegate", {}).block, true, "still blocked while planned");
+
+  updateTask(dir, task.id, { planApproved: true });
+  assert.equal(checkPolicy(dir, "po_shell_delegate", {}).block ?? false, false, "approved, the door opens");
+});
+
+test("a medium-risk task delegates without any approval", () => {
+  const dir = tempRepo();
+  init(dir);
+  const task = createTask(dir, { title: "Riesgo medio", risk: "medium", plan: "1. tocar el renderer" });
+  assert.equal(task.planApproved, true, "medium is not a human decision");
+  assert.equal(checkPolicy(dir, "po_shell_delegate", {}).block ?? false, false);
+});

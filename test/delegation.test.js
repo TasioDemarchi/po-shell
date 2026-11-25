@@ -34,13 +34,14 @@ test("the profile is data: default inline, configurable, and visible", () => {
   assert.throws(() => updateTask(dir, task.id, { delegation: "yolo" }), /delegation must be one of/);
 });
 
-test("the config can set the default profile for new tasks", () => {
+test("nobody chose the profile by default: the risk decides", () => {
   const dir = tempProject();
-  createTask(dir, { title: "config", risk: "low" });
-  const configPath = path.join(process.env.PO_SHELL_HOME, "projects", path.basename(dir), "config.json");
-  assert.equal(fs.existsSync(configPath), false);
+  const low = createTask(dir, { title: "config baja", risk: "low" });
+  const medium = createTask(dir, { title: "config media", risk: "medium" });
   const config = loadConfig(dir);
-  assert.equal(config.delegation, "inline");
+  assert.equal(config.delegation, "auto", "the default is not a profile, it is a rule");
+  assert.equal(low.delegation, "inline", "low risk edits in place");
+  assert.equal(medium.delegation, "delegate-writes", "medium goes to a worker");
   assert.equal(config.reportMaxBytes, 16_384);
 });
 

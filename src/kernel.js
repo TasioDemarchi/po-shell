@@ -54,7 +54,7 @@ const DEFAULT_CONFIG = {
   policy: DEFAULT_POLICY,
   maxChangedLines: 400,
   models: {},
-  delegation: "inline",
+  delegation: "auto",
   reportMaxBytes: 16_384,
   // The window is the denominator, so the same fractions work for 200k and 1M.
   contextGuard: DEFAULT_CONTEXT_GUARD,
@@ -306,8 +306,12 @@ export function createTask(
   if (!title || !String(title).trim()) throw new Error("task title is required");
   if (!RISKS.includes(risk)) throw new Error(`risk must be one of ${RISKS.join(", ")}`);
   init(cwd, env);
-  const mode = delegation ?? loadConfig(cwd, env).delegation ?? "inline";
-  if (!DELEGATIONS.includes(mode)) throw new Error(`delegation must be one of ${DELEGATIONS.join(", ")}`);
+  if (delegation && !DELEGATIONS.includes(delegation)) {
+    throw new Error(`delegation must be one of ${DELEGATIONS.join(", ")}`);
+  }
+  const configured = loadConfig(cwd, env).delegation;
+  const mode =
+    delegation ?? (DELEGATIONS.includes(configured) ? configured : risk === "low" ? "inline" : "delegate-writes");
   const id = `${slugify(title)}-${Date.now().toString(36)}`;
   const number = nextTaskNumber(cwd, env);
   const task = {
@@ -998,9 +1002,18 @@ export function messagePromptTokens(usage) {
   return promptTokens(usage);
 }
 
+/**
+ * The profile in force. Nobody chooses it explicitly: low risk edits in place,
+ * anything above it goes to a worker. An explicit task or project setting still
+ * wins, so the human can raise `inline` for a typo or lower the default.
+ */
 export function delegationMode(cwd, env = process.env) {
   const config = loadConfig(cwd, env);
-  return activeTask(cwd, env)?.delegation ?? config.delegation ?? "inline";
+  const task = activeTask(cwd, env);
+  if (task?.delegation) return task.delegation;
+  if (DELEGATIONS.includes(config.delegation)) return config.delegation;
+  if (!task) return "inline";
+  return task.risk === "low" ? "inline" : "delegate-writes";
 }
 
 /**
@@ -1053,6 +1066,18 @@ export function checkPolicy(cwd, toolName, input, env = process.env) {
     activeTask: task,
   });
   if (verdict.block || verdict.confirm) return verdict;
+
+  // A high-risk task without an approved plan cannot spend a worker: delegating is
+  // the only door to code, so the approval has to close it before it opens.
+  if (toolName === "po_shell_delegate" && task?.risk === "high" && task.planApproved !== true) {
+    return {
+      block: true,
+      reason:
+        `Tarea ${taskLabelOf(task)} es de riesgo alto sin plan aprobado: no se delega. ` +
+        'Mostrá el plan y llamá po_shell_task con action="approve".',
+    };
+  }
+
   if (effectiveDelegation(cwd, env) !== "delegate-writes") return verdict;
   const blocked = parentWriteBlock(toolName, input, cwd);
   if (!blocked) return verdict;
