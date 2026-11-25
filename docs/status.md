@@ -118,7 +118,7 @@
 
 - `src/minimal-ui.js` formatea cada herramienta en una línea: icono con color por familia, el comando o el archivo, y la meta (`+12 −3`, `3 L`, `6.5s`). Los éxitos no agregan líneas; los errores muestran hasta tres.
 - `src/ui.js` guarda el modo `minimal|full` en `~/.po-shell/ui.json` y alinea `hideThinkingBlock` en `<agent-dir>/settings.json`, con backup y sin tocar otras claves.
-- La extensión registra un `registerToolRenderer`: colapsado usa nuestra línea, expandido (ctrl+o) delega al renderer nativo, así el diff y la salida completa siguen intactos. En `session_start` deja las herramientas colapsadas, la etiqueta `💭 pensando…` y un indicador de puntos animado.
+- La extensión registra un `registerToolRenderer`: colapsado usa nuestra línea, expandido (ctrl+o) delega al renderer nativo, así el diff y la salida completa siguen intactos. En `session_start` deja las herramientas colapsadas, la etiqueta `💭 thinking…` y un indicador de puntos animado.
 - `po-shell ui minimal|full` y el comando `/ui` cambian el modo; el thinking requiere la próxima sesión o ctrl+t porque Pi lo lee al arrancar.
 - 17 tests nuevos (`test/minimal-ui.test.js`, `test/ui.test.js`).
 

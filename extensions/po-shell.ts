@@ -96,7 +96,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
     if (!ctx.hasUI) return;
     ctx.ui.setToolsExpanded(!minimal);
     if (minimal) {
-      ctx.ui.setHiddenThinkingLabel("💭 pensando…");
+      ctx.ui.setHiddenThinkingLabel("💭 thinking…");
       ctx.ui.setWorkingIndicator({
         frames: ["·  ", "·· ", "···"],
         intervalMs: 280,
@@ -126,7 +126,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
         const result = applyUiMode(value, process.env);
         minimal = result.mode === "minimal";
         applyUi(ctx);
-        const thinking = result.changed ? " · thinking en la próxima sesión (o ctrl+t)" : "";
+        const thinking = result.changed ? " · thinking applies next session (or ctrl+t)" : "";
         ctx.ui.notify(`UI: ${result.mode}${thinking}`, "info");
       } catch (error) {
         ctx.ui.notify(String((error as Error).message), "warning");
@@ -174,13 +174,13 @@ export default function poShellExtension(pi: ExtensionAPI) {
         return;
       }
       if (value !== "on" && value !== "off") {
-        ctx.ui.notify("Uso: /semantic on|off", "warning");
+        ctx.ui.notify("Usage: /semantic on|off", "warning");
         return;
       }
       process.env.PO_SHELL_SEMANTIC = value;
       const available = Boolean(semanticConfig(process.env));
       ctx.ui.notify(
-        `Semantic: ${value}${value === "on" && !available ? " (sin credenciales/modelos Nan)" : ""}`,
+        `Semantic: ${value}${value === "on" && !available ? " (no Nan credentials/models)" : ""}`,
         value === "on" && !available ? "warning" : "info",
       );
     },
@@ -193,10 +193,10 @@ export default function poShellExtension(pi: ExtensionAPI) {
       if (!isInitialized(cwd)) {
         if (String(args).trim() === "init") {
           init(cwd);
-          ctx.ui.notify("po-shell inicializado", "info");
+          ctx.ui.notify("po-shell initialized", "info");
           return;
         }
-        ctx.ui.notify("po-shell no está inicializado. Corré: po-shell init", "warning");
+        ctx.ui.notify("po-shell is not initialized. Run: po-shell init", "warning");
         return;
       }
       ctx.ui.notify(renderStatus(cwd), "info");

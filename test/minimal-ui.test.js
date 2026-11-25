@@ -110,8 +110,8 @@ test("formatResult keeps successes quiet and shows failures", () => {
 });
 
 test("formatResult counts hits for search tools and summarizes po-shell tools", () => {
-  assert.deepEqual(formatResult("grep", {}, result("a:1\nb:2"), {}), [{ tone: "muted", text: "2 resultados" }]);
-  assert.deepEqual(formatResult("grep", {}, result("a:1"), {}), [{ tone: "muted", text: "1 resultado" }]);
+  assert.deepEqual(formatResult("grep", {}, result("a:1\nb:2"), {}), [{ tone: "muted", text: "2 results" }]);
+  assert.deepEqual(formatResult("grep", {}, result("a:1"), {}), [{ tone: "muted", text: "1 result" }]);
 
   const task = formatResult("po_shell_task", {}, result("Tarea creada.\ndetalle\nmás"), {});
   assert.deepEqual(task, [{ tone: "muted", text: "Tarea creada. +2" }]);

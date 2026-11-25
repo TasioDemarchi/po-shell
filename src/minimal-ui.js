@@ -123,7 +123,7 @@ export function formatCall(name, args = {}, options = {}) {
 
   switch (name) {
     case "bash":
-      return { ...style, text: oneLine(args.command, MAX_TEXT) || "(comando)", meta: "" };
+      return { ...style, text: oneLine(args.command, MAX_TEXT) || "(command)", meta: "" };
     case "edit": {
       const { added, removed } = editStats(args.edits);
       return {
@@ -200,7 +200,7 @@ export function formatResult(name, args = {}, result, options = {}) {
 
   if (options.isError) {
     const head = lines.slice(0, 3).map((line) => oneLine(line, MAX_RESULT));
-    if (head.length === 0) return [{ tone: "error", text: "✗ falló sin salida" }];
+    if (head.length === 0) return [{ tone: "error", text: "✗ failed with no output" }];
     return head.map((line, index) => ({
       tone: "error",
       text: index === 0 ? `✗ ${line}` : `  ${line}`,
@@ -221,7 +221,7 @@ export function formatResult(name, args = {}, result, options = {}) {
     case "find":
     case "ls": {
       const count = lines.length;
-      return count ? [{ tone: "muted", text: `${count} ${count === 1 ? "resultado" : "resultados"}` }] : [];
+      return count ? [{ tone: "muted", text: `${count} ${count === 1 ? "result" : "results"}` }] : [];
     }
     default: {
       const head = firstLine(text);

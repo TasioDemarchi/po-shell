@@ -153,7 +153,7 @@ meta (líneas del diff, duración).
 📝 docs/status.md  18 L
 📋 task · new · Guard de contexto: medir la presión…
 🧠 memory · save · El hijo no ve AGENTS.md
-💭 pensando…
+💭 thinking…
 ```
 
 El thinking arranca oculto con esa etiqueta y el indicador de trabajo anima puntos. Nada se pierde:
@@ -267,6 +267,7 @@ Se indexan solo las secciones estables. `Tareas`, `Estado` y `Log` no se indexan
 ## Idioma
 
 - **Archivos del agente en inglés:** protocolo, skills, `AGENTS.md` y templates.
+- **Chrome de la TUI en inglés:** filas de una línea, títulos y botones de diálogo, toasts y la etiqueta del thinking (`💭 thinking…`). Lo que el agente escribe sigue en el idioma del usuario.
 - **Texto para el usuario en español:** respuestas, README, `PROJECT.md` y docs humanos.
 - **Feature docs:** estructura y headings en inglés; contenido, pedidos textuales, errores y copy de UI en el idioma del usuario.
 - **Memorias:** un solo idioma por registro. En proyectos en español, se escriben en español y se buscan en español. Si la búsqueda no devuelve nada, reintentar con sinónimos en inglés.

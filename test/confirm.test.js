@@ -30,14 +30,14 @@ test("fails closed without a usable UI", async () => {
 
 test("the destructive dialogue has a title in words, never the raw guard key", () => {
   const title = destructiveTitle(verdict, { command: "rm -rf   build/" });
-  assert.match(title, /^Permitir comando destructivo · borrado recursivo · build\//);
+  assert.match(title, /^Allow destructive command · recursive delete · build\//);
   assert.match(title, /rm -rf build\//);
   assert.ok(!title.includes("rmRecursive"));
 
-  assert.match(destructiveTitle({ key: "gitResetHard" }, { command: "git reset --hard" }), /git reset --hard \(descarta cambios\)/);
-  assert.match(destructiveTitle({ key: "destructiveSql" }, { command: 'sqlite3 x "DROP TABLE y"' }), /SQL que borra datos/);
-  assert.match(destructiveTitle({ key: "unknownKey" }, { command: "x" }), /comando destructivo/);
-  assert.equal(guardLabel("findDelete"), "borrado masivo con find");
+  assert.match(destructiveTitle({ key: "gitResetHard" }, { command: "reset" }), /hard reset \(discards changes\)/);
+  assert.match(destructiveTitle({ key: "destructiveSql" }, { command: 'sqlite3 x "DROP TABLE y"' }), /SQL that deletes data/);
+  assert.match(destructiveTitle({ key: "unknownKey" }, { command: "x" }), /destructive command/);
+  assert.equal(guardLabel("findDelete"), "bulk delete with find");
 });
 
 test("the plan dialogue shows a title and one short line, not the plan", () => {
@@ -47,14 +47,14 @@ test("the plan dialogue shows a title and one short line, not the plan", () => {
     planSummary: "5 unidades: roles, superficies, cap, perfil y docs.",
   };
   const title = planApprovalTitle(task);
-  assert.match(title, /^Aprobar plan · Delegación real\n5 unidades/);
+  assert.match(title, /^Approve plan · Delegación real\n5 unidades/);
   assert.ok(!title.includes("U2 superficies"));
 
   const noSummary = planApprovalTitle({ title: "Sin resumen", plan: "1. Primer paso concreto\n2. Otro" });
-  assert.match(noSummary, /^Aprobar plan · Sin resumen\nPrimer paso concreto$/);
+  assert.match(noSummary, /^Approve plan · Sin resumen\nPrimer paso concreto$/);
 
-  assert.equal(planApprovalTitle({ title: "Vacía" }), "Aprobar plan · Vacía");
-  assert.equal(planApprovalTitle(undefined), "Aprobar plan · tarea");
+  assert.equal(planApprovalTitle({ title: "Vacía" }), "Approve plan · Vacía");
+  assert.equal(planApprovalTitle(undefined), "Approve plan · task");
 });
 
 test("previews are single-line and bounded", () => {

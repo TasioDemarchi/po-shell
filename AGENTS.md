@@ -74,7 +74,7 @@ src/confirm.js         destructive-command confirmation, UI-agnostic and fail-cl
 src/context-guard.js   context pressure, levels and the state directive
 src/delegate.js        subagent args per role, budget, report cap
 src/subagent-policy.js child guard: no state, no .md, declared write surfaces
-src/minimal-ui.js       one-line display per tool: icon, text, meta
+src/minimal-ui.js       one-line display per tool: icon, text, meta (English chrome)
 src/ui.js               display mode (minimal|full) and Pi's thinking setting
 src/cli.js             command parser
 src/shell.js           launcher: resolves Pi and loads extension, skills and protocol
@@ -104,6 +104,7 @@ docs/agents-md-y-skill-md-investigacion.md  reference research
 ## Change rules
 
 - **Do not rewrite Pi or its TUI.** po-shell is a product on top of Pi. Display changes go through `registerToolRenderer`/`ctx.ui`: collapsed is ours, expanded delegates to Pi.
+- **TUI chrome is English; the agent answers in the user's language.** One-line rows, dialog titles and buttons, toasts and the thinking label are English. Tool results, CLI output and docs keep their language.
 - **Zero runtime dependencies.** Only Node 22+ and Git.
 - **Tests for every kernel or policy change.** If you touch a rule, add or adjust a test.
 - **Small, reviewable changes.** One unit of behavior at a time.
