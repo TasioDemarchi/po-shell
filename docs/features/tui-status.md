@@ -227,8 +227,9 @@ es la sesión, `/plan` es la cuenta de Nan. Los dos se muestran en una ventana c
   superior (`… plan ┐`, para no confundirlo con la primera fila del cuerpo) y `esc close` en el
   pie. El ancho es el del contenido (`windowWidth`), no un porcentaje de la terminal: una
   superposición que se estira deja líneas del chat cortadas a la derecha sin motivo. La
-  ventana va anclada al centro (`anchor: "center"`). Mientras `/plan` espera a la API muestra `fetching…` y repinta con `tui.requestRender()`
-  al llegar. Sin TUI (RPC) cae a `ctx.ui.notify` para no perder los números.
+  ventana va anclada al centro (`anchor: "center"`). `/plan` espera a la API con un toast y abre la ventana cuando el cuerpo está completo: un overlay
+  conserva el ancho con el que nació, y crecerlo después (`fetching…` → cuatro filas de modelos)
+  dejaba la caja angosta con todas las filas cortadas. Sin TUI (RPC) cae a `ctx.ui.notify` para no perder los números.
 - 2026-11-25: `/plan`. `GET /v1/usage` es el único endpoint de la API de Nan que expone el pool:
   `/credits`, `/balance`, `/me`, `/subscription`, `/quota`, `/billing` responden 404. Devuelve
   `credits` (allowance/used/remaining/period_start/period_end/pack/frozen) y `totals.by_model`.

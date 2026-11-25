@@ -239,8 +239,9 @@ task     #12 · guard de contexto · medium · evidence 2 · review mwvis2b5
 Los créditos de `/usage` son estimaciones con tarifas publicadas; `unpriced` avisa que algún
 modelo de la sesión no tiene tarifa conocida.
 
-`/plan` es **la suscripción**: lo que dice Nan sobre tus créditos. Mientras consulta muestra
-`fetching…` y se repinta al llegar la respuesta (~2.4 s).
+`/plan` es **la suscripción**: lo que dice Nan sobre tus créditos. Mientras consulta avisa con un
+toast (`plan: fetching from Nan…`, ~2.4 s) y abre la ventana cuando ya tiene los números: un
+overlay conserva el ancho con el que nació, así que crecerlo después deja las filas cortadas.
 
 ```text
 plan     6389.4cr left · renews (19d)

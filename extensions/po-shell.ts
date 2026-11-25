@@ -415,72 +415,43 @@ export default function poShellExtension(pi: ExtensionAPI) {
   // `/usage` and `/plan` open a window over the chat instead of printing into
   // it: the numbers are a detour, not part of the conversation. esc closes it,
   // and it only paints: nothing reaches the model's context.
-  function openWindow(
-    ctx: any,
-    options: { title: string; body: string[]; hint?: string; load?: () => Promise<string[]> },
-  ) {
+  //
+  // The body is final before the window opens. An overlay keeps the width it was
+  // created with, so growing it later (`fetching…` → four model rows) left a box
+  // too narrow for its own content, with every row cut.
+  function openWindow(ctx: any, options: { title: string; body: string[]; hint?: string }) {
+    const hint = options.hint ?? "esc close";
+    const body = options.body;
     if (ctx.mode !== "tui" || !ctx.hasUI) {
       // No TUI to draw on: the numbers still have to be reachable somehow.
-      const show = (lines: string[]) => ctx.ui.notify(lines.join("\n"), "info");
-      if (options.load) {
-        void options.load().then(show, (error: any) => show([`${options.title} unavailable (${error?.message ?? error})`]));
-      } else {
-        show(options.body);
-      }
+      ctx.ui.notify(body.join("\n"), "info");
       return Promise.resolve();
     }
 
-    let body = options.body;
-    let repaint = () => {};
-    const hint = options.hint ?? "esc close";
     // As wide as the content and no wider, capped by the terminal: an overlay
     // that fills a percentage paints over chat lines it is not talking about.
-    const needed = () => {
-      const columns = Number(process.stdout.columns) || 0;
-      const width = windowWidth({ title: options.title, body, hint });
-      return columns > 0 ? Math.min(width, Math.max(24, columns - 2)) : width;
-    };
-    const pending = ctx.ui.custom(
-      (tui: any, theme: any, keybindings: any, done: (value?: unknown) => void) => {
-        repaint = () => tui.requestRender();
-        return {
-          render(width: number) {
-            const frame = windowFrame({
-              title: options.title,
-              body,
-              hint,
-              width: Math.min(width, needed()),
-            });
-            return frame.map((row: any) =>
-              theme.fg(row.kind === "border" || row.kind === "hint" ? "dim" : "text", row.text),
-            );
-          },
-          handleInput(data: string) {
-            if (keybindings.matches(data, "tui.select.cancel") || data === "q") done(undefined);
-          },
-          invalidate() {},
-        };
-      },
+    const columns = Number(process.stdout.columns) || 0;
+    const wanted = windowWidth({ title: options.title, body, hint });
+    const width = columns > 20 ? Math.min(wanted, columns - 2) : wanted;
+
+    return ctx.ui.custom(
+      (tui: any, theme: any, keybindings: any, done: (value?: unknown) => void) => ({
+        render() {
+          return windowFrame({ title: options.title, body, hint, width }).map((row: any) =>
+            theme.fg(row.kind === "border" || row.kind === "hint" ? "dim" : "text", row.text),
+          );
+        },
+        handleInput(data: string) {
+          if (keybindings.matches(data, "tui.select.cancel") || data === "q") done(undefined);
+        },
+        invalidate() {},
+      }),
       {
         overlay: true,
-        overlayOptions: () => ({ width: needed(), anchor: "center", margin: 1 }),
+        overlayOptions: { width, anchor: "center", margin: 1 },
         blocked: { kind: "question", message: options.title },
       },
     );
-
-    if (options.load) {
-      options.load().then(
-        (lines) => {
-          body = lines;
-          repaint();
-        },
-        (error: any) => {
-          body = [`${options.title} unavailable (${error?.message ?? error})`];
-          repaint();
-        },
-      );
-    }
-    return pending;
   }
 
   pi.registerCommand("usage", {
@@ -517,16 +488,18 @@ export default function poShellExtension(pi: ExtensionAPI) {
   pi.registerCommand("plan", {
     description: "Créditos de la suscripción Nan: disponibles, renovación y por modelo",
     handler: async (_args, ctx) => {
-      await openWindow(ctx, {
-        title: "plan",
-        body: ["plan     fetching…"],
-        load: async () => {
-          if (!planCache || Date.now() - planCache.at > PLAN_TTL_MS) {
-            planCache = { at: Date.now(), value: await fetchUsage({ env: process.env }) };
-          }
-          return planLines(planCache.value);
-        },
-      });
+      let usage: any;
+      if (!planCache || Date.now() - planCache.at > PLAN_TTL_MS) {
+        // Two network calls: say so, or the terminal looks hung for two seconds.
+        ctx.ui.notify("plan: fetching from Nan…", "info");
+        try {
+          planCache = { at: Date.now(), value: await fetchUsage({ env: process.env }) };
+        } catch (error) {
+          planCache = { at: Date.now(), value: { ok: false, reason: String((error as Error).message) } };
+        }
+      }
+      usage = planCache.value;
+      await openWindow(ctx, { title: "plan", body: planLines(usage) });
     },
   });
 
