@@ -10,7 +10,7 @@ import { Type } from "typebox";
 import path from "node:path";
 import { activeDirectives, getContext, searchContext } from "../src/context.js";
 import { confirmDestructive, planApprovalTitle, PLAN_APPROVE, PLAN_REJECT } from "../src/confirm.js";
-import { buildSubagentArgs, capReport, runPiJson, usageTotal } from "../src/delegate.js";
+import { buildSubagentArgs, capReport, delegationMeta, runPiJson, usageTotal } from "../src/delegate.js";
 import { formatCredits, recordCost } from "../src/costs.js";
 import { createSubagentScratch } from "../src/scratch.js";
 import { memoryAction, taskAction } from "../src/tool-defaults.js";
@@ -19,7 +19,7 @@ import { mutatingCommand } from "../src/policy.js";
 import { semanticConfig } from "../src/semantic.js";
 import {
   activeTask,
-  activeTaskId,
+  attributableTask,
   checkPolicy,
   createTask,
   freezeReview,
@@ -580,17 +580,39 @@ export default function poShellExtension(pi: ExtensionAPI) {
         });
         const output = result.text.trim() || result.stderr.trim() || "(sin salida)";
         const runId = `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+        const usage = result.totalUsage ?? result.usage ?? {};
+        const total = usageTotal(usage);
+        const costModel = model ?? (ctx.model as any)?.id ?? (ctx.model as any)?.name ?? "unknown";
+        // Cost first, artifact second: the artifact meta carries the credits, and
+        // computing them afterwards once hid a TDZ error inside a silent catch.
+        let subagentCost: any = null;
+        if (isInitialized(ctx.cwd)) {
+          try {
+            const task = attributableTask(ctx.cwd);
+            subagentCost = recordCost(ctx.cwd, {
+              usage,
+              model: costModel,
+              role: params.role,
+              source: "subagent",
+              taskId: task?.id ?? null,
+              taskTitle: task?.title ?? null,
+            });
+          } catch {
+            // El ledger no debe romper la delegación.
+          }
+        }
         let artifact = null;
+        let artifactError: string | null = null;
         if (isInitialized(ctx.cwd)) {
           try {
             artifact = saveAgentArtifact(ctx.cwd, {
               id: runId,
               output,
               events: result.events,
-              meta: {
+              meta: delegationMeta({
                 role: params.role,
-                task: params.task.slice(0, 4000),
-                model: model ?? null,
+                task: params.task,
+                model,
                 tools,
                 surfaces,
                 status: result.status,
@@ -604,10 +626,11 @@ export default function poShellExtension(pi: ExtensionAPI) {
                 maxTokens: params.max_tokens ?? null,
                 maxTurns: params.max_turns ?? null,
                 timeoutSeconds: params.timeout_seconds ?? 300,
-              },
+              }),
             });
-          } catch {
-            // El artefacto es auditoría; no debe tumbar la delegación.
+          } catch (error) {
+            // La auditoría no tumba la delegación, pero tampoco se esconde.
+            artifactError = (error as Error).message;
           }
         }
         const config = (() => {
@@ -621,26 +644,6 @@ export default function poShellExtension(pi: ExtensionAPI) {
           maxBytes: Number(config?.reportMaxBytes) || undefined,
           artifactPath: artifact?.resultPath,
         });
-        const usage = result.totalUsage ?? result.usage ?? {};
-        const total = usageTotal(usage);
-        const costModel = model ?? (ctx.model as any)?.id ?? (ctx.model as any)?.name ?? "unknown";
-        let subagentCost: any = null;
-        if (isInitialized(ctx.cwd)) {
-          try {
-            const taskId = activeTaskId(ctx.cwd);
-            const task = taskId ? getTask(ctx.cwd, taskId) : null;
-            subagentCost = recordCost(ctx.cwd, {
-              usage,
-              model: costModel,
-              role: params.role,
-              source: "subagent",
-              taskId: task?.id ?? null,
-              taskTitle: task?.title ?? null,
-            });
-          } catch {
-            // El ledger no debe romper la delegación.
-          }
-        }
         return {
           ...text(
             [
@@ -653,9 +656,10 @@ export default function poShellExtension(pi: ExtensionAPI) {
               `usage: input=${usage.input ?? 0} output=${usage.output ?? 0} cache=${(usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0)} total=${total}`,
               `credits: ${subagentCost ? formatCredits(subagentCost.credits) : "n/a"}`,
               `model: ${costModel || "(default)"}`,
-              `budget: max_tokens=${params.max_tokens ?? 0} max_turns=${params.max_turns ?? 0}`,
+              `budget: max_tokens=${params.max_tokens ?? 0} (output acumulado) max_turns=${params.max_turns ?? 0}`,
+              `output: ${result.outputTokens ?? 0} tokens`,
               capped.truncated ? `report: ${capped.deliveredBytes} of ${capped.bytes} bytes (full text in the artifact)` : "",
-              `artifact: ${artifact ? artifact.resultPath : "(no guardado)"}`,
+              `artifact: ${artifact ? artifact.resultPath : artifactError ? `fallo (${artifactError})` : "(no guardado)"}`,
               "",
               capped.text,
             ].join("\n"),
@@ -711,8 +715,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
     if (!isInitialized(ctx.cwd)) return;
     if (message?.role !== "assistant" || !message.usage) return;
     try {
-      const taskId = activeTaskId(ctx.cwd);
-      const task = taskId ? getTask(ctx.cwd, taskId) : null;
+      const task = attributableTask(ctx.cwd);
       recordCost(ctx.cwd, {
         usage: message.usage,
         model: (ctx.model as any)?.id ?? (ctx.model as any)?.name ?? "unknown",

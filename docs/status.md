@@ -9,7 +9,7 @@
 - CLI.
 - Extensión de Pi con 9 tools y 6 hooks.
 - Skill `po-shell-workflow`.
-- 157 tests (kernel 17, project 11, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 12, subagent policy 7, delegation 6, tool defaults 2, policy 10, destructive 8, confirm 5, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10, state env 2, install 11), todos pasando.
+- 161 tests (kernel 19, project 11, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 14, subagent policy 7, delegation 6, tool defaults 2, policy 10, destructive 8, confirm 5, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10, state env 2, install 11), todos pasando.
 - Extensión validada en una sesión real de Pi.
 - Launcher `po-shell`: **implementado** y validado en una sesión real de Pi.
 
@@ -65,7 +65,7 @@
 - Snapshots operativos `state`, `feature` y `session`; memoria primero, feature doc como fuente precisa.
 - Checkpoint automático antes/después de compactación; se reinyecta como contexto.
 - Búsqueda híbrida: FTS + `qwen3-embedding` + `rerank`, con fallback exacto.
-- 157 tests y bench de 3 tareas.
+- 161 tests y bench de 3 tareas.
 - Aislamiento de env en el kernel: un `env` explícito nunca escribe en el home real; `projects prune` también considera huérfano un estado cuyo root ya no existe.
 
 ### v0.6 — recuperación
@@ -113,6 +113,17 @@
 - La cache de identidad se indexa por home + root, así dos `PO_SHELL_HOME` no se pisan.
 - 3 tests nuevos: adopción, no-adopción cuando el id calculado existe, y aislamiento entre homes.
 - Procedimiento manual en `docs/recovery.md` (escenario 8) y regla en `docs/self-hosting.md`.
+
+### v0.13 — la mecánica de delegación que fallaba
+
+Cuatro bugs que solo se ven delegando de verdad (los encontró la corrida B2 del experimento):
+
+- `max_tokens` se comparaba contra el total del mensaje (input + caché + output): con 4.000, el prefijo cacheado del hijo ya lo superaba y moría en el turno uno. Ahora cuenta **output acumulado** y el tool lo dice.
+- `po_shell_delegate` **nunca guardó un artefacto**: la meta usaba `subagentCost` antes de su `let` (TDZ) y un `catch` vacío lo tapaba. La meta se arma con `delegationMeta()` y un fallo se reporta como `artifact: fallo (...)`.
+- El costo se atribuía a la tarea activa aunque estuviera `ready` o `delivered`: una sesión nueva le sumaba créditos a la anterior. `attributableTask()` solo atribuye a fases abiertas.
+- `freezeReview` contaba `added/deleted` con `numstat`, que no ve archivos sin trackear: un diff de 300 líneas nuevas reportaba 0. Ahora suma las líneas de los untracked y `overLimit` funciona.
+
+Verificado end-to-end: una delegación real con `max_tokens=2000` completó y guardó `agents/run-*/result.md`. 4 tests nuevos. Total 161.
 
 ### v0.12.2 — probar la rama sin tocar main
 

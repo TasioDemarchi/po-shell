@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildSubagentArgs, capReport, runPiJson, usageTotal } from "../src/delegate.js";
+import { buildSubagentArgs, capReport, delegationMeta, runPiJson, usageTotal } from "../src/delegate.js";
 import { init, saveAgentArtifact } from "../src/kernel.js";
 
 process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-delegate-home-"));
@@ -110,24 +110,69 @@ test("runPiJson keeps partial text when the stream ends without message_end", as
   assert.equal(result.text, "hola mundo");
 });
 
-test("runPiJson stops when max_tokens is exceeded", async () => {
+test("max_tokens bounds output, not the cached prefix", async () => {
+  const dir = tempDir("po-shell-delegate-");
+  // 140k de input/caché con 100 de output: antes esto mataba al hijo en el turno uno.
+  const fake = fakePi(
+    dir,
+    [
+      `printf '%s\\n' '{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"ok"}],"usage":{"input":50000,"cacheRead":90000,"output":100,"totalTokens":140100}}}'`,
+      "exit 0",
+    ].join("\n"),
+  );
+
+  const result = await runPiJson(dir, [], { env: envFor(fake), maxTokens: 2000, timeoutMs: 5000 });
+  assert.equal(result.status, "ok");
+  assert.equal(result.budgetExceeded, false);
+  assert.equal(result.outputTokens, 100);
+});
+
+test("max_tokens stops when accumulated output passes the budget", async () => {
   const dir = tempDir("po-shell-delegate-");
   const fake = fakePi(
     dir,
     [
-      `printf '%s\\n' '{"type":"message_update","usage":{"input":50,"output":1,"totalTokens":51}}'`,
+      `printf '%s\\n' '{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"uno"}],"usage":{"input":10,"output":1500,"totalTokens":1510}}}'`,
+      `printf '%s\\n' '{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"dos"}],"usage":{"input":10,"output":900,"totalTokens":910}}}'`,
       "sleep 1",
       "exit 0",
     ].join("\n"),
   );
 
-  const result = await runPiJson(dir, [], {
-    env: envFor(fake),
-    maxTokens: 20,
-    timeoutMs: 5000,
-  });
+  const result = await runPiJson(dir, [], { env: envFor(fake), maxTokens: 2000, timeoutMs: 5000 });
   assert.equal(result.status, "budget_exceeded");
   assert.equal(result.budgetExceeded, true);
+  assert.ok(result.outputTokens > 2000);
+});
+
+test("delegationMeta carries every field and never reads a later binding", () => {
+  const meta = delegationMeta({
+    role: "worker",
+    task: "x".repeat(5000),
+    model: "nan/glm5.3-flash",
+    tools: ["read", "write"],
+    surfaces: ["src/"],
+    status: "ok",
+    exitCode: 0,
+    ms: 1234,
+    usage: { output: 10 },
+    totalUsage: { output: 10 },
+    totalTokens: 10,
+    credits: 1.5,
+    turns: 2,
+    maxTokens: 30000,
+    maxTurns: 5,
+    timeoutSeconds: 300,
+  });
+  assert.equal(meta.task.length, 4000);
+  assert.deepEqual(meta.surfaces, ["src/"]);
+  assert.equal(meta.credits, 1.5);
+  assert.equal(meta.status, "ok");
+
+  const empty = delegationMeta();
+  assert.deepEqual(empty.tools, []);
+  assert.equal(empty.credits, null);
+  assert.equal(empty.task, "");
 });
 
 test("runPiJson stops when max_turns is reached", async () => {

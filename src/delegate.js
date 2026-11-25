@@ -124,6 +124,49 @@ export function capReport(text, { maxBytes = DEFAULT_REPORT_MAX_BYTES, artifactP
   };
 }
 
+/**
+ * Metadata for a delegation artifact. Every input is an argument on purpose: an
+ * earlier version referenced a variable declared further down, threw a TDZ
+ * ReferenceError inside a silent catch, and no artifact was ever written.
+ */
+export function delegationMeta({
+  role,
+  task,
+  model,
+  tools,
+  surfaces,
+  status,
+  exitCode,
+  ms,
+  usage,
+  totalUsage,
+  totalTokens,
+  credits,
+  turns,
+  maxTokens,
+  maxTurns,
+  timeoutSeconds,
+} = {}) {
+  return {
+    role: role ?? null,
+    task: String(task ?? "").slice(0, 4000),
+    model: model ?? null,
+    tools: Array.isArray(tools) ? [...tools] : [],
+    surfaces: Array.isArray(surfaces) ? [...surfaces] : [],
+    status: status ?? null,
+    exitCode: exitCode ?? null,
+    ms: Number(ms) || 0,
+    usage: usage ?? null,
+    totalUsage: totalUsage ?? null,
+    totalTokens: Number(totalTokens) || 0,
+    credits: credits ?? null,
+    turns: Number(turns) || 0,
+    maxTokens: maxTokens ?? null,
+    maxTurns: maxTurns ?? null,
+    timeoutSeconds: timeoutSeconds ?? null,
+  };
+}
+
 export function runPiJson(cwd, args, options = {}) {
   const env = options.env ?? process.env;
   const maxTokens = Number(options.maxTokens) || 0;
@@ -177,6 +220,9 @@ export function runPiJson(cwd, args, options = {}) {
     let lastLiveText = "";
     let exitCode = null;
     let budgetExceeded = false;
+    // Spend is completed output. Counting input or cache here killed children
+    // whose cached prefix alone exceeded the budget on turn one.
+    let outputSpent = 0;
     let turnsExceeded = false;
     let timedOut = false;
     let aborted = false;
@@ -207,6 +253,7 @@ export function runPiJson(cwd, args, options = {}) {
         events,
         usage,
         totalUsage,
+        outputTokens: outputSpent,
         turns,
         status,
         budgetExceeded,
@@ -250,13 +297,8 @@ export function runPiJson(cwd, args, options = {}) {
       }
 
       if (event.type === "message_update") {
-        if (event.usage) {
-          usage = event.usage;
-          if (maxTokens && usageTotal(usage) > maxTokens) {
-            budgetExceeded = true;
-            kill();
-          }
-        }
+        // Partial usage is not spend: only a finished message counts.
+        if (event.usage) usage = event.usage;
         const update = event.assistantMessageEvent;
         if (update?.type === "text_delta" && typeof update.delta === "string") {
           liveText += update.delta;
@@ -269,7 +311,8 @@ export function runPiJson(cwd, args, options = {}) {
         if (event.message.usage) {
           usage = event.message.usage;
           addUsage(totalUsage, usage);
-          if (maxTokens && usageTotal(usage) > maxTokens) {
+          outputSpent += Number(usage.output) || 0;
+          if (maxTokens && outputSpent > maxTokens) {
             budgetExceeded = true;
             kill();
           }

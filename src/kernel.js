@@ -168,6 +168,15 @@ export function listTasks(cwd, env = process.env) {
   }
 }
 
+// Cost belongs to the task that is being worked on. A finished or blocked task
+// left active in the state directory must not absorb a new session's spend.
+const ATTRIBUTABLE_PHASES = new Set(["authorized", "planned", "implementing", "checking"]);
+
+export function attributableTask(cwd, env = process.env) {
+  const task = activeTask(cwd, env);
+  return task && ATTRIBUTABLE_PHASES.has(task.phase) ? task : null;
+}
+
 export function activeTask(cwd, env = process.env) {
   const id = activeTaskId(cwd, env);
   if (id) {
@@ -610,12 +619,17 @@ export function freezeReview(cwd, { base = "HEAD" } = {}, env = process.env) {
     .split("\n")
     .filter(Boolean);
 
+  // numstat only sees tracked files: count the untracked content here so the
+  // frozen diff's own bytes are what infer risk and maxChangedLines.
+  let untrackedLines = 0;
   for (const file of untracked.slice(0, 200)) {
     try {
       const full = path.join(cwd, file);
       const stat = fs.statSync(full);
       if (!stat.isFile() || stat.size > 200_000) continue;
-      diff += `\n--- untracked: ${file} ---\n${fs.readFileSync(full, "utf8")}`;
+      const content = fs.readFileSync(full, "utf8");
+      diff += `\n--- untracked: ${file} ---\n${content}`;
+      untrackedLines += content.split("\n").length - (content.endsWith("\n") ? 1 : 0);
     } catch {
       /* ignore */
     }
@@ -630,7 +644,7 @@ export function freezeReview(cwd, { base = "HEAD" } = {}, env = process.env) {
       const [added, deleted, file] = line.split("\t");
       return { added: Number(added) || 0, deleted: Number(deleted) || 0, file };
     });
-  const added = numstat.reduce((n, f) => n + f.added, 0);
+  const added = numstat.reduce((n, f) => n + f.added, 0) + untrackedLines;
   const deleted = numstat.reduce((n, f) => n + f.deleted, 0);
   const files = [...new Set([...numstat.map((f) => f.file), ...untracked])];
   const risk = riskFor(cwd, added + deleted, files, env);

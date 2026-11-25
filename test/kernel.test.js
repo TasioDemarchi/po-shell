@@ -6,12 +6,14 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 import {
   activeTask,
+  attributableTask,
   createTask,
   freezeReview,
   init,
   isInitialized,
   latestReview,
   memoryIndex,
+  saveConfig,
   saveMemory,
   searchMemory,
   status,
@@ -280,4 +282,41 @@ test("high-risk delivery requires a frozen review", () => {
     () => updateTask(dir, task.id, { phase: "delivered" }),
     /frozen review/,
   );
+});
+
+test("cost attribution skips a task that is no longer in progress", () => {
+  const dir = tempRepo();
+  init(dir);
+  const task = createTask(dir, { title: "en curso", risk: "low" });
+  assert.equal(attributableTask(dir)?.id, task.id);
+
+  updateTask(dir, task.id, { phase: "ready", evidence: [{ kind: "checks", ok: true }] });
+  assert.equal(attributableTask(dir), null);
+
+  updateTask(dir, task.id, { phase: "implementing" });
+  assert.equal(attributableTask(dir)?.id, task.id);
+
+  const next = createTask(dir, { title: "otra", risk: "low" });
+  assert.equal(attributableTask(dir)?.id, next.id);
+});
+
+test("a review of untracked files counts their lines and trips maxChangedLines", () => {
+  const dir = tempRepo();
+  git(dir, ["init"]);
+  git(dir, ["config", "user.email", "test@example.test"]);
+  git(dir, ["config", "user.name", "test"]);
+  fs.writeFileSync(path.join(dir, "README.md"), "# repo\n");
+  git(dir, ["add", "README.md"]);
+  git(dir, ["commit", "-m", "init"]);
+
+  fs.mkdirSync(path.join(dir, "src"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "src", "new.js"), "const x = 1;\n".repeat(500));
+
+  init(dir);
+  saveConfig(dir, { policy: { ...DEFAULT_POLICY, maxChangedLines: 100 } });
+  const meta = freezeReview(dir, { base: "HEAD" });
+
+  assert.ok(meta.added >= 500, `added=${meta.added}`);
+  assert.equal(meta.overLimit, true);
+  assert.equal(meta.limit, 100);
 });

@@ -513,6 +513,12 @@ El reporte que entra al contexto del padre está **capado** (16 KiB por defecto,
 la config): cabeza + cola + el path del artefacto con el texto completo. Un reporte JSON nunca se
 corta.
 
+`max_tokens` cuenta **tokens de output acumulados** del hijo, no input ni caché: un hijo con un
+prefijo cacheado grande no muere por presupuesto. `max_turns` sigue siendo la cantidad de turnos.
+Cada delegación deja `agents/run-*/result.md` con el texto completo, sus eventos y la meta (rol,
+superficies, presupuesto, créditos); si el artefacto no se puede guardar, el resultado dice
+`artifact: fallo (...)` en vez de callarse.
+
 ### Perfil de delegación
 
 La tarea lleva un perfil en su campo `delegation`, y el bloque `<po_shell_state>` muestra cuál está
