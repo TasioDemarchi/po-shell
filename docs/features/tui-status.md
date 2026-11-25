@@ -105,6 +105,8 @@ de sesión, contadores de tools. Son diagnóstico, no decisión: van a `/stats`.
 
 ## Tasks
 
+- [ ] **Fase 0 — título en cada fila.** `TOOL_STYLE.label` + `formatCall` con el formato
+      `icono · etiqueta · sujeto · meta`; tests de las seis etiquetas nuevas.
 - [ ] **Fase 1 — footer de una línea.** `src/minimal-ui.js` (formato de la barra),
       `src/ui.js` (`ui.json` con `minimal|full`), extensión con `setFooter`.
       Incluye caché de `git status` y `~` para créditos incompletos.
@@ -115,6 +117,29 @@ de sesión, contadores de tools. Son diagnóstico, no decisión: van a `/stats`.
 - [ ] **Fase 3 — panel y `/stats`.** Widget con modos `on|off|auto`, shortcut
       `ctrl+shift+p`, ticker solo con hijos vivos, `/stats` con el desglose por
       modelo y por rol.
+
+## Follow-ups
+
+### Cada fila necesita un título (fase 0, antes del footer)
+
+Las filas de una línea quedaron bien, pero **comandos, `edit` y `write` no dicen qué son**: se
+lee `docs/features/po-dots-mvp.md  +23 −15` y no se sabe si fue una lectura, una edición o una
+escritura; el icono solo no alcanza cuando el emoji no renderiza o se corta el borde.
+
+Cada fila pasa a `icono · etiqueta · sujeto · meta`, con la etiqueta en inglés (regla de chrome)
+y en dim, para que el ojo barra por palabra:
+
+```text
+🐚 shell  · cd ~/dev/po-dots && sed -n 158,182p …
+✏ edit   · docs/features/po-dots-mvp.md  +23 −15
+📝 write  · PROJECT.md  +6 −5
+📖 read   · src/kernel.js:11-15
+🔍 search · "Falta la proactividad"  · 2 results
+```
+
+Etiquetas: `shell`, `edit`, `write`, `read`, `search` (grep/find), `list` (ls). Las tools de
+po-shell ya llevan su palabra (`task`, `memory`, `check`, `review`, `ask`, `delegate`): se normaliza
+el mismo formato para todas. `TOOL_STYLE` gana el campo `label` y `formatCall` lo antepone.
 
 ## State
 
