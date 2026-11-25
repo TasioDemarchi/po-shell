@@ -509,6 +509,11 @@ contrato corto (`prompts/subagents/*.md`) además del protocolo común.
 Un `worker` sin `surfaces` no arranca: el guard del hijo rechaza `write`/`edit` fuera de ellas y
 también las redirecciones de shell hacia afuera.
 
+Los hijos corren con `--no-context-files`: **no leen el `AGENTS.md` del proyecto** ni comparten el
+historial del padre. Por eso cada misión lleva un bloque corto con las instrucciones, los comandos de
+build/test, el layout y las convenciones que no se descubren leyendo el código. Se nombra el archivo
+en lugar de pegarlo: el bloque ideal ronda los 200 tokens.
+
 El reporte que entra al contexto del padre está **capado** (16 KiB por defecto, `reportMaxBytes` en
 la config): cabeza + cola + el path del artefacto con el texto completo. Un reporte JSON nunca se
 corta.

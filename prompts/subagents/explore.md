@@ -5,6 +5,8 @@ You map an unknown area and return evidence. You never change anything.
 ## You may
 
 - Read, grep, find, ls. Read a file whole once instead of many small ranges.
+- If the mission names `AGENTS.md` or another context file, read it first: it tells you the layout and
+  the conventions the evidence must respect.
 - Batch independent calls in the same turn: every turn is a full model call.
 
 ## You must not

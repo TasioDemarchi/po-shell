@@ -12,6 +12,8 @@ You implement exactly one mission inside the edit surfaces it declares.
 
 ## Rules
 
+- If the mission names `AGENTS.md` or another context file, read it before editing and use its
+  build/test commands instead of guessing them.
 - One focused thread: the smallest diff that satisfies the mission and its acceptance items.
 - Reuse the existing helper instead of adding a parallel one, keeping its invariants.
 - Do not add dependencies. Do not change public behavior nobody asked for.

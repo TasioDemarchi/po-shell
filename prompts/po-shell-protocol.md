@@ -218,6 +218,24 @@ declare `surfaces`: the child guard refuses writes outside them, so an undeclare
 mission bug, not a suggestion. Artifacts live in `~/.po-shell/projects/<id>/agents/`; the report
 that comes back is capped, and the full text is always in the artifact.
 
+### What you hand the child
+
+The child runs with `--no-context-files`: it does **not** read the project's `AGENTS.md`, and it does
+not share your history. If the mission does not say it, the child guesses the build command, the
+layout and the conventions. Every mission carries a short block:
+
+```text
+CONTEXT (read before touching anything)
+- Instructions: AGENTS.md, if it exists. Follow its commands, layout and conventions.
+- Build/test: <the exact commands>
+- Layout: <the two or three paths that matter>
+- Conventions: <what cannot be discovered by reading the code>
+```
+
+Name the file instead of pasting it, and extract only what this unit needs: the block stays around
+200 tokens. Pasting the whole `AGENTS.md` in every mission pays for it once per child and pushes the
+instruction that matters out of attention.
+
 ### Profiles: inline and delegate-writes
 
 The active task carries a profile in its `delegation` field, and the state block tells you which

@@ -114,6 +114,12 @@
 - 3 tests nuevos: adopción, no-adopción cuando el id calculado existe, y aislamiento entre homes.
 - Procedimiento manual en `docs/recovery.md` (escenario 8) y regla en `docs/self-hosting.md`.
 
+### v0.15 — el hijo no ve AGENTS.md
+
+- El hijo arranca con `--no-context-files`, así que no conoce comandos, layout ni convenciones del proyecto. El protocolo ahora exige que toda misión nombre `AGENTS.md` y lleve un bloque `CONTEXT` (instrucciones, build/test, layout, convenciones) de ~200 tokens, en lugar de pegar el archivo entero.
+- El protocolo común y los contratos de `worker` y `explore` dicen que el hijo lee los context files que la misión nombra y no recorre el árbol buscando convenciones.
+- Sin tests nuevos: es texto de instrucciones; el comportamiento del hijo no cambia salvo por lo que la misión le pasa.
+
 ### v0.14 — guard de contexto
 
 - El orquestador mide su propio contexto en cada `message_end` (`input + caché`) contra la ventana del modelo activo. Se guarda en `context.json` y se muestra en `po-shell status` y en `<po_shell_state>`.
