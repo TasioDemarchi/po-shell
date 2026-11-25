@@ -519,6 +519,30 @@ Cada delegación deja `agents/run-*/result.md` con el texto completo, sus evento
 superficies, presupuesto, créditos); si el artefacto no se puede guardar, el resultado dice
 `artifact: fallo (...)` en vez de callarse.
 
+### Guard de contexto
+
+El costo y la calidad dependen del contexto del orquestador, así que se mide y se muestra:
+
+```text
+Delegación: inline · Contexto: 5.4% (56.8k/1.0M)
+```
+
+El tamaño sale del `usage` real que reporta el proveedor (`input + caché`) y la ventana del modelo
+activo (`contextWindow`), no de un número fijo: el 15 % de 1M son 157k, el 15 % de 200k son 30k.
+
+```json
+{ "contextGuard": { "warnAt": 0.15, "delegateAt": 0.3, "enforce": false } }
+```
+
+- `warnAt`: el bloque `<po_shell_state>` suma una regla (`delegá lo mecánico, no leas archivos
+  enteros`). Es dirección, no bloqueo.
+- `delegateAt`: con `enforce: true`, el mismo gate de `delegate-writes` se activa solo y el padre deja
+  de poder escribir código. Sin `enforce` no cambia nada.
+- Cada subida de nivel deja un evento `context.warn` / `context.delegate` en `events.jsonl`.
+
+La presión vive en `~/.po-shell/projects/<id>/context.json`, así que el gate del kernel y
+`po-shell status` leen el mismo número que vio el modelo.
+
 ### Perfil de delegación
 
 La tarea lleva un perfil en su campo `delegation`, y el bloque `<po_shell_state>` muestra cuál está

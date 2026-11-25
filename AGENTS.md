@@ -69,6 +69,7 @@ src/checks.js          check detection and suggestions
 src/policy.js          deny paths / guards (allow|confirm|block) / gate
 src/destructive.js     lexical recognizer for destructive shell commands
 src/confirm.js         destructive-command confirmation, UI-agnostic and fail-closed
+src/context-guard.js   context pressure, levels and the state directive
 src/delegate.js        subagent args per role, budget, report cap
 src/subagent-policy.js child guard: no state, no .md, declared write surfaces
 src/cli.js             command parser

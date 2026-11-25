@@ -14,6 +14,14 @@ import {
 } from "./util.js";
 import { DEFAULT_POLICY, evaluateToolCall, deniedCommand, deniedPath } from "./policy.js";
 import { shellWriteTargets, withinSurfaces } from "./subagent-policy.js";
+import {
+  DEFAULT_CONTEXT_GUARD,
+  contextDirective,
+  contextPressure,
+  formatPressure,
+  guardLevel,
+  promptTokens,
+} from "./context-guard.js";
 import { GLOBAL_PROJECT_ID, contextDbPath, openContextDb } from "./indexer.js";
 import { costSummary, formatCredits } from "./costs.js";
 import {
@@ -48,6 +56,8 @@ const DEFAULT_CONFIG = {
   models: {},
   delegation: "inline",
   reportMaxBytes: 16_384,
+  // The window is the denominator, so the same fractions work for 200k and 1M.
+  contextGuard: DEFAULT_CONTEXT_GUARD,
 };
 
 export function poShellPath(cwd = process.cwd(), env = process.env) {
@@ -743,7 +753,9 @@ export function renderStatus(cwd = process.cwd(), env = process.env) {
       `Tarea: ${t.id} · ${t.phase} · riesgo ${t.risk} · evidencia ${(t.evidence ?? []).length}`,
       `Título: ${t.title}`,
     );
-    lines.push(`Delegación: ${t.delegation ?? "inline"}`);
+    const pressure = readContextPressure(cwd, env);
+    const shownContext = formatPressure(pressure);
+    lines.push(`Delegación: ${effectiveDelegation(cwd, env)}${shownContext ? ` · Contexto: ${shownContext}` : ""}`);
     if (t.risk === "high") {
       lines.push(`Plan: ${t.planApproved === true ? "aprobado" : "pendiente de aprobación"}`);
     }
@@ -788,6 +800,13 @@ export function renderContext(cwd = process.cwd(), env = process.env) {
     }
     if (t.scope) lines.push(`scope: ${t.scope}`);
     if (t.planSummary) lines.push(`plan_summary: ${t.planSummary}`);
+    const pressure = readContextPressure(cwd, env);
+    const shown = formatPressure(pressure);
+    if (shown) lines.push(`context: ${shown}`);
+    if (pressure) {
+      const directive = contextDirective(guardLevel(pressure.ratio, loadConfig(cwd, env).contextGuard));
+      if (directive) lines.push(directive);
+    }
     if (t.next) lines.push(`next: ${t.next}`);
   } else {
     lines.push("task: none");
@@ -811,9 +830,55 @@ export function renderContext(cwd = process.cwd(), env = process.env) {
 // writable by the orchestrator itself.
 const PARENT_WRITE_SURFACES = ["docs/features/"];
 
+export function contextPressurePath(cwd = process.cwd(), env = process.env) {
+  return path.join(poShellPath(cwd, env), "context.json");
+}
+
+export function readContextPressure(cwd = process.cwd(), env = process.env) {
+  return readJson(contextPressurePath(cwd, env), null);
+}
+
+/**
+ * Record how much of the window the last request used. The level is stored so a
+ * caller can tell a crossing from a steady state; only a rise is an event.
+ */
+export function saveContextPressure(cwd, measurement, env = process.env) {
+  const config = loadConfig(cwd, env);
+  const guard = config.contextGuard ?? DEFAULT_CONTEXT_GUARD;
+  const pressure = contextPressure(measurement);
+  if (!pressure) return null;
+  const level = guardLevel(pressure.ratio, guard);
+  const previous = readContextPressure(cwd, env);
+  const next = { ...pressure, level, at: nowIso() };
+  writeJson(contextPressurePath(cwd, env), next);
+  if (level !== "ok" && level !== previous?.level) {
+    appendEvent(cwd, `context.${level}`, next, env);
+  }
+  return next;
+}
+
+/** Prompt size of an assistant message, as the provider reported it. */
+export function messagePromptTokens(usage) {
+  return promptTokens(usage);
+}
+
 export function delegationMode(cwd, env = process.env) {
   const config = loadConfig(cwd, env);
   return activeTask(cwd, env)?.delegation ?? config.delegation ?? "inline";
+}
+
+/**
+ * The profile in force. `enforce` lets context pressure raise it to
+ * delegate-writes: the same gate, triggered by measurement instead of a flag.
+ */
+export function effectiveDelegation(cwd, env = process.env) {
+  const config = loadConfig(cwd, env);
+  const base = delegationMode(cwd, env);
+  if (base === "delegate-writes") return base;
+  if (config.contextGuard?.enforce !== true) return base;
+  const pressure = readContextPressure(cwd, env);
+  if (!pressure) return base;
+  return guardLevel(pressure.ratio, config.contextGuard) === "delegate" ? "delegate-writes" : base;
 }
 
 // Central state and scratch live outside the project root: those writes are
@@ -852,9 +917,14 @@ export function checkPolicy(cwd, toolName, input, env = process.env) {
     activeTask: task,
   });
   if (verdict.block || verdict.confirm) return verdict;
-  if ((task?.delegation ?? config.delegation ?? "inline") !== "delegate-writes") return verdict;
+  if (effectiveDelegation(cwd, env) !== "delegate-writes") return verdict;
   const blocked = parentWriteBlock(toolName, input, cwd);
-  return blocked ? { block: true, reason: blocked } : verdict;
+  if (!blocked) return verdict;
+  const byContext =
+    (task?.delegation ?? config.delegation ?? "inline") !== "delegate-writes";
+  const pressure = byContext ? readContextPressure(cwd, env) : null;
+  const why = pressure ? `contexto al ${(pressure.ratio * 100).toFixed(1)}% de la ventana` : "delegate-writes";
+  return { block: true, reason: `${blocked} (${why})` };
 }
 
 export { evaluateToolCall, deniedPath, deniedCommand };

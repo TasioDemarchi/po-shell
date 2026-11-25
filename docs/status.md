@@ -9,7 +9,7 @@
 - CLI.
 - Extensión de Pi con 9 tools y 6 hooks.
 - Skill `po-shell-workflow`.
-- 161 tests (kernel 19, project 11, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 14, subagent policy 7, delegation 6, tool defaults 2, policy 10, destructive 8, confirm 5, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10, state env 2, install 11), todos pasando.
+- 168 tests (kernel 19, project 11, checks 4, indexer 9, context 7, directives 3, global 2, cross-project 4, delegate 14, subagent policy 7, delegation 6, context guard 7, tool defaults 2, policy 10, destructive 8, confirm 5, semantic 4, skills 2, search-cases 5, costs 5, backup 5, scratch 6, shell 10, state env 2, install 11), todos pasando.
 - Extensión validada en una sesión real de Pi.
 - Launcher `po-shell`: **implementado** y validado en una sesión real de Pi.
 
@@ -65,7 +65,7 @@
 - Snapshots operativos `state`, `feature` y `session`; memoria primero, feature doc como fuente precisa.
 - Checkpoint automático antes/después de compactación; se reinyecta como contexto.
 - Búsqueda híbrida: FTS + `qwen3-embedding` + `rerank`, con fallback exacto.
-- 161 tests y bench de 3 tareas.
+- 168 tests y bench de 3 tareas.
 - Aislamiento de env en el kernel: un `env` explícito nunca escribe en el home real; `projects prune` también considera huérfano un estado cuyo root ya no existe.
 
 ### v0.6 — recuperación
@@ -113,6 +113,14 @@
 - La cache de identidad se indexa por home + root, así dos `PO_SHELL_HOME` no se pisan.
 - 3 tests nuevos: adopción, no-adopción cuando el id calculado existe, y aislamiento entre homes.
 - Procedimiento manual en `docs/recovery.md` (escenario 8) y regla en `docs/self-hosting.md`.
+
+### v0.14 — guard de contexto
+
+- El orquestador mide su propio contexto en cada `message_end` (`input + caché`) contra la ventana del modelo activo. Se guarda en `context.json` y se muestra en `po-shell status` y en `<po_shell_state>`.
+- `contextGuard: { warnAt: 0.15, delegateAt: 0.3, enforce: false }`. Con `enforce: true`, pasar el umbral activa el gate de `delegate-writes` por medición, sin cambiar de perfil a mano.
+- Los umbrales son fracciones de la ventana: el 15 % de 1M son 157k; el de 200k, 30k.
+- Eventos `context.warn` / `context.delegate` al subir de nivel. 7 tests nuevos. Total 168.
+- Medición de las corridas del experimento: pico de 16.8k (inline) a 79.4k (delegado roto), o sea 1,6 %–7,6 % de una ventana de 1M: el umbral no se tocó, y por eso el guard es seguro, no la palanca de costo.
 
 ### v0.13 — la mecánica de delegación que fallaba
 

@@ -28,6 +28,8 @@ import {
   isInitialized,
   listTasks,
   loadConfig,
+  messagePromptTokens,
+  saveContextPressure,
   poShellPath,
   renderContext,
   renderStatus,
@@ -724,6 +726,13 @@ export default function poShellExtension(pi: ExtensionAPI) {
         taskId: task?.id ?? null,
         taskTitle: task?.title ?? null,
       });
+      // Context pressure is measured from the prompt the provider just saw, and
+      // the window comes from the active model: a hardcoded size would lie for
+      // every model with a different one.
+      const window =
+        Number((ctx.model as any)?.contextWindow) || Number(loadConfig(ctx.cwd)?.contextWindow) || 0;
+      const tokens = messagePromptTokens(message.usage);
+      if (window > 0 && tokens > 0) saveContextPressure(ctx.cwd, { tokens, window });
     } catch {
       // El ledger no debe romper el loop del agente.
     }
