@@ -78,9 +78,9 @@ test("resultText joins text parts and ignores the rest", () => {
   assert.equal(resultText(undefined), "");
 });
 
-test("toolStyle falls back to a neutral bullet", () => {
-  assert.equal(toolStyle("bash").icon, "🐚");
-  assert.equal(toolStyle("nope").icon, "•");
+test("toolStyle falls back to a neutral marker", () => {
+  assert.equal(toolStyle("bash").icon, "$");
+  assert.equal(toolStyle("nope").icon, "·");
   assert.equal(toolStyle("nope").label, "");
 });
 
@@ -108,17 +108,20 @@ test("every known tool carries an English label", () => {
   );
 });
 
-test("every icon is one emoji cell wide, never a narrow dingbat", () => {
-  // A one-cell icon next to a two-cell one breaks the gutter after the icon.
-  const defaultEmoji = new Set([0x2705, 0x2753]);
+test("every icon is one ASCII cell, never an emoji a font may not have", () => {
+  // Emoji without coverage render as a box (▯) and the row loses its marker.
+  // One cell also keeps the gutter after the icon the same in every row.
   for (const [name, style] of Object.entries(TOOL_STYLE)) {
-    const chars = [...style.icon];
-    const [first] = chars;
-    const wide = chars.length === 1 && first.codePointAt(0) >= 0x1f300;
-    const forced = chars.length === 2 && chars[1] === "\uFE0F";
-    const emojiByDefault = chars.length === 1 && defaultEmoji.has(first.codePointAt(0));
-    assert.ok(wide || forced || emojiByDefault, `${name} icon ${JSON.stringify(style.icon)} is narrower than the rest`);
+    assert.equal(textWidth(style.icon), 1, `${name} icon ${JSON.stringify(style.icon)} is not one cell`);
+    assert.match(style.icon, /^[\x20-\x7e\u2713]$/, `${name} icon ${JSON.stringify(style.icon)} is not ASCII`);
   }
+});
+
+test("textWidth counts text dingbats as one cell and emoji as two", () => {
+  assert.equal(textWidth("✓"), 1);
+  assert.equal(textWidth("✏️"), 2, "the emoji selector widens the glyph it follows");
+  assert.equal(textWidth("✅"), 2, "this one is emoji on its own");
+  assert.equal(textWidth("📋"), 2);
 });
 
 test("formatCall carries the label and drops it from the text", () => {

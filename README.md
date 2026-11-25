@@ -148,16 +148,19 @@ Por defecto la terminal muestra **una línea por acción**: el icono de la herra
 dice qué pasó, qué tocó y la meta (líneas del diff, duración).
 
 ```text
-🐚 shell · npm test                       ✓ 6.5s
-✏️ edit · src/kernel.js  +12 −3
-📝 write · docs/status.md  18 L
-📋 task · new · Guard de contexto: medir la presión…
-🧠 memory · save · El hijo no ve AGENTS.md
-💭 thinking…
+$ shell · npm test                       ✓ 6.5s
+~ edit · src/kernel.js  +12 −3
++ write · docs/status.md  18 L
+# task · new · Guard de contexto: medir la presión…
+* memory · save · El hijo no ve AGENTS.md
+… thinking…
 ```
 
 La etiqueta va en inglés y en dim; sin ella una fila que dice `docs/x.md +23 −15` no aclara si el
-archivo se leyó, se editó o se escribió.
+archivo se leyó, se editó o se escribió. El marcador es ASCII de una celda (`$ ~ + = / : # * ✓ @ ?
+> <`): un emoji sin cobertura en la fuente se dibuja como un recuadro y la fila pierde su marca.
+Las filas no llevan fondo de color: la herramienta declara `renderShell: "self"` y Pi no las envuelve
+en su caja de `toolPendingBg`/`toolSuccessBg`/`toolErrorBg`.
 
 El thinking arranca oculto con esa etiqueta y el indicador de trabajo anima puntos. Nada se pierde:
 `ctrl+o` expande la acción y muestra el comando, la salida y el diff nativos; `ctrl+t` muestra el

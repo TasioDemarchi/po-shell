@@ -8,32 +8,32 @@
 import path from "node:path";
 
 /**
- * Icon, tone and label per tool. Tones are pi theme color names.
- * The label is the word that says what happened; the icon alone does not.
- * Chrome words are English, by project rule.
+ * Marker, tone and label per tool. Tones are pi theme color names.
+ *
+ * The label is the word that says what happened; the marker is a one-cell ASCII
+ * glyph. Emoji were tempting and wrong: a font without coverage draws them as a
+ * box (▯), so the row lost its marker exactly where it mattered.
  */
 export const TOOL_STYLE = {
-  bash: { icon: "🐚", tone: "accent", label: "shell" },
-  // U+270F plus VS16: the bare pencil is a one-cell dingbat, the only icon
-  // narrower than the rest, and that is what swallowed the gap before the word.
-  edit: { icon: "✏️", tone: "warning", label: "edit" },
-  write: { icon: "📝", tone: "warning", label: "write" },
-  read: { icon: "📖", tone: "muted", label: "read" },
-  grep: { icon: "🔍", tone: "muted", label: "search" },
-  find: { icon: "🔎", tone: "muted", label: "search" },
-  ls: { icon: "📁", tone: "muted", label: "list" },
-  po_shell_status: { icon: "📊", tone: "accent", label: "status" },
-  po_shell_task: { icon: "📋", tone: "accent", label: "task" },
-  po_shell_memory: { icon: "🧠", tone: "accent", label: "memory" },
-  po_shell_check: { icon: "✅", tone: "success", label: "check" },
-  po_shell_review: { icon: "🔒", tone: "accent", label: "review" },
-  po_shell_ask: { icon: "❓", tone: "warning", label: "ask" },
-  po_shell_delegate: { icon: "🤖", tone: "accent", label: "delegate" },
-  context_search: { icon: "🔍", tone: "muted", label: "search" },
-  context_get: { icon: "📄", tone: "muted", label: "get" },
+  bash: { icon: "$", tone: "accent", label: "shell" },
+  edit: { icon: "~", tone: "warning", label: "edit" },
+  write: { icon: "+", tone: "warning", label: "write" },
+  read: { icon: "=", tone: "muted", label: "read" },
+  grep: { icon: "/", tone: "muted", label: "search" },
+  find: { icon: "/", tone: "muted", label: "search" },
+  ls: { icon: ":", tone: "muted", label: "list" },
+  po_shell_status: { icon: "%", tone: "accent", label: "status" },
+  po_shell_task: { icon: "#", tone: "accent", label: "task" },
+  po_shell_memory: { icon: "*", tone: "accent", label: "memory" },
+  po_shell_check: { icon: "✓", tone: "success", label: "check" },
+  po_shell_review: { icon: "@", tone: "accent", label: "review" },
+  po_shell_ask: { icon: "?", tone: "warning", label: "ask" },
+  po_shell_delegate: { icon: ">", tone: "accent", label: "delegate" },
+  context_search: { icon: "/", tone: "muted", label: "search" },
+  context_get: { icon: "<", tone: "muted", label: "get" },
 };
 
-export const DEFAULT_STYLE = { icon: "•", tone: "muted", label: "" };
+export const DEFAULT_STYLE = { icon: "·", tone: "muted", label: "" };
 export const MAX_TEXT = 72;
 export const MAX_RESULT = 90;
 
@@ -245,7 +245,12 @@ export const FOOTER_SEP = " · ";
 /** Columns a code point occupies in a terminal: emoji and CJK are two. */
 const WIDE_RANGES = [
   [0x1100, 0x115f],
-  [0x2600, 0x27bf],
+  // Dingbats are text by default: `✓` is one cell, `✏️` is one plus the emoji
+  // selector. The few that are emoji on their own are listed below.
+  [0x2705, 0x2705],
+  [0x2753, 0x2753],
+  [0x2757, 0x2757],
+  [0x2b50, 0x2b50],
   [0x2e80, 0xa4cf],
   [0xac00, 0xd7a3],
   [0xf900, 0xfaff],
@@ -266,7 +271,12 @@ export function textWidth(value) {
   let width = 0;
   for (const char of String(value ?? "")) {
     const code = char.codePointAt(0);
-    if (code === 0xfe0f || code === 0x200d) continue;
+    if (code === 0x200d) continue;
+    // The emoji selector widens the glyph it follows, it does not add its own.
+    if (code === 0xfe0f) {
+      width += 1;
+      continue;
+    }
     width += WIDE_RANGES.some(([start, end]) => code >= start && code <= end) ? 2 : 1;
   }
   return width;

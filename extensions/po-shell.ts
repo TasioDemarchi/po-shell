@@ -301,7 +301,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
     if (!ctx.hasUI) return;
     ctx.ui.setToolsExpanded(!minimal);
     if (minimal) {
-      ctx.ui.setHiddenThinkingLabel("💭 thinking…");
+      ctx.ui.setHiddenThinkingLabel("… thinking…");
       ctx.ui.setWorkingIndicator({
         frames: ["·  ", "·· ", "···"],
         intervalMs: 280,
@@ -346,6 +346,10 @@ export default function poShellExtension(pi: ExtensionAPI) {
   pi.registerToolRenderer((toolName: string, next: any) => {
     const base = next();
     return {
+      // `self` takes the row out of Pi's Box, and that Box is what paints
+      // toolPendingBg / toolSuccessBg / toolErrorBg behind every call: the green
+      // and red blocks. We draw plain text lines instead.
+      ...(minimal ? { renderShell: "self" as const } : {}),
       renderCall(args: any, theme: any, context: any) {
         if (!minimal) return base?.renderCall?.(args, theme, context) ?? new Text(toolName, 0, 0);
         if (context.expanded && base?.renderCall) return base.renderCall(args, theme, context);

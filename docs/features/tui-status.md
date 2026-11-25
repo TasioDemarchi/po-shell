@@ -159,6 +159,12 @@ el mismo formato para todas. `TOOL_STYLE` gana el campo `label` y `formatCall` l
 
 ## State
 
+Las filas de tool ya no llevan fondo: el resolver de `registerToolRenderer` devuelve
+`renderShell: "self"` en modo minimal y Pi deja de envolver la fila en su `Box` con
+`toolPendingBg`/`toolSuccessBg`/`toolErrorBg` (el recuadro verde/rojo y su padding). Lo que queda es
+texto plano de una o dos líneas, con el marcador ASCII al frente.
+
+
 Fase 0 implementada (2026-11-25): `TOOL_STYLE` lleva `label` en inglés y `formatCall`
 devuelve `{ icon, tone, label, text, meta }`; la extensión pinta
 `icono etiqueta · sujeto  meta` con la etiqueta en dim. Las tools de po-shell dejaron de
@@ -213,7 +219,9 @@ es la sesión, `/plan` es la cuenta de Nan. Los dos se muestran en una ventana c
   Un tool desconocido degrada a `label: ""`: la fila queda `icono sujeto`, sin inventar palabra.
   Se descartó alinear las etiquetas con padding: `delegate` (8) obligaría a cuatro espacios
   muertos en todas las filas. El icono de `edit` pasó a `✏️` (U+270F + VS16): el lápiz sin
-  selector mide una celda y el resto dos, y ese era el espacio que se comía la fila.
+  selector mide una celda y el resto dos, y ese era el espacio que se comía la fila. **Después se
+  abandonaron los emoji**: una fuente sin cobertura los dibuja como `▯`, así que los marcadores son
+  ASCII de una celda (`$ ~ + = / : # * ✓ @ ? > <`).
 - 2026-11-25: fase 1. La cascada del footer se probó con anchos reales (160/120/80/60/45/30) y
   el orden quedó: compactar path → `main` sin `±N` → familia del modelo, después soltar los
   segmentos sin `keep` (path, rama, tarea) y recién al final cortar con `…`. Créditos y `ctx`
