@@ -148,13 +148,19 @@ Por defecto la terminal muestra **una línea por acción**: el icono de la herra
 dice qué pasó, qué tocó y la meta (líneas del diff, duración).
 
 ```text
-$ shell · npm test                       ✓ 6.5s
-~ edit · src/kernel.js  +12 −3
-+ write · docs/status.md  18 L
-# task · new · Guard de contexto: medir la presión…
-* memory · save · El hijo no ve AGENTS.md
+╭─ $ shell · npm test ───────────────────────────────────── ctrl+o to expand ─╮
+╰─ ✓ 6.5s ────────────────────────────────────────────────────────────────────╯
+╭─ ~ edit · src/kernel.js  +12 −3 ────────────────────────── ctrl+o to expand ─╮
+╰─────────────────────────────────────────────────────────────────────────────╯
+╭─ + write · docs/status.md  18 L ────────────────────────── ctrl+o to expand ─╮
+╰─────────────────────────────────────────────────────────────────────────────╯
 … thinking…
 ```
+
+Cada llamada es un recuadro de dos líneas: la fila viaja en el borde superior y el resultado
+(`✓ 6.5s`, `✗ failed`, `2 results`) cierra el inferior, así que el bloque se lee como una unidad y
+no como dos renglones sueltos. El ancho es el de la terminal, y cuando no entra se va primero el
+hint, después se corta el sujeto con `…`; el borde siempre cierra.
 
 La etiqueta va en inglés y en dim; sin ella una fila que dice `docs/x.md +23 −15` no aclara si el
 archivo se leyó, se editó o se escribió. El marcador es ASCII de una celda (`$ ~ + = / : # * ✓ @ ?

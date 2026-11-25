@@ -162,7 +162,9 @@ el mismo formato para todas. `TOOL_STYLE` gana el campo `label` y `formatCall` l
 Las filas de tool ya no llevan fondo: el resolver de `registerToolRenderer` devuelve
 `renderShell: "self"` en modo minimal y Pi deja de envolver la fila en su `Box` con
 `toolPendingBg`/`toolSuccessBg`/`toolErrorBg` (el recuadro verde/rojo y su padding). Lo que queda es
-texto plano de una o dos líneas, con el marcador ASCII al frente.
+un recuadro de dos líneas (`formatFrame`): la fila viaja en el borde superior
+(`╭─ $ shell · npm test ─── ctrl+o to expand ─╮`) y el resultado cierra el inferior
+(`╰─ ✓ 6.5s ───╯`). Los errores que no caben en el borde caen debajo del recuadro, fuera del marco.
 
 
 Fase 0 implementada (2026-11-25): `TOOL_STYLE` lleva `label` en inglés y `formatCall`

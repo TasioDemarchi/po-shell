@@ -343,6 +343,23 @@ export default function poShellExtension(pi: ExtensionAPI) {
 
   // One line per tool call. Collapsed is ours; expanded delegates to Pi, so
   // ctrl+o still shows the native command, output and diff.
+  /** Frame width: the terminal, clamped so a frame never wraps or turns into a stamp. */
+  function frameWidth() {
+    const columns = Number(process.stdout.columns) || 0;
+    return Math.max(FRAME_MIN_WIDTH, Math.min(columns || 80, 140));
+  }
+
+  /** Segments carry a role, not a color: the theme decides the tone here. */
+  function paintLine(line: any, theme: any, callTone: string) {
+    const tone = (kind: string) => {
+      if (kind === "icon") return callTone;
+      if (kind === "subject") return "text";
+      if (kind === "border" || kind === "label" || kind === "hint" || kind === "callMeta") return "dim";
+      return kind;
+    };
+    return (line?.segments ?? []).map((segment: any) => theme.fg(tone(segment.kind), segment.text)).join("");
+  }
+
   pi.registerToolRenderer((toolName: string, next: any) => {
     const base = next();
     return {
@@ -353,11 +370,8 @@ export default function poShellExtension(pi: ExtensionAPI) {
       renderCall(args: any, theme: any, context: any) {
         if (!minimal) return base?.renderCall?.(args, theme, context) ?? new Text(toolName, 0, 0);
         if (context.expanded && base?.renderCall) return base.renderCall(args, theme, context);
-        const call = formatCall(toolName, args ?? {}, { cwd: context.cwd });
-        const label = call.label ? theme.fg("dim", call.label) : "";
-        const head = call.text ? `${label}${label ? theme.fg("dim", " · ") : ""}${theme.fg("text", call.text)}` : label;
-        const meta = call.meta ? `  ${theme.fg("dim", call.meta)}` : "";
-        return new Text(`${theme.fg(call.tone, call.icon)} ${head}${meta}`, 0, 0);
+        const frame = formatFrame(toolName, args ?? {}, null, { cwd: context.cwd, width: frameWidth() });
+        return new Text(paintLine(frame.top, theme, frame.tone), 0, 0);
       },
       renderResult(result: any, options: any, theme: any, context: any) {
         const expanded = options?.expanded ?? context?.expanded;
@@ -367,13 +381,18 @@ export default function poShellExtension(pi: ExtensionAPI) {
           const full = resultText(result);
           return full ? new Text(full.split("\n").map((line) => theme.fg("toolOutput", line)).join("\n"), 0, 0) : new Container();
         }
-        const rows = formatResult(toolName, context?.args ?? {}, result, {
+        // The bottom rule closes the frame the call opened, and carries the
+        // result: two lines per call, never three.
+        const frame = formatFrame(toolName, context?.args ?? {}, result, {
+          cwd: context?.cwd,
+          width: frameWidth(),
           isPartial: options?.isPartial,
           isError: context?.isError,
           durationMs: context?.durationMs,
         });
-        if (!rows.length) return new Container();
-        return new Text(rows.map((row) => theme.fg(row.tone, row.text)).join("\n"), 0, 0);
+        const lines = [paintLine(frame.bottom, theme, frame.tone)];
+        for (const row of frame.extra ?? []) lines.push(theme.fg(row.kind === "error" ? "error" : "muted", row.text));
+        return new Text(lines.join("\n"), 0, 0);
       },
     };
   });

@@ -238,6 +238,158 @@ export function formatResult(name, args = {}, result, options = {}) {
   }
 }
 
+/* --------------------------------- frame --------------------------------- */
+
+/**
+ * The collapsed call, drawn as a two-line rounded frame: the row rides the top
+ * rule and the result meta the bottom one, so the whole thing reads as one
+ * block instead of two flat lines.
+ */
+export const FRAME_HINT = "ctrl+o to expand";
+/** Below this the frame is a stamp: the extension clamps the terminal width here. */
+export const FRAME_MIN_WIDTH = 40;
+
+const FRAME_CORNER = { topLeft: "╭", topRight: "╮", bottomLeft: "╰", bottomRight: "╯" };
+const FRAME_RULE = "─";
+// `╭─ ` + one space before the fill + `─╮`.
+const FRAME_CHROME = 6;
+// The hint keeps one space on each side, and the fill still owns its own.
+const FRAME_HINT_COLUMNS = FRAME_HINT.length + 2;
+// A subject narrower than this says nothing, so the call meta leaves first.
+const FRAME_MIN_SUBJECT = 6;
+
+function dashes(count) {
+  return FRAME_RULE.repeat(Math.max(0, count));
+}
+
+function segmentsWidth(segments) {
+  return segments.reduce((sum, segment) => sum + textWidth(segment.text), 0);
+}
+
+/** A drawn line: the plain string the tests assert and the pieces the caller colors. */
+function frameLine(segments) {
+  return { text: segments.map((segment) => segment.text).join(""), segments };
+}
+
+/** The call row split by role: icon, label, subject and call meta. */
+function rowSegments(call, subject) {
+  const segments = [{ kind: "icon", text: call.icon }];
+  if (call.label) segments.push({ kind: "label", text: ` ${call.label}` });
+  if (subject) {
+    segments.push({ kind: "label", text: " · " }, { kind: "subject", text: subject });
+  }
+  if (call.meta) segments.push({ kind: "callMeta", text: `  ${call.meta}` });
+  return segments;
+}
+
+/** The row shrunk to `budget` columns: the subject loses characters, the label never. */
+function fitRowSegments(call, budget) {
+  const full = rowSegments(call, call.text);
+  if (segmentsWidth(full) <= budget) return full;
+
+  const prefix = 1 + (call.label ? 1 + textWidth(call.label) : 0);
+  const separator = call.text ? 3 : 0;
+  const metaColumns = call.meta ? 2 + textWidth(call.meta) : 0;
+  let meta = call.meta;
+  let room = budget - prefix - separator - metaColumns;
+  if (meta && room < FRAME_MIN_SUBJECT) {
+    meta = "";
+    room = budget - prefix - separator;
+  }
+  const subject = call.text ? cutWidth(call.text, Math.max(1, room)) : "";
+  return rowSegments({ ...call, meta }, subject);
+}
+
+/**
+ * `╭─ $ shell · npm test ───── ctrl+o to expand ─╮`: the row in the top rule,
+ * the hint flush right. The hint leaves before the subject is cut.
+ */
+function topLine(call, width) {
+  const plainBudget = Math.max(0, width - FRAME_CHROME);
+  const hintBudget = Math.max(0, plainBudget - FRAME_HINT_COLUMNS);
+  const full = rowSegments(call, call.text);
+  const fullWidth = segmentsWidth(full);
+
+  const hint = fullWidth <= hintBudget;
+  const row = hint || fullWidth <= plainBudget ? full : fitRowSegments(call, plainBudget);
+  const fill = Math.max(0, (hint ? hintBudget : plainBudget) - segmentsWidth(row));
+
+  const segments = [{ kind: "border", text: `${FRAME_CORNER.topLeft}${FRAME_RULE} ` }, ...row];
+  segments.push({ kind: "border", text: " " }, { kind: "border", text: dashes(fill) });
+  if (hint) segments.push({ kind: "hint", text: ` ${FRAME_HINT} ` });
+  segments.push({ kind: "border", text: `${FRAME_RULE}${FRAME_CORNER.topRight}` });
+  return frameLine(segments);
+}
+
+/** `╰─ ✓ 12ms ─────╯`, or `╰─────╯` when the result adds nothing. */
+function bottomLine(meta, tone, width) {
+  if (!meta) {
+    return frameLine([
+      { kind: "border", text: FRAME_CORNER.bottomLeft },
+      { kind: "border", text: dashes(width - 2) },
+      { kind: "border", text: FRAME_CORNER.bottomRight },
+    ]);
+  }
+  const text = cutWidth(meta, Math.max(1, width - 5));
+  const fill = Math.max(0, width - 5 - textWidth(text));
+  return frameLine([
+    { kind: "border", text: `${FRAME_CORNER.bottomLeft}${FRAME_RULE} ` },
+    { kind: tone, text },
+    { kind: "border", text: " " },
+    { kind: "border", text: dashes(fill) },
+    { kind: "border", text: FRAME_CORNER.bottomRight },
+  ]);
+}
+
+/**
+ * What goes in the bottom rule, and what cannot: the first error line is the
+ * meta, the rest of the error is content and falls below the frame.
+ */
+function resultFrame(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (list.length === 0) return { meta: "", tone: "muted", extra: [] };
+  const [first, ...rest] = list;
+  if (first.tone === "error") {
+    return {
+      meta: first.text,
+      tone: "error",
+      extra: rest.map((row) => ({ kind: "error", text: `  ${String(row.text).trim()}` })),
+    };
+  }
+  return { meta: list.map((row) => row.text).join(" · "), tone: first.tone, extra: [] };
+}
+
+/**
+ * The collapsed frame: `{ tone, top, bottom, meta, extra }`.
+ *
+ * `top`/`bottom` are lines (`{ text, segments }`); every segment carries a
+ * `kind` the extension turns into a theme tone — `border`, `label`, `hint` and
+ * `callMeta` are dim, `icon` takes the call tone, `subject` is text, and the
+ * result meta keeps the tone `formatResult` gave it. `extra` rows
+ * (`{ text, kind }`) go below the bottom rule, colored `error`. `width` is
+ * honored exactly; the caller clamps it to the terminal and to
+ * `FRAME_MIN_WIDTH`.
+ */
+export function formatFrame(name, args = {}, result = null, options = {}) {
+  const width = Math.max(4, Math.trunc(Number(options.width) || 80));
+  const call = formatCall(name, args, { cwd: options.cwd });
+  const rows = result
+    ? formatResult(name, args, result, {
+        isPartial: options.isPartial,
+        isError: options.isError,
+        durationMs: options.durationMs,
+      })
+    : [];
+  const { meta, tone, extra } = resultFrame(rows);
+  return {
+    tone: call.tone,
+    top: topLine(call, width),
+    bottom: bottomLine(meta, tone, width),
+    meta,
+    extra,
+  };
+}
+
 /* --------------------------------- footer -------------------------------- */
 
 export const FOOTER_SEP = " · ";

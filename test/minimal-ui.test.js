@@ -9,6 +9,7 @@ import {
   editStats,
   footerLine,
   formatCall,
+  formatFrame,
   formatDuration,
   formatResult,
   gitLabel,
@@ -424,4 +425,62 @@ test("panelRowEvidence does not repeat the review prefix", () => {
     "✓ 9/9 · review mwvis2b5",
   );
   assert.equal(panelRowEvidence({ review: { id: "mwvis2b5" } }), "review mwvis2b5");
+});
+
+/* ---------------------------- tool frame ---------------------------- */
+
+function frameOf(name, args, result, options = {}) {
+  return formatFrame(name, args, result, { cwd, width: 60, ...options });
+}
+
+test("formatFrame draws a two-line frame whose lines are the same width", () => {
+  const frame = frameOf("edit", { path: "README.md", edits: [{ oldText: "a", newText: "a\nb" }] }, null);
+  assert.equal(textWidth(frame.top.text), 60);
+  assert.equal(textWidth(frame.bottom.text), 60);
+  assert.ok(frame.top.text.startsWith("╭─ ~ edit · README.md  +2 −1 "));
+  assert.ok(frame.top.text.endsWith("─╮"));
+  assert.ok(frame.bottom.text.startsWith("╰"));
+  assert.ok(frame.bottom.text.endsWith("╯"));
+  assert.ok(!frame.bottom.text.includes("  "), "no stray spaces when the result says nothing");
+});
+
+test("formatFrame puts the result in the bottom rule, not in a third line", () => {
+  const frame = frameOf("bash", { command: "npm test" }, result("ok"), { durationMs: 12_000 });
+  assert.equal(frame.meta, "✓ 12.0s");
+  assert.ok(frame.bottom.text.startsWith("╰─ ✓ 12.0s "));
+  assert.deepEqual(frame.extra, []);
+  assert.equal(textWidth(frame.bottom.text), 60);
+});
+
+test("formatFrame drops the hint before cutting the subject, and still closes", () => {
+  const long = { command: `sed -n 158,182p ${"docs/features/x.md".repeat(4)}` };
+  const frame = frameOf("bash", long, null);
+  const withHint = frameOf("bash", { command: "npm test" }, null);
+  assert.ok(withHint.top.text.includes("ctrl+o to expand"), "a short row keeps the hint");
+  assert.ok(!frame.top.text.includes("ctrl+o to expand"), "a long row loses the hint first");
+  assert.ok(frame.top.text.includes("…"), "the subject is what gets cut");
+  assert.equal(textWidth(frame.top.text), 60);
+  assert.ok(frame.top.text.endsWith("─╮"));
+});
+
+test("formatFrame keeps the first error in the frame and the rest below it", () => {
+  const frame = frameOf("bash", { command: "npm test" }, result("boom\nline 2\nline 3"), { isError: true });
+  assert.equal(frame.meta, "✗ boom");
+  assert.ok(frame.bottom.text.includes("✗ boom"));
+  assert.deepEqual(
+    frame.extra.map((row) => row.text),
+    ["  line 2", "  line 3"],
+  );
+});
+
+test("formatFrame summarizes po-shell tools the same way formatResult did", () => {
+  const frame = frameOf("po_shell_task", { action: "new", title: "Un título" }, result("Tarea creada.\ndetalle"));
+  assert.equal(frame.meta, "Tarea creada. +1");
+  assert.ok(frame.top.text.includes("# task · new · Un título"));
+});
+
+test("formatFrame survives a width below the minimum without throwing", () => {
+  const frame = formatFrame("bash", { command: "x".repeat(200) }, null, { cwd, width: 4 });
+  assert.ok(frame.top.text.length >= 2);
+  assert.ok(frame.top.text.startsWith("╭"));
 });
