@@ -664,13 +664,23 @@ transcript completo.
 |---|---|---|
 | `explorer` | leer y buscar dentro del proyecto, leer los prefijos que la misión habilita (`read_outside`), usar la web | editar, correr comandos, salir de esos prefijos |
 | `worker` | editar **solo** las `surfaces` declaradas, correr los checks de la misión | commit, push, delegar, leer fuera del proyecto y su scratch |
-| `reviewer` | leer y **ejecutar** la verificación en su propia copia scratch | editar, tocar el repo, repetir la suite del escritor |
+| `reviewer` | leer y **ejecutar**: los comandos de `build_test` y probes propios derivados del `DONE WHEN`, siempre en una copia del repo en su scratch | editar, tocar el repo, commitear, instalar, usar la red, repetir la suite del escritor |
 
 La matriz de roles vive en `src/subagent-roles.js` y se aplica en los dos lados: el padre valida la
 delegación antes de lanzarla (pedirle `edit` a un explorer es un error, no un hijo más suelto) y el
 guard del hijo la vuelve a aplicar en `tool_call`, aunque le hayan pasado una lista de tools más
 ancha. Un `worker` sin `surfaces` no arranca, y los presupuestos por rol tienen techo propio:
 explorer 12 turnos / 300 s, reviewer 15 / 600 s, worker 40 / 900 s.
+
+Un hijo **nunca** publica ni instala: `git add|commit|push|checkout|reset|stash|clean|rebase|merge` y
+`npm|pnpm|yarn install|add|publish`, `pip install` se rechazan en el guard. Y el reviewer escribe
+**solo** en su copia scratch: una redirección hacia el repo se rechaza, hacia su scratch pasa (aunque
+el scratch viva bajo `~/.po-shell/tmp/`).
+
+Su contrato es el de `gentle-ai-verify`: prepara la copia con
+`tar --exclude=./.git -cf - . | tar -xf - -C "$s/work"`, corre con `env -i`, y devuelve veredicto por
+ítem del `DONE WHEN` (`met | unmet | unverified`), blockers reproducidos contra la línea base,
+advisories aparte, lo que no corrió y las rutas de scratch para que el padre las borre.
 
 Los hijos corren con `--no-context-files`: **no leen el `AGENTS.md` del proyecto** ni comparten el
 historial del padre. Por eso cada misión lleva un bloque corto con las instrucciones, los comandos de

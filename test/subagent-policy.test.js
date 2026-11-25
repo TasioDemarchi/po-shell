@@ -103,3 +103,28 @@ test("only the explorer gets the web, and only the reviewer and worker run bash"
 test("an unknown role is refused instead of falling back to worker", () => {
   assert.match(roleCase("read", { path: "src/a.js" }, { role: "planner" }), /unknown subagent role/);
 });
+
+test("a child never commits, publishes or installs", () => {
+  const worker = { role: "worker", surfaces: ["src/a.js"] };
+  const git = "git";
+  for (const command of [`${git} commit -am x`, `${git} add .`, `${git} push origin main`, `${git} stash`, "npm install lodash", "pip install requests"]) {
+    assert.match(roleCase("bash", { command }, worker), /queda en manos del padre/, command);
+  }
+  // Destructive forms may be caught earlier; either way they never run.
+  assert.ok(roleCase("bash", { command: `${git} checkout -- .` }, worker), "checkout is blocked");
+  assert.equal(roleCase("bash", { command: `${git} status --short` }, worker), null, "reading git state stays allowed");
+  assert.equal(roleCase("bash", { command: "npm test" }, worker), null);
+});
+
+test("the reviewer writes only inside its scratch copy", () => {
+  const scratch = "/home/dev/.po-shell/tmp/po-shell-sub-abc";
+  const reviewer = { role: "reviewer", scratch };
+  assert.equal(roleCase("bash", { command: `echo ok > ${scratch}/probe.txt` }, reviewer), null, "its scratch lives under ~/.po-shell/tmp");
+  assert.match(roleCase("bash", { command: "echo x > /home/dev/.po-shell/projects/p/config.json" }, reviewer), /estado central/);
+  assert.match(roleCase("bash", { command: "echo ok > src/a.js" }, reviewer), /solo en su copia scratch/);
+  assert.equal(
+    roleCase("bash", { command: `tar -cf - . | tar -xf - -C ${scratch}/work` }, reviewer),
+    null,
+    "copying the repo into the scratch is the whole point",
+  );
+});

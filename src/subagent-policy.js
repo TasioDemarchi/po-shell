@@ -118,6 +118,11 @@ function roleBlock(toolName, input, cwd, options) {
   return null;
 }
 
+// A child never publishes, commits or installs dependencies. The contract says
+// so in three prompts; here it is a rule.
+const FORBIDDEN_COMMANDS =
+  /\bgit\s+(?:add|commit|push|pull|checkout|switch|restore|reset|stash|clean|rebase|merge|tag|cherry-pick|revert|am)\b|\b(?:npm|pnpm|yarn)\s+(?:install|i|add|remove|uninstall|link|publish)\b|\bpip3?\s+install\b/;
+
 export function subagentToolBlock(toolName, input = {}, cwd = process.cwd(), options = {}) {
   if (String(toolName).startsWith("po_shell_")) {
     return "Un subagente no puede usar tools de memoria, tareas, review ni estado de po-shell.";
@@ -162,14 +167,39 @@ export function subagentToolBlock(toolName, input = {}, cwd = process.cwd(), opt
     ) {
       return "Un subagente no puede modificar archivos .md desde bash.";
     }
-    if (/(?:>>?|tee|sed\s+-i|perl\s+-pi)[^;&|]*\.po-shell(?:\/|\b)/i.test(command)) {
-      return "Un subagente no puede tocar el estado central desde bash.";
+    // Central state is off limits, except the child's own scratch: it lives
+    // under ~/.po-shell/tmp/ and a reviewer has to write its probes somewhere.
+    const central = shellWriteTargets(command)
+      .filter((target) => isPoShellState(target))
+      .map((target) => path.resolve(cwd, target))
+      .filter((target) => !insideDir(target, options.scratch));
+    if (central.length) {
+      return `Un subagente no puede tocar el estado central desde bash; ${central[0]} está fuera de su scratch.`;
     }
     // No human is watching a child: every destructive form is refused, even the
     // ones the parent could confirm.
     const destructive = recognizeDestructive(command);
     if (destructive.length) {
       return `Un subagente no puede ejecutar comandos destructivos (${destructive[0].key}); devolvé un plan más seguro al padre.`;
+    }
+
+    // Git publication and dependency mutation are the parent's, always: a child
+    // that commits leaves work nobody asked for, and one that installs changes
+    // the tree the parent believes it controls.
+    const forbidden = FORBIDDEN_COMMANDS.exec(command);
+    if (forbidden) {
+      return `Un subagente no puede correr \`${forbidden[0].trim()}\`: eso queda en manos del padre.`;
+    }
+
+    // A reviewer verifies by executing, but only inside its own copy: the repo is
+    // read-only for it, so every write it makes has to land in its scratch.
+    if (String(options.role ?? "") === "reviewer" && options.scratch) {
+      const outsideScratch = shellWriteTargets(command)
+        .map((target) => path.resolve(cwd, target))
+        .find((target) => !insideDir(target, options.scratch) && !insideDir(target, cwd) === false);
+      if (outsideScratch) {
+        return `Un reviewer escribe solo en su copia scratch (${options.scratch}); ${outsideScratch} está fuera.`;
+      }
     }
   }
 
