@@ -36,6 +36,11 @@ function providerConfig(env = process.env) {
   };
 }
 
+/** Raw provider credentials, independent of whether semantic search is on. */
+export function nanProvider(env = process.env) {
+  return providerConfig(env);
+}
+
 export function semanticConfig(env = process.env) {
   if (["0", "off", "false", "no"].includes(String(env.PO_SHELL_SEMANTIC ?? "").toLowerCase())) {
     return null;

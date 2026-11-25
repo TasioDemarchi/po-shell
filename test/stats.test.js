@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   cacheHit,
+  daysUntil,
   formatSpan,
+  planLines,
   formatTokensShort,
   sessionMetrics,
   statsLines,
@@ -88,4 +90,49 @@ test("statsLines degrades without a session, costs or task", () => {
       "models   deepseek-v4-flash  12 turns · 320k · 0.90cr",
     ],
   );
+});
+
+const usage = {
+  ok: true,
+  remaining: 6389.4,
+  used: 610.8,
+  requests: 5831,
+  tokens: 1_479_772_424,
+  periodEnd: "2026-12-13T20:50:03Z",
+  frozen: false,
+  packCredits: 0,
+  byModel: [
+    { model: "deepseek-v4-flash", credits: 460.7, tokens: 1_148_528_426, requests: 10872 },
+    { model: "deepseek-v4-pro", credits: 94.1, tokens: 4_570_799, requests: 184 },
+    { model: "glm5.3-flash", credits: 10.7, tokens: 263_913_639, requests: 4107 },
+  ],
+};
+
+test("daysUntil rounds up and never goes negative", () => {
+  assert.equal(daysUntil("2026-12-13T20:50:03Z", new Date("2026-11-25T12:00:00Z")), 19);
+  assert.equal(daysUntil("2026-11-20T00:00:00Z", new Date("2026-11-25T00:00:00Z")), 0);
+  assert.equal(daysUntil("nope"), null);
+});
+
+test("planLines shows what is left, when it renews and who ate the period", () => {
+  const lines = planLines(usage, { now: new Date("2026-11-25T12:00:00Z") });
+  assert.deepEqual(lines, [
+    "plan     6389.4cr left · renews (19d)",
+    "period   610.8cr · 5831 requests · 1.48B tokens",
+    "models   deepseek-v4-flash  81.5% · 1.15B t · 10872 req",
+    "         deepseek-v4-pro  16.6% · 4.6M t · 184 req",
+    "         glm5.3-flash  1.9% · 263.9M t · 4107 req",
+  ]);
+});
+
+test("planLines flags a frozen plan and extra packs", () => {
+  const lines = planLines({ ...usage, frozen: true, packCredits: 500 }, { now: new Date("2026-11-25T12:00:00Z") });
+  assert.equal(lines[0], "plan     6389.4cr left · renews (19d) · +500.0cr pack · frozen");
+});
+
+test("planLines says why it has no numbers", () => {
+  assert.deepEqual(planLines({ ok: false, reason: "no Nan credentials" }), [
+    "plan     unavailable (no Nan credentials)",
+  ]);
+  assert.deepEqual(planLines(null), ["plan     unavailable (unknown)"]);
 });

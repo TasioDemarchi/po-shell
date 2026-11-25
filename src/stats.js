@@ -12,6 +12,7 @@ function row(label, text) {
 
 export function formatTokensShort(value) {
   const tokens = Number(value) || 0;
+  if (tokens >= 1_000_000_000) return `${(tokens / 1_000_000_000).toFixed(2)}B`;
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
   if (tokens >= 1_000) return `${Math.round(tokens / 1_000)}k`;
   return String(tokens);
@@ -63,6 +64,46 @@ function plural(count, word) {
   return `${value} ${word}${value === 1 ? "" : "s"}`;
 }
 
+/** Days until the period renews, or null when the date is unusable. */
+export function daysUntil(iso, now = new Date()) {
+  const end = Date.parse(String(iso ?? ""));
+  if (!Number.isFinite(end)) return null;
+  const ms = end - new Date(now).getTime();
+  return Math.max(0, Math.ceil(ms / 86_400_000));
+}
+
+/**
+ * The subscription block: credits left, when they renew, what the billing period
+ * spent and which model ate it. Model credits are a share of the period, so the
+ * column adds up to 100 and reads as "who is paying for this".
+ */
+export function planLines(usage, options = {}) {
+  if (!usage?.ok) {
+    return [row("plan", `unavailable (${usage?.reason ?? "unknown"})`)];
+  }
+  const days = daysUntil(usage.periodEnd, options.now);
+  const renews = days === null ? "" : ` · renews (${days}d)`;
+  const frozen = usage.frozen ? " · frozen" : "";
+  const pack = Number(usage.packCredits) > 0 ? ` · +${creditLabel(usage.packCredits)} pack` : "";
+  const lines = [
+    row("plan", `${creditLabel(usage.remaining)} left${renews}${pack}${frozen}`),
+    row(
+      "period",
+      `${creditLabel(usage.used)} · ${Number(usage.requests) || 0} requests · ${formatTokensShort(usage.tokens)} tokens`,
+    ),
+  ];
+
+  const models = Array.isArray(usage.byModel) ? usage.byModel : [];
+  const limit = Math.max(1, Math.trunc(Number(options.models ?? 4)));
+  const spent = models.reduce((sum, group) => sum + (Number(group.credits) || 0), 0);
+  models.slice(0, limit).forEach((group, index) => {
+    const share = spent > 0 ? ((Number(group.credits) || 0) / spent) * 100 : 0;
+    const text = `${group.model}  ${share.toFixed(1)}% · ${formatTokensShort(group.tokens)} t · ${Number(group.requests) || 0} req`;
+    lines.push(row(index === 0 ? "models" : "", text));
+  });
+
+  return lines;
+}
 /** Cache reads over everything the prompt was paid for, as a percentage. */
 export function cacheHit(tokens = {}) {
   const cached = Number(tokens.cached) || 0;

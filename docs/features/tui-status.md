@@ -12,7 +12,7 @@ Risk: medium
 Que la terminal responda, sin scrollear y sin preguntar nada, cuatro cosas mientras
 se trabaja con agentes: dónde estoy, cuánto está costando, cuánto contexto queda y
 si lo que veo está verificado. El footer queda en **una línea**; lo que necesita
-atención vive en un **panel que se puede apagar**, y el detalle vive en `/stats`.
+atención vive en un **panel que se puede apagar**, y el detalle vive en `/usage` y `/plan`.
 
 No es una feature nueva de producto: es la superficie de lo que el kernel ya sabe.
 
@@ -31,9 +31,10 @@ status`. Con un plan de ~70 créditos, el número que más importa es el que no 
 - Cero tokens para la UI: se arma de estado local, nunca de una llamada al modelo.
 - Cero dependencias nuevas.
 - El chrome va en inglés; el agente sigue respondiendo en español.
-- Los números son estimaciones con tarifas publicadas: `~` cuando hay un modelo sin
-  tarifa. Nunca se muestra "saldo restante": la API key de Nan no puede leer el pool
-  de créditos, solo cuota de tokens por modelo.
+- Los números del footer y de `/usage` son estimaciones con tarifas publicadas: `~` cuando
+  hay un modelo sin tarifa. El saldo real no sale de ahí: sale de `/plan`, que lee
+  `GET /v1/usage` de Nan (verificado: devuelve `credits.allowance/used/remaining`,
+  `period_start/end` y `totals.by_model`).
 - El panel no ocupa espacio cuando no hay nada que decir.
 
 ## Design
@@ -82,7 +83,7 @@ junto al modo minimal (`po-shell ui panel auto`).
 corriendo, la última evidencia en rojo, un plan `high` esperando aprobación, el
 contexto sobre el umbral de delegación, o un review congelado sin commitear.
 
-### `/stats` (bajo demanda)
+### `/usage` y `/plan` (bajo demanda)
 
 ```text
 session 1h 42m · 14 turns · 96 tool calls · 2 failed
@@ -96,7 +97,7 @@ task     guard-de-contexto · medium · evidence 2 · review a40d8d0e
 ### Qué queda afuera
 
 `$` dólares, `R/W` de caché en el footer, `(auto)` del compactado, provider, nombre
-de sesión, contadores de tools. Son diagnóstico, no decisión: van a `/stats`.
+de sesión, contadores de tools. Son diagnóstico, no decisión: van a `/usage` y `/plan`.
 
 ## Decisions
 
@@ -121,12 +122,12 @@ de sesión, contadores de tools. Son diagnóstico, no decisión: van a `/stats`.
 - [x] **Fase 2 — créditos de sesión con hijos.** `session_id` en `cost_events`
       (`ALTER TABLE` idempotente), que la extensión lo pase al registrar, y suma
       orquestador + hijos por sesión. Entrada `18.6cr` con desglose en el panel.
-- [ ] **Fase 3 — panel y `/stats`.** Widget con modos `on|off|auto`, shortcut
-      `ctrl+shift+p`, ticker solo con hijos vivos, `/stats` con el desglose por
-      modelo y por rol.
+- [x] **Fase 3 — panel y `/usage`.** Widget con modos `on|off|auto`, shortcut
+      `ctrl+shift+p`, ticker solo con hijos vivos, `/usage` con el desglose por
+      modelo y por rol, y `/plan` con la suscripción.
   - [x] Panel: modos `auto|on|off`, `ctrl+shift+p`, ticker con hijos vivos, tres filas sin
         comprimir (una fila que no entra se oculta), trigger por anomalía.
-  - [x] `/stats` en el transcript: session, turns, tool calls, créditos con desglose por
+  - [x] `/usage` en el transcript: session, turns, tool calls, créditos con desglose por
         orquestador/hijos, tokens con hit de caché, y desglose por modelo y por tarea.
 
 ## Follow-ups
@@ -192,11 +193,12 @@ vez, al primer `listTasks`, por `createdAt`. `getTask` acepta `12`, `#12` y el i
 que el humano puede decir "la 12" y el modelo no traduce nada a mano. Panel, `status`,
 `po-shell task list/show` y la salida de `po_shell_task` muestran `#N · id · …`.
 
-`/stats` implementado (2026-11-25): `src/stats.js` arma el bloque (`formatSpan`,
+`/usage` implementado (2026-11-25): `src/stats.js` arma el bloque (`formatSpan`,
 `formatTokensShort`, `cacheHit`, `sessionMetrics`, `statsLines`) y la extensión lo imprime con
 `pi.appendEntry("po-shell-stats", …)` + `registerEntryRenderer`, que es TUI-only: preguntar los
 números no gasta tokens. Los créditos salen de `costSummary({ sessionId })`, así que el
-desglose orquestador/hijos usa el `session_id` de la fase 2. La fase 3 queda cerrada.
+desglose orquestador/hijos usa el `session_id` de la fase 2. La fase 3 queda cerrada. Después se agregó `/plan` (suscripción) como comando aparte: `/usage`
+es la sesión, `/plan` es la cuenta de Nan.
 
 ## Log
 
@@ -217,7 +219,15 @@ desglose orquestador/hijos usa el `session_id` de la fase 2. La fase 3 queda cer
   no entra el bloque de créditos. Cuando la izquierda desaparece el bloque del modelo queda
   alineado a la derecha, no salta a la izquierda. `textWidth` pasó a medir columnas, no code
   points: `📋` ocupa dos y con el conteo anterior la barra se desbordaba una columna.
-- 2026-11-25: `/stats`. Se usó `pi.appendEntry` + `registerEntryRenderer` y no `sendMessage`:
+- 2026-11-25: `/plan`. `GET /v1/usage` es el único endpoint de la API de Nan que expone el pool:
+  `/credits`, `/balance`, `/me`, `/subscription`, `/quota`, `/billing` responden 404. Devuelve
+  `credits` (allowance/used/remaining/period_start/period_end/pack/frozen) y `totals.by_model`.
+  El rango por defecto son los últimos 30 días y **no** coincide con el período de facturación:
+  hay que pedir `?start_date=<period_start>&end_date=<hoy>` para que el total cierre con `used`.
+  Son dos llamadas (la primera aprende el período), ~1.3 s cada una, cacheadas 60 s. La key se
+  resuelve igual que en `semantic.js` (`NAN_API_KEY`, `PO_SHELL_SEMANTIC_API_KEY`, `auth.json`);
+  nunca se imprime. El comando se separó de `/usage` porque una es la sesión y la otra la cuenta.
+- 2026-11-25: `/usage`. Se usó `pi.appendEntry` + `registerEntryRenderer` y no `sendMessage`:
   el bloque no debe entrar al contexto del modelo, y `sendMessage` sí participa. `sessionMetrics`
   cuenta turnos por mensajes `assistant` y tool calls por mensajes `toolResult` (el único lugar que
   sabe si fallaron). El desglose por rol reusa `costSummary({ sessionId })` de la fase 2, sin

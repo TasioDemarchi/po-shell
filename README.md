@@ -209,10 +209,12 @@ po-shell ui panel auto      # auto (default) | on | off
 En sesión: `/panel on|off|auto` y `ctrl+shift+p` para prenderlo o apagarlo. Vive en
 `~/.po-shell/ui.json` junto al modo `minimal|full`.
 
-### `/stats`
+### `/usage` y `/plan`
 
-A demanda, un bloque en el transcript con lo que costó la sesión. No entra al contexto del
-modelo: `appendEntry` es solo TUI, así que preguntar los números no gasta tokens.
+Dos bloques a demanda, en el transcript y fuera del contexto del modelo: `appendEntry` es solo
+TUI, así que preguntar los números no gasta tokens.
+
+`/usage` es **la sesión**: qué costó esta conversación.
 
 ```text
 session  1h 42m · 14 turns · 96 tool calls · 2 failed
@@ -223,8 +225,23 @@ models   deepseek-v4-flash  12 turns · 320k · 0.90cr
 task     #12 · guard de contexto · medium · evidence 2 · review mwvis2b5
 ```
 
-Los créditos son estimaciones con tarifas publicadas; `unpriced` avisa que algún modelo de la
-sesión no tiene tarifa conocida. Nunca es el saldo de Nan: la API key no puede leer el pool.
+Los créditos de `/usage` son estimaciones con tarifas publicadas; `unpriced` avisa que algún
+modelo de la sesión no tiene tarifa conocida.
+
+`/plan` es **la suscripción**: lo que dice Nan sobre tus créditos.
+
+```text
+plan     6389.4cr left · renews (19d)
+period   610.8cr · 5831 requests · 1.48B tokens
+models   deepseek-v4-flash  81.5% · 1.15B t · 10872 req
+         deepseek-v4-pro  16.6% · 4.6M t · 184 req
+         glm5.3-flash  1.9% · 263.9M t · 4107 req
+```
+
+`period` y `models` cubren el período de facturación en curso (desde la última renovación), no
+los últimos 30 días: por eso el total coincide con lo gastado. El porcentaje de cada modelo es su
+parte del gasto del período, así la columna suma 100 y dice quién pagó la cuenta. Se cachea 60 s
+y, si Nan no responde, la línea lo dice (`plan unavailable (…)`) en vez de inventar números.
 
 ```bash
 po-shell ui            # muestra el modo y las rutas que toca
@@ -418,7 +435,7 @@ po-shell costs --task <id> --json
 
 Por defecto muestra solo el proyecto actual. `--all-projects` suma todos los proyectos po-shell.
 
-El reporte agrupa por modelo, tarea y rol. **No calcula el saldo de tu suscripción Nan**: solo muestra lo que consumió po-shell. Si usás Nan en otros lados, ese consumo no aparece acá.
+El reporte agrupa por modelo, tarea y rol y **no calcula el saldo de tu suscripción Nan**: solo muestra lo que consumió po-shell, así que el consumo hecho fuera de po-shell no aparece acá. Para el saldo real, la renovación y el gasto por modelo del período usá `/plan` en una sesión.
 
 Si un modelo no tiene tarifa, el evento se registra con `0` créditos y el reporte lo marca como desconocido. Las tarifas viven en `src/costs.js`.
 

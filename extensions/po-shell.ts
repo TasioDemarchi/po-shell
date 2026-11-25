@@ -37,7 +37,8 @@ import { memoryAction, taskAction } from "../src/tool-defaults.js";
 import { PACKAGE_ROOT } from "../src/shell.js";
 import { mutatingCommand } from "../src/policy.js";
 import { semanticConfig } from "../src/semantic.js";
-import { sessionMetrics, statsLines } from "../src/stats.js";
+import { planLines, sessionMetrics, statsLines } from "../src/stats.js";
+import { fetchUsage } from "../src/nan-usage.js";
 import {
   activeTask,
   attributableTask,
@@ -410,14 +411,19 @@ export default function poShellExtension(pi: ExtensionAPI) {
     },
   });
 
-  // `/stats` prints a block in the transcript that the model never sees:
-  // appendEntry is TUI-only, so asking for the numbers costs no tokens.
-  pi.registerEntryRenderer("po-shell-stats", (entry: any, _options: any, theme: any) => {
-    const lines = Array.isArray(entry?.data?.lines) ? entry.data.lines : [];
-    return new Text(lines.map((line: string) => theme.fg("dim", line)).join("\n"), 0, 0);
-  });
+  // `/usage` and `/plan` print blocks in the transcript that the model never
+  // sees: appendEntry is TUI-only, so asking for the numbers costs no tokens.
+  function registerBlock(customType: string) {
+    pi.registerEntryRenderer(customType, (entry: any, _options: any, theme: any) => {
+      const lines = Array.isArray(entry?.data?.lines) ? entry.data.lines : [];
+      return new Text(lines.map((line: string) => theme.fg("dim", line)).join("\n"), 0, 0);
+    });
+  }
 
-  pi.registerCommand("stats", {
+  registerBlock("po-shell-usage");
+  registerBlock("po-shell-plan");
+
+  pi.registerCommand("usage", {
     description: "Créditos, tokens y modelos de la sesión (no entra al contexto del modelo)",
     handler: async (_args, ctx) => {
       const cwd = ctx.cwd;
@@ -433,10 +439,31 @@ export default function poShellExtension(pi: ExtensionAPI) {
           task: activeTask(cwd),
           review: latestReview(cwd),
         });
-        pi.appendEntry("po-shell-stats", { lines: lines.length ? lines : ["stats   (nothing recorded yet)"] });
+        pi.appendEntry("po-shell-usage", { lines: lines.length ? lines : ["usage   (nothing recorded yet)"] });
       } catch (error) {
         ctx.ui.notify(String((error as Error).message), "warning");
       }
+    },
+  });
+
+  // The subscription lives upstream: 60 s of cache, because two calls per
+  // `/plan` are two network round trips and the number does not move that fast.
+  const PLAN_TTL_MS = 60_000;
+  let planCache: { at: number; value: any } | null = null;
+
+  pi.registerCommand("plan", {
+    description: "Créditos de la suscripción Nan: disponibles, renovación y por modelo",
+    handler: async (_args, ctx) => {
+      let usage: any;
+      try {
+        if (!planCache || Date.now() - planCache.at > PLAN_TTL_MS) {
+          planCache = { at: Date.now(), value: await fetchUsage({ env: process.env }) };
+        }
+        usage = planCache.value;
+      } catch (error) {
+        usage = { ok: false, reason: String((error as Error).message) };
+      }
+      pi.appendEntry("po-shell-plan", { lines: planLines(usage) });
     },
   });
 
