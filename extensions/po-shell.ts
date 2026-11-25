@@ -19,6 +19,7 @@ import {
   formatResult,
   gitLabel,
   homePath,
+  isolationPrompt,
   modelLabel,
   oneLine,
   panelRows,
@@ -598,6 +599,12 @@ export default function poShellExtension(pi: ExtensionAPI) {
             "Only with action=isolation, and only as a request: the kernel asks the human before changing it.",
         }),
       ),
+      reason: Type.Optional(
+        Type.String({
+          description:
+            "With action=isolation: two lines, in the user's language, about why this project needs it and what it protects. Required — the dialog shows it.",
+        }),
+      ),
       id: Type.Optional(
         Type.String({
           description: "Task id, or its human number (`#12` or `12`) as shown in the panel and `po-shell task list`.",
@@ -708,14 +715,19 @@ export default function poShellExtension(pi: ExtensionAPI) {
               `Sin UI no hay quién decida. Pedile al humano: ${command}`,
             );
           }
-          const ask = task.isolation === "worktree"
-            ? `Desaislar ${taskLabelOf(task)} (volver a escribir en tu árbol)?`
-            : `Aislar ${taskLabelOf(task)} en un worktree? Los hijos escribirán en una rama propia y tu árbol no cambia.`;
-          const options = task.isolation === "worktree"
-            ? ["Sí, volver al árbol", "No, seguir aislada"]
-            : ["Sí, aislar en un worktree", "No, seguir en el árbol"];
-          const choice = await ctx.ui.select(ask, options);
-          const accepted = String(choice ?? "").startsWith("Sí");
+          const isolate = task.isolation !== "worktree";
+          let prompt: { question: string; options: string[] };
+          try {
+            prompt = isolationPrompt({
+              handle: taskLabelOf(task),
+              reason: String(params.reason ?? ""),
+              isolate,
+            });
+          } catch (error) {
+            return { ...text(`po_shell_task: ${(error as Error).message}`), isError: true };
+          }
+          const choice = await ctx.ui.select(prompt.question, prompt.options);
+          const accepted = String(choice ?? "").startsWith("Yes");
           if (!accepted) {
             return text(`El humano decidió no cambiar el aislamiento. Tarea ${taskLabelOf(task)} · ${task.isolation}.`);
           }

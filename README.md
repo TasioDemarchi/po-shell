@@ -691,8 +691,11 @@ pase el modelo. La decisión es del humano y tiene dos caminos equivalentes:
 
 - **desde la CLI**: `po-shell task isolation worktree #12` (el número de la tarea, el mismo del panel).
   Cuando vuelve a mirar el estado, el orquestador ve `Aislamiento: worktree` y sigue sin preguntar nada;
-- **desde la sesión**: `po_shell_task action=isolation`, que abre un diálogo con las dos opciones y
-  registra la decisión en el evento `task.isolation`. El orquestador continúa en el mismo turno.
+- **desde la sesión**: `po_shell_task action=isolation` con un `reason` obligatorio (dos líneas en
+  el idioma del usuario: por qué este proyecto lo necesita y de qué protege). El diálogo muestra ese
+  motivo, una línea fija con lo que el worktree protege y las dos opciones; registra la decisión en
+  el evento `task.isolation` y el orquestador continúa en el mismo turno. Sin `reason` el diálogo no
+  abre: un botón que no se explica no es una decisión.
 
 Cuando conviene recomendarlo, el orquestador muestra el comando exacto
 (`isolationCommand(task)`), no "podrías aislar la tarea". Con la tarea aislada, el hijo corre en

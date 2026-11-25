@@ -390,6 +390,41 @@ export function formatFrame(name, args = {}, result = null, options = {}) {
   };
 }
 
+/* ------------------------------- isolation ------------------------------ */
+
+/** What a worktree protects, in the one line the dialog can afford. */
+export const ISOLATION_PROTECTS =
+  "In a worktree the child writes on its own branch: your tree and your git status stay untouched, and discarding its work is two commands instead of a hand merge.";
+
+export const ISOLATION_MIN_REASON = 20;
+
+/**
+ * The dialog that asks a human to isolate a task.
+ *
+ * `reason` is the orchestrator's: two lines about this project and this mission.
+ * The rest is chrome and stays in English. A reason too short to say anything is
+ * refused, because a dialog that does not explain itself is a button.
+ */
+export function isolationPrompt({ handle, reason, isolate = true } = {}) {
+  const why = String(reason ?? "").trim();
+  if (why.length < ISOLATION_MIN_REASON) {
+    throw new Error(
+      `an isolation request needs a reason of at least ${ISOLATION_MIN_REASON} characters: why this project needs it`,
+    );
+  }
+  const question = [
+    why,
+    "",
+    ISOLATION_PROTECTS,
+    "",
+    isolate ? `Isolate ${handle} in a worktree?` : `Return ${handle} to the working tree?`,
+  ].join("\n");
+  const options = isolate
+    ? ["Yes, isolate it in a worktree", "No, keep it in the tree"]
+    : ["Yes, back to the working tree", "No, keep it isolated"];
+  return { question, options };
+}
+
 /* --------------------------------- footer -------------------------------- */
 
 export const FOOTER_SEP = " · ";

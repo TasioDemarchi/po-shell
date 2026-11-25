@@ -14,6 +14,9 @@ import {
   formatResult,
   gitLabel,
   homePath,
+  ISOLATION_MIN_REASON,
+  ISOLATION_PROTECTS,
+  isolationPrompt,
   lineCount,
   modelLabel,
   oneLine,
@@ -483,4 +486,22 @@ test("formatFrame survives a width below the minimum without throwing", () => {
   const frame = formatFrame("bash", { command: "x".repeat(200) }, null, { cwd, width: 4 });
   assert.ok(frame.top.text.length >= 2);
   assert.ok(frame.top.text.startsWith("╭"));
+});
+
+test("the isolation dialog explains itself or refuses to open", () => {
+  const prompt = isolationPrompt({
+    handle: "#12",
+    reason: "El hijo toca el kernel y la migración, dos archivos con cambios sin commitear.\nSepararlo evita mezclar su trabajo con el tuyo.",
+  });
+  assert.ok(prompt.question.startsWith("El hijo toca el kernel"));
+  assert.ok(prompt.question.includes(ISOLATION_PROTECTS));
+  assert.ok(prompt.question.endsWith("Isolate #12 in a worktree?"));
+  assert.deepEqual(prompt.options, ["Yes, isolate it in a worktree", "No, keep it in the tree"]);
+
+  const back = isolationPrompt({ handle: "#12", reason: "x".repeat(ISOLATION_MIN_REASON), isolate: false });
+  assert.ok(back.question.endsWith("Return #12 to the working tree?"));
+  assert.deepEqual(back.options, ["Yes, back to the working tree", "No, keep it isolated"]);
+
+  assert.throws(() => isolationPrompt({ handle: "#12", reason: "porque sí" }), /at least 20 characters/);
+  assert.throws(() => isolationPrompt({ handle: "#12" }), /at least 20 characters/);
 });
