@@ -313,6 +313,9 @@ export function createTask(
   const task = {
     id,
     number,
+    // `worktree` is the human's decision: `setTaskIsolation` is the only path to
+    // it, and that path is the CLI, not a tool the model can call.
+    isolation: "none",
     title: String(title).trim(),
     phase: "authorized",
     risk,
@@ -382,6 +385,20 @@ export function updateTask(cwd, id, patch = {}, env = process.env) {
   writeJson(path.join(tasksDir(cwd, env), `${task.id}.json`), next);
   appendEvent(cwd, "task.updated", { id: task.id, phase: next.phase, patch: cleanPatch }, env);
   return next;
+}
+
+/** Only a human runs this (CLI). The orchestrator's tools do not expose it. */
+export function setTaskIsolation(cwd, id, isolation, env = process.env) {
+  const next = String(isolation ?? "").trim().toLowerCase();
+  if (!["none", "worktree"].includes(next)) {
+    throw new Error(`isolation must be one of none, worktree`);
+  }
+  const task = id ? getTask(cwd, id, env) : activeTask(cwd, env);
+  if (!task) throw new Error("no active task");
+  const updated = { ...task, isolation: next, updatedAt: nowIso() };
+  writeJson(path.join(tasksDir(cwd, env), `${task.id}.json`), updated);
+  appendEvent(cwd, "task.isolation", { id: task.id, isolation: next }, env);
+  return updated;
 }
 
 export function addEvidence(cwd, evidence, env = process.env) {

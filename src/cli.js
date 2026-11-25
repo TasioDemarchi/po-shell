@@ -23,6 +23,7 @@ import {
   init,
   isInitialized,
   listTasks,
+  setTaskIsolation,
   taskLabelOf,
   loadConfig,
   memoryIndex,
@@ -350,6 +351,19 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
       if (!phase) fail(`falta la fase. Opciones: ${PHASES.join(", ")}`);
       const task = updateTask(cwd, id, { phase });
       console.log(`Tarea ${taskLabelOf(task)} → ${task.phase}`);
+      return;
+    }
+
+    if (action === "isolation") {
+      const isolation = positional[0];
+      const id = positional[1];
+      if (!isolation) fail("uso: po-shell task isolation <none|worktree> [id]");
+      try {
+        const task = setTaskIsolation(cwd, id, isolation);
+        console.log(`Tarea ${taskLabelOf(task)} · aislamiento: ${task.isolation}`);
+      } catch (error) {
+        fail(error instanceof Error ? error.message : String(error));
+      }
       return;
     }
 

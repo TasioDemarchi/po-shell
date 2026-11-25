@@ -18,6 +18,7 @@ import {
   memoryIndex,
   saveConfig,
   saveMemory,
+  setTaskIsolation,
   searchMemory,
   status,
   updateTask,
@@ -375,4 +376,19 @@ test("tasks created before the number existed get one, once", () => {
 
   const fresh = createTask(dir, { title: "Nueva", risk: "low" });
   assert.equal(fresh.number, 2);
+});
+
+test("isolation is off by default and only the human's path can turn it on", () => {
+  const dir = tempRepo();
+  init(dir);
+  const task = createTask(dir, { title: "Aislada", risk: "low" });
+  assert.equal(task.isolation, "none");
+
+  const isolated = setTaskIsolation(dir, task.id, "worktree");
+  assert.equal(isolated.isolation, "worktree");
+  assert.equal(getTask(dir, task.id).isolation, "worktree", "it persists");
+
+  const back = setTaskIsolation(dir, `#${task.number}`, "none");
+  assert.equal(back.isolation, "none");
+  assert.throws(() => setTaskIsolation(dir, task.id, "sandbox"), /none, worktree/);
 });

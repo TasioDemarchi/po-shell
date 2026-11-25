@@ -40,6 +40,7 @@ import { semanticConfig } from "../src/semantic.js";
 import { planLines, sessionMetrics, statsLines } from "../src/stats.js";
 import { windowFrame, windowWidth } from "../src/window.js";
 import { roleBudgets, roleTools, validateMission } from "../src/subagent-roles.js";
+import { createWorktree, worktreeChanges } from "../src/worktree.js";
 import { fetchUsage } from "../src/nan-usage.js";
 import {
   activeTask,
@@ -986,6 +987,19 @@ export default function poShellExtension(pi: ExtensionAPI) {
         maxTokens: params.max_tokens,
         timeoutSeconds: params.timeout_seconds,
       });
+      // Isolation is the human's decision, recorded on the task by the CLI. A
+      // parent that could enable it unilaterally would be deciding the human's
+      // blast radius for them.
+      if (params.isolation) {
+        return {
+          ...text(
+            "po_shell_delegate: el aislamiento no lo decide el orquestador. El humano lo habilita con `po-shell task isolation worktree` sobre la tarea activa.",
+          ),
+          isError: true,
+        };
+      }
+      const isolation = activeTask(ctx.cwd)?.isolation === "worktree" ? "worktree" : "none";
+
       const readOutside = (params.read_outside ?? [])
         .map((value: string) => String(value).trim())
         .filter(Boolean)
@@ -1037,6 +1051,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
       });
       const timeoutMs = budgets.timeoutSeconds * 1000;
       const started = Date.now();
+      const runSeed = `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
       let childScratch: any = null;
       const childId = trackChild(params.role);
       startPanelTicker(ctx);
@@ -1047,7 +1062,19 @@ export default function poShellExtension(pi: ExtensionAPI) {
         } catch {
           // Sin scratch propio el hijo hereda el temp de la sesión.
         }
-        const result = await runPiJson(ctx.cwd, args, {
+        let childCwd = ctx.cwd;
+        let worktree: any = null;
+        if (isolation === "worktree") {
+          worktree = createWorktree(ctx.cwd, { id: runSeed, dir: childScratch?.dir, env: process.env });
+          if (!worktree.ok) {
+            return {
+              ...text(`po_shell_delegate: no se pudo aislar la tarea en un worktree: ${worktree.error}`),
+              isError: true,
+            };
+          }
+          childCwd = worktree.path;
+        }
+        const result = await runPiJson(childCwd, args, {
           signal: _signal,
           maxTokens: budgets.maxTokens || undefined,
           maxTurns: budgets.maxTurns,
@@ -1058,7 +1085,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
           readOutside,
         });
         const output = result.text.trim() || result.stderr.trim() || "(sin salida)";
-        const runId = `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+        const runId = runSeed;
         const usage = result.totalUsage ?? result.usage ?? {};
         const total = usageTotal(usage);
         const costModel = model ?? (ctx.model as any)?.id ?? (ctx.model as any)?.name ?? "unknown";
@@ -1132,7 +1159,9 @@ export default function poShellExtension(pi: ExtensionAPI) {
         if (result.status !== "ok") {
           const diffStat = (() => {
             try {
-              return execFileSync("git", ["diff", "--stat"], { cwd: ctx.cwd, encoding: "utf8", timeout: 2000 }).trim();
+              return worktree
+                ? worktreeChanges(worktree.path).stat
+                : execFileSync("git", ["diff", "--stat"], { cwd: ctx.cwd, encoding: "utf8", timeout: 2000 }).trim();
             } catch {
               return "";
             }
@@ -1171,6 +1200,8 @@ export default function poShellExtension(pi: ExtensionAPI) {
               `usage: input=${usage.input ?? 0} output=${usage.output ?? 0} cache=${(usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0)} total=${total}`,
               `credits: ${subagentCost ? formatCredits(subagentCost.credits) : "n/a"}`,
               `model: ${costModel || "(default)"}`,
+              worktree ? `worktree: ${worktree.path} (branch ${worktree.branch})` : "",
+              worktree ? `changes: ${worktreeChanges(worktree.path).files.length} files — revisá el diff antes de mergear o descartar` : "",
               `budget: max_tokens=${params.max_tokens ?? 0} (output acumulado) max_turns=${params.max_turns ?? 0}`,
               `output: ${result.outputTokens ?? 0} tokens`,
               capped.truncated ? `report: ${capped.deliveredBytes} of ${capped.bytes} bytes (full text in the artifact)` : "",

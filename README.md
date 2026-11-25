@@ -677,6 +677,22 @@ Un hijo **nunca** publica ni instala: `git add|commit|push|checkout|reset|stash|
 **solo** en su copia scratch: una redirección hacia el repo se rechaza, hacia su scratch pasa (aunque
 el scratch viva bajo `~/.po-shell/tmp/`).
 
+### Aislamiento en worktree
+
+El hijo escribe en el árbol del padre por defecto. Cuando el trabajo es grande o el riesgo de
+mezclar historias es real, el **humano** aísla la tarea:
+
+```bash
+po-shell task isolation worktree    # la tarea activa; `none` lo deshace
+```
+
+El orquestador **no puede** habilitarlo: `po_shell_delegate` rechaza cualquier `isolation` que le
+pase el modelo, y el campo solo se escribe desde la CLI. Con la tarea aislada, el hijo corre en
+`git worktree add` dentro de su scratch: recibe una rama `po-shell/<run>` y un directorio propio, y el
+`git status` del padre no cambia. Al terminar, el padre reporta la ruta, la rama y los archivos
+tocados; mergear o descartar (`git worktree remove --force` + `git branch -D`) es una decisión del
+humano, no del agente.
+
 Su contrato es el de `gentle-ai-verify`: prepara la copia con
 `tar --exclude=./.git -cf - . | tar -xf - -C "$s/work"`, corre con `env -i`, y devuelve veredicto por
 ítem del `DONE WHEN` (`met | unmet | unverified`), blockers reproducidos contra la línea base,
