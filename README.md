@@ -662,7 +662,7 @@ transcript completo.
 
 | Rol | Puede | No puede |
 |---|---|---|
-| `explorer` | leer y buscar dentro del proyecto, leer los prefijos que la misión habilita (`read_outside`), usar la web | editar, correr comandos, salir de esos prefijos |
+| `explorer` | leer y buscar dentro del proyecto, buscar en su memoria (`memory_search`), leer los prefijos que la misión habilita (`read_outside`) y leer una página pública (`web_fetch`) | editar, correr comandos, salir de esos prefijos |
 | `worker` | editar **solo** las `surfaces` declaradas, correr los checks de la misión | commit, push, delegar, leer fuera del proyecto y su scratch |
 | `reviewer` | leer y **ejecutar**: los comandos de `build_test` y probes propios derivados del `DONE WHEN`, siempre en una copia del repo en su scratch | editar, tocar el repo, commitear, instalar, usar la red, repetir la suite del escritor |
 
@@ -679,6 +679,10 @@ El perfil no se elige: sale del riesgo de la tarea.
 `config.delegation = "auto"` es el default y significa "lo decide el riesgo". Un valor explícito en la
 tarea o en el proyecto gana y no se discute: es la salida para un typo o para bajar el default.
 
+El perfil acota **mutaciones de código**, no la documentación: `PROJECT.md`, `AGENTS.md`, `README.md` y
+`docs/features/` los escribe el orquestador en cualquier perfil, porque es el único con las palabras
+del usuario. Un hijo nunca escribe `.md`.
+
 En riesgo alto, delegar es la única puerta al código, así que la aprobación la cierra ahí: sin
 `planApproved`, `checkPolicy` rechaza `po_shell_delegate` — en el hook `tool_call` y otra vez al
 empezar la delegación. Una tarea media no pide nada: se crea, se delega, listo.
@@ -687,12 +691,27 @@ La matriz de roles vive en `src/subagent-roles.js` y se aplica en los dos lados:
 delegación antes de lanzarla (pedirle `edit` a un explorer es un error, no un hijo más suelto) y el
 guard del hijo la vuelve a aplicar en `tool_call`, aunque le hayan pasado una lista de tools más
 ancha. Un `worker` sin `surfaces` no arranca, y los presupuestos por rol tienen techo propio:
-explorer 12 turnos / 300 s, reviewer 15 / 600 s, worker 40 / 900 s.
+explorer 16 turnos / 420 s, reviewer 15 / 600 s, worker 40 / 900 s.
 
 Un hijo **nunca** publica ni instala: `git add|commit|push|checkout|reset|stash|clean|rebase|merge` y
 `npm|pnpm|yarn install|add|publish`, `pip install` se rechazan en el guard. Y el reviewer escribe
 **solo** en su copia scratch: una redirección hacia el repo se rechaza, hacia su scratch pasa (aunque
 el scratch viva bajo `~/.po-shell/tmp/`).
+
+### Qué lee el explorer en la web
+
+`web_fetch(url, { extract })` lee una página pública y la devuelve como dato, nunca como HTML crudo:
+`structure` (default) trae título, `description`, canonical, `og:*`, encabezados `h1`–`h3`, links y
+texto legible; `text` y `links` acotan la respuesta. Es la tool para analizar una landing o leer una
+documentación, y no necesita proveedor ni clave.
+
+Los límites son la mitad de la feature: solo `http`/`https` a destinos públicos (fuera `localhost`,
+redes privadas, link-local, ULA y cualquier host que resuelva a una de esas direcciones), máximo tres
+redirects **re-validados uno por uno**, 512 KiB y 10 s por request, sin cookies ni credenciales, caché
+en memoria y 10 requests por hijo. Si la página se renderiza con JS, lo dice en vez de devolver
+vacío: no hay navegador headless. La búsqueda (`web_search`) no existe todavía; es la etapa 2, con
+proveedor por `PO_SHELL_SEARCH_PROVIDER`/`PO_SHELL_SEARCH_KEY` y sin clave configurada responde «no
+configurado».
 
 ### Aislamiento en worktree
 

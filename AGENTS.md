@@ -67,6 +67,8 @@ src/context-guard.js   context pressure, levels, state directive
 src/delegate.js        subagent mission, budgets, report cap
 src/subagent-roles.js  role matrix: tools, write, bash, web, budgets, mission contract
 src/subagent-policy.js child guard
+src/subagent-memory.js read-only project memory for the explorer
+src/web-fetch.js       web_fetch: public destinations only, caps, egress budget
 src/worktree.js        isolated worktree per child
 src/minimal-ui.js      one-line rows, footer, panel, windows (English chrome)
 src/stats.js           /usage block
@@ -99,6 +101,9 @@ docs/                           architecture, recovery, scratch, self-hosting, s
 - **Do not break the CLI without updating `README.md` and `PROJECT.md`.**
 - **Do not add features that are not in this file or approved in conversation.**
 - **Do not store secrets** in code, tests, memory or logs.
+- **The project documents are the orchestrator's.** `PROJECT.md`, `AGENTS.md`, `README.md` and
+  `docs/features/` are written by the parent in any profile; a child never writes `.md`. Code stays
+  delegated: `delegate-writes` bounds the mutations, not the documentation.
 - **Temporary files stay out of the repo.** `PO_SHELL_TMP`/`TMPDIR`; the runtime cleans up.
 - **Promote durable tests.** A throwaway that must remain goes to `test/` or `scripts/`.
 - **Decisions are not ADRs.** They go to memory and to the feature doc with an id.

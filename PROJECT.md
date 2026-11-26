@@ -90,17 +90,20 @@ docs/
 El estado vive acá. No hay un documento de estado paralelo: cuando este archivo crezca, lo que sobre
 se muda a `docs/features/` o a memoria, nunca a otro archivo de estado.
 
-- **Fase:** v0.17 — delegación con contrato cerrada y estado legible. El arnés es usable de punta a
-  punta: tareas, memoria, checks, review congelado, backup y subagentes con memoria read-only para el
-  explorer.
-- **Próximo paso:** la extensión web del explorer (`web_search`/`fetch`), única unidad que queda del
-  replanteo de delegación. Diseño, decisiones y unidades en `docs/features/delegation-contract.md`.
-- **Estado del árbol:** el trabajo vive en la rama `feat/delegacion-real`, **58 commits por delante
-  de `origin/main`**, sin push ni merge. `main` local está en `59b7253` y `origin/main` en `53db6f8`.
-  Hasta que eso se mergee, el `po-shell` del `PATH` (worktree de `main`) corre el código viejo; este
-  checkout se usa con `node bin/po-shell.js`.
+- **Fase:** v0.18 — el explorer tiene ventana a la web. El arnés es usable de punta a punta:
+  tareas, memoria, checks, review congelado, backup y subagentes con `memory_search` y `web_fetch`.
+- **Próximo paso:** mergear la rama (ver *Estado del árbol*). Después, si hace falta, la etapa 2 de la
+  web: `web_search` con proveedor por `PO_SHELL_SEARCH_PROVIDER`/`PO_SHELL_SEARCH_KEY`, sin clave =
+  «no configurado». Diseño en `docs/features/explorer-web.md`.
+- **Estado del árbol:** el trabajo vive en la rama `feat/delegacion-real`, decenas de commits por
+  delante de `origin/main`, sin push ni merge. `main` local está en `59b7253` y `origin/main` en
+  `53db6f8`. Hasta que eso se mergee, el `po-shell` del `PATH` (worktree de `main`) corre el código
+  viejo; este checkout se usa con `node bin/po-shell.js`.
 - **Semántica de `delivered`:** una task entregada es una task **commiteada y lista para merge**, no
   mergeada. El merge, el push y el deploy siguen siendo del humano.
+- **Documentos:** son del orquestador. `PROJECT.md`, `AGENTS.md`, `README.md` y `docs/features/`
+  quedan escribibles en cualquier perfil; el código sigue yendo por un worker con superficies, y un
+  hijo nunca escribe `.md`.
 - **Riesgos abiertos:** el aislamiento por worktree todavía no se ejercitó en una sesión real; el
   índice se actualiza por búsqueda, no por escritura, así que un doc recién creado no aparece hasta
   la primera consulta; seis tasks `high` no se pueden cerrar porque el gate de `delivered` exige que
@@ -112,14 +115,15 @@ Kernel, CLI, launcher, policy, checks, review congelado, memoria, directivas, le
 `backup`/`restore`/`integrity` con runbook, scratch temporal por sesión y subagente, instalador
 propio, identidad de proyecto por root, guard de contexto, estética minimalista (filas de dos líneas,
 footer, panel, `/usage` y `/plan`) y delegación con contrato: matriz de roles en runtime, misión
-estructurada, reporte parcial, reviewer que ejecuta, worktree opt-in y memoria read-only para el
-explorer. La task activa es la que se nombra, y el estado muestra las otras en curso.
+estructurada, reporte parcial, reviewer que ejecuta, worktree opt-in, memoria read-only (`memory_search`)
+y `web_fetch` acotado (solo destinos públicos, redirects re-validados, topes y presupuesto de egress).
+La task activa es la que se nombra, y el estado muestra las otras en curso.
 
 ### Pendiente
 
 | Item | Descripción |
 |---|---|
-| Replanteo de delegación | La extensión web propia para el explorer: U7 (memoria read-only) ya está. Ver `docs/features/delegation-contract.md`. |
+| Replanteo de delegación | Etapa 2 de la web, opcional: `web_search` con proveedor por env var. `web_fetch` ya está. Ver `docs/features/explorer-web.md`. |
 | Cierre de las tasks `high` | El gate de `delivered` exige que la última review del repo sea de esa task. Guardar la review en la task al congelar, y aceptar cualquier review de esa task al entregar. |
 | Servidor MCP | Exponer el kernel a Claude Code/Codex y otros clientes. |
 | Sandbox del SO | bubblewrap/seatbelt/contenedor + egress allowlist. |
