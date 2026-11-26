@@ -198,6 +198,20 @@ export function taskLabelOf(task) {
   return number ? `#${number}` : String(task?.id ?? "");
 }
 
+const IN_PROGRESS_PHASES = new Set(["implementing", "checking"]);
+
+/**
+ * The tasks being worked on that are not the active one, as `#37 implementing`,
+ * ordered by number and capped at three: a growing list would stop being read.
+ */
+function otherInProgress(cwd, activeId = null, env = process.env) {
+  return listTasks(cwd, env)
+    .filter((task) => IN_PROGRESS_PHASES.has(task.phase) && task.id !== activeId)
+    .sort((a, b) => taskNumber(a) - taskNumber(b))
+    .slice(0, 3)
+    .map((task) => `${taskLabelOf(task)} ${task.phase}`);
+}
+
 // The counter lives beside the tasks as a bare number, not JSON: `listTasks`
 // reads every `*.json` in that directory and would take the counter for a task.
 function taskSeqPath(cwd, env = process.env) {
@@ -368,7 +382,10 @@ export function createTask(
 }
 
 export function updateTask(cwd, id, patch = {}, env = process.env) {
-  const task = id ? getTask(cwd, id, env) : activeTask(cwd, env);
+  // Naming a task is working it: an explicit id moves the pointer, so evidence and
+  // the review follow the task the caller named instead of whatever was active.
+  const explicit = Boolean(id);
+  const task = explicit ? getTask(cwd, id, env) : activeTask(cwd, env);
   if (!task) throw new Error("no active task");
   const cleanPatch = Object.fromEntries(
     Object.entries(patch).filter(([, value]) => value !== undefined),
@@ -438,6 +455,9 @@ export function updateTask(cwd, id, patch = {}, env = process.env) {
     }
   }
   writeJson(path.join(tasksDir(cwd, env), `${task.id}.json`), next);
+  // The pointer moves only once the patch landed: a rejected patch (invalid phase,
+  // ready without evidence, the feature_doc gate) leaves it exactly where it was.
+  if (explicit && activeTaskId(cwd, env) !== task.id) setActiveTask(cwd, task.id, env);
   appendEvent(cwd, "task.updated", { id: task.id, phase: next.phase, patch: cleanPatch }, env);
   return next;
 }
@@ -841,10 +861,18 @@ export function runChecks(cwd, commands = null, env = process.env) {
     };
   });
   const ok = results.every((r) => r.ok);
-  addEvidence(cwd, { ts: nowIso(), kind: "checks", ok, results }, env);
+  // The evidence belongs to one task and `addEvidence` returns it: handing it back
+  // is what lets the tool say where the evidence landed before it is too late.
+  const recorded = addEvidence(cwd, { ts: nowIso(), kind: "checks", ok, results }, env);
   if (working) updateTask(cwd, task.id, { phase: ok ? "ready" : "implementing" }, env);
   appendEvent(cwd, "checks.run", { ok, commands: list }, env);
-  return { ok, results };
+  return {
+    ok,
+    results,
+    task: recorded
+      ? { id: recorded.id, number: taskNumber(recorded), phase: recorded.phase, title: recorded.title }
+      : null,
+  };
 }
 
 /* ------------------------------- review --------------------------------- */
@@ -1032,6 +1060,10 @@ export function renderStatus(cwd = process.cwd(), env = process.env) {
   } else {
     lines.push("Tarea: (ninguna) — usá po_shell_task para crear una");
   }
+  // The pointer is invisible: this line is what shows a check landed on the wrong
+  // task while there is still time to move it.
+  const others = otherInProgress(cwd, s.activeTask?.id ?? null, env);
+  if (others.length) lines.push(`Otras en curso: ${others.join(" · ")}`);
   lines.push(
     `Checks: ${s.checks.length ? s.checks.join(" | ") : "(sin configurar)"}`,
     `Review: ${
@@ -1063,6 +1095,8 @@ export function renderContext(cwd = process.cwd(), env = process.env) {
       `evidence_count: ${(t.evidence ?? []).length}`,
       `delegation: ${t.delegation ?? "inline"}`,
     );
+    const others = otherInProgress(cwd, t.id, env);
+    if (others.length) lines.push(`other_in_progress: ${others.join(" · ")}`);
     if (t.risk === "high") {
       lines.push(`plan_approved: ${t.planApproved === true ? "yes" : "no"}`);
     }

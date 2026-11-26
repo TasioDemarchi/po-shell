@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 import {
   activeTask,
+  activeTaskId,
   attributableTask,
   checkPolicy,
   createTask,
@@ -22,7 +23,9 @@ import {
   saveConfig,
   saveMemory,
   isolationCommand,
+  renderContext,
   renderStatus,
+  runChecks,
   setTaskIsolation,
   searchMemory,
   status,
@@ -401,6 +404,104 @@ test("a task is addressable by number, by #number and by id", () => {
 
   const updated = updateTask(dir, `#${task.number}`, { phase: "implementing" });
   assert.equal(updated.id, task.id, "updating by number writes the same task");
+});
+
+test("naming a task by id moves the active pointer", () => {
+  const dir = tempRepo();
+  init(dir);
+  const first = createTask(dir, { title: "Primera", risk: "low" });
+  const second = createTask(dir, { title: "Segunda", risk: "low" });
+  assert.equal(activeTaskId(dir), second.id, "creating a task makes it active");
+
+  // The named task becomes the active one even though it is not the newest.
+  updateTask(dir, `#${first.number}`, { phase: "implementing" });
+  assert.equal(activeTaskId(dir), first.id, "the named task is the active one");
+
+  // Evidence follows the pointer: it lands on the named task, not on the old one.
+  const result = runChecks(dir, ["true"]);
+  assert.equal(result.ok, true);
+  assert.equal(getTask(dir, first.id).evidence.length, 1, "the check lands on the named task");
+  assert.equal(getTask(dir, second.id).evidence.length, 0, "the previously active task takes nothing");
+
+  // Naming the task that is already active changes nothing.
+  updateTask(dir, first.id, { next: "sigo acá" });
+  assert.equal(activeTaskId(dir), first.id);
+
+  // Without an id the pointer stays where it is.
+  updateTask(dir, undefined, { next: "sin mover el puntero" });
+  assert.equal(activeTaskId(dir), first.id, "no id, no move");
+
+  // An unknown id throws the same error as before and moves nothing.
+  assert.throws(() => updateTask(dir, "#999", { next: "nadie" }), /no active task/);
+  assert.equal(activeTaskId(dir), first.id);
+
+  // A rejected patch leaves the pointer where it was: the update never landed.
+  assert.throws(
+    () => updateTask(dir, second.id, { phase: "ready" }),
+    /passing po_shell_check/,
+    "ready without passing evidence is rejected",
+  );
+  assert.equal(activeTaskId(dir), first.id, "a rejected patch does not move the pointer");
+  assert.equal(getTask(dir, second.id).phase, "authorized", "and nothing was written");
+});
+
+test("runChecks returns the task the evidence landed on, or null", () => {
+  const dir = tempRepo();
+  init(dir);
+  const unattributed = runChecks(dir, ["true"]);
+  assert.equal(unattributed.task, null, "no task, no attribution");
+
+  const task = createTask(dir, { title: "Chequeo", risk: "low" });
+  updateTask(dir, task.id, { phase: "implementing" });
+  const result = runChecks(dir, ["true"]);
+  assert.deepEqual(result.task, {
+    id: task.id,
+    number: task.number,
+    phase: "checking",
+    title: "Chequeo",
+  });
+  assert.deepEqual(
+    Object.keys(result.results[0]).sort(),
+    ["command", "exitCode", "ms", "ok", "output"],
+    "the evidence shape does not change",
+  );
+  assert.equal(getTask(dir, task.id).phase, "ready", "a passing check still moves the phase");
+});
+
+test("the status shows the other tasks in progress, ordered and capped at three", () => {
+  const dir = tempRepo();
+  init(dir);
+  const active = createTask(dir, { title: "Activa", risk: "low" });
+  updateTask(dir, active.id, { phase: "implementing" });
+  assert.ok(!renderStatus(dir).includes("Otras en curso"), "the active task is not 'other'");
+  assert.ok(!renderContext(dir).includes("other_in_progress"), "nothing to report, no line");
+
+  const second = createTask(dir, { title: "Otra", risk: "low" });
+  updateTask(dir, second.id, { phase: "implementing" });
+  updateTask(dir, active.id, { next: "vuelvo a la activa" });
+  const shown = renderStatus(dir);
+  assert.match(shown, new RegExp(`Otras en curso: #${second.number} implementing`));
+  assert.ok(
+    shown.indexOf("Otras en curso:") < shown.indexOf("Checks:"),
+    "the line sits with the task, before the checks",
+  );
+  assert.match(renderContext(dir), new RegExp(`other_in_progress: #${second.number} implementing`));
+
+  // Five tasks in progress: the active one plus four others.
+  const more = [];
+  for (const title of ["Tres", "Cuatro", "Cinco", "Seis"]) {
+    const task = createTask(dir, { title, risk: "low" });
+    updateTask(dir, task.id, { phase: "implementing" });
+    more.push(task);
+  }
+  updateTask(dir, active.id, { next: "sigo en la activa" });
+
+  const line = (t) => `#${t.number} implementing`;
+  const expected = [second, more[0], more[1]].map(line).join(" · ");
+  const statusLine = renderStatus(dir).split("\n").find((l) => l.startsWith("Otras en curso:"));
+  assert.equal(statusLine, `Otras en curso: ${expected}`, "ordered by number, capped at three");
+  const contextLine = renderContext(dir).split("\n").find((l) => l.startsWith("other_in_progress:"));
+  assert.equal(contextLine, `other_in_progress: ${expected}`);
 });
 
 test("tasks created before the number existed get one, once", () => {

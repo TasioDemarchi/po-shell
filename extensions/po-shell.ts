@@ -949,6 +949,9 @@ export default function poShellExtension(pi: ExtensionAPI) {
         const lines = result.results.map(
           (r: any) => `${r.ok ? "PASS" : "FAIL"} ${r.command} (exit ${r.exitCode}, ${r.ms}ms)`,
         );
+        // The evidence belongs to one task: say which one, or a misattributed check
+        // stays invisible until a gate rejects it for being old.
+        if (result.task) lines.push(`Tarea: ${taskLabelOf(result.task)} · ${result.task.phase}`);
         const failed = result.results.filter((r: any) => !r.ok);
         if (failed.length) {
           lines.push("", "Salida del primer fallo:", failed[0].output);
