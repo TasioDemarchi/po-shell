@@ -4,7 +4,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+  FOLLOW_UP,
   appendDecision,
+  askOptions,
+  isFollowUp,
   decisionsSection,
   nextDecisionId,
   orphanDecisions,
@@ -128,4 +131,33 @@ test("a decision is one line in the state block, whatever the count", () => {
     "the block does not grow with the decisions",
   );
   assert.equal(getTask(dir, task.id, env).decisions.length, 5);
+});
+
+test("the ask always offers a way to keep talking", () => {
+  assert.deepEqual(askOptions(["Aceptar", "Rechazar"]), ["Aceptar", "Rechazar", FOLLOW_UP]);
+  assert.deepEqual(askOptions(["Sí", "seguir analizando"]), ["Sí", "seguir analizando"], "no duplicate");
+  assert.deepEqual(askOptions(["Sí", "Seguir pensando"]), ["Sí", "Seguir pensando"]);
+  assert.deepEqual(askOptions([]), [FOLLOW_UP]);
+  assert.equal(isFollowUp("keep analyzing"), true);
+  assert.equal(isFollowUp("seguir analizando"), true);
+  assert.equal(isFollowUp("Acepto"), false);
+  assert.equal(isFollowUp(undefined), false);
+});
+
+test("a decision the agent took under a delegated plan says so", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-decisions4-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-decisions4-repo-"));
+  const env = { ...process.env, PO_SHELL_HOME: home };
+  init(dir, env);
+  const task = createTask(dir, { title: "Con agente", risk: "low" }, env);
+
+  const human = addDecision(dir, { text: "el humano eligio esto" }, env);
+  const agent = addDecision(dir, { text: "el agente decidio aquello", by: "agent" }, env);
+  assert.equal(human.by, "human");
+  assert.equal(agent.by, "agent");
+
+  const stored = getTask(dir, task.id, env).decisions;
+  assert.equal(stored[0].text, "el humano eligio esto");
+  assert.equal(stored[1].text, "(agente) el agente decidio aquello", "the line says who decided");
+  assert.equal(stored[1].by, "agent");
 });

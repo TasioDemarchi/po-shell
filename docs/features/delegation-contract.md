@@ -150,6 +150,9 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
       - [x] `scripts/check-docs.mjs` (`npm run docs:check`): referencias rotas, `## State`/`## Log` en
             feature docs, límite de 200 líneas, decisiones huérfanas (D1, D2). Con un ratchet
             (`KNOWN_DEBT`) que solo encoge: hoy son cinco ítems de deuda previa, no deuda nueva.
+      - [x] Captura al aceptar, no al proponer (D3): `po_shell_ask` lleva solo las opciones y una
+            salida para seguir hablando; al elegir, la decisión se registra sola. `by: agent` marca
+            las que tomó el orquestador bajo un plan delegado.
       - [ ] Recorte del protocolo (290 → ~150) y de `AGENTS.md` (223 → ≤200) para que la regla no
             quede enterrada.
 - [ ] **U9 — `AGENTS.md` por debajo de 200 líneas.** Hoy tiene 223: mover detalle a `docs/` o a una
@@ -186,6 +189,7 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
   proyecto la primera vez.
 - D1 — El check de documentos destapó referencias a archivos inexistentes y un techo de 200 líneas que se llevaba tiempo violando; la deuda previa va en un ratchet que solo encoge.
 - D2 — Recortar el protocolo (290 → ~150) y AGENTS.md (223 → ≤200) queda para después, en detalle: la regla ya vive en el bloque de estado, así que el recorte es higiene, no corrección.
+- D3 — Las decisiones se confirman por po_shell_ask: la explicación va en la respuesta y el diálogo solo lleva las opciones más «seguir analizando»; aceptar captura el D# en el turno, sin esperar a que el humano lo repita.
 
 ## Out of scope
 

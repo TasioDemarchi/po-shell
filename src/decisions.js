@@ -9,6 +9,27 @@ import fs from "node:fs";
 import path from "node:path";
 
 export const DECISIONS_HEADING = "## Decisions";
+
+// The question belongs to the agent; this option is the door out of it. The model
+// writes its own in the user's language when it remembers; this is the fallback.
+export const FOLLOW_UP = "keep analyzing";
+const FOLLOW_UP_PATTERN = /^(keep analyzing|seguir analizando|seguir pensando)$/i;
+
+/** The options shown to the human, always with a way to keep talking. */
+export function askOptions(options) {
+  const list = (Array.isArray(options) ? options : []).map((option) => String(option).trim()).filter(Boolean);
+  if (list.some((option) => FOLLOW_UP_PATTERN.test(option))) return list;
+  return [...list, FOLLOW_UP];
+}
+
+export function isFollowUp(choice) {
+  return FOLLOW_UP_PATTERN.test(String(choice ?? "").trim());
+}
+
+/** `(agente) ` when the orchestrator decided under a delegated plan, nothing when the human did. */
+export function decisionByPrefix(by) {
+  return String(by ?? "").trim().toLowerCase() === "agent" ? "(agente) " : "";
+}
 export const DECISION_LINE = /^\s*-\s+(D\d+)\s+—\s+(.+)$/;
 
 /** The `## Decisions` body, or "" when the section does not exist. */

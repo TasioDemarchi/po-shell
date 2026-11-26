@@ -65,9 +65,19 @@ Rules:
 
 ## Decisions
 
-The moment the human says yes, capture it: `po_shell_task action=decision` with one line.
-It becomes `D<n>` in `## Decisions` of the feature doc, which survives a compaction; the chat does
-not. The tool answers with the id, the total and the orphans — decisions no unit references yet.
+The moment the human accepts, capture it: `po_shell_task action=decision` with one line, or let
+`po_shell_ask` capture it for you. It becomes `D<n>` in `## Decisions` of the feature doc, which
+survives a compaction; the chat does not.
+
+- **A proposal is not a decision.** Do not record what you proposed; record what the human accepted,
+  chose or dictated. A rejection is a decision too: `descartado: X, porque Y`.
+- **Ask before deciding.** Put the reasoning in your reply and only the options in `po_shell_ask`,
+  always with one that keeps the conversation open (the kernel appends `keep analyzing` if every
+  option is a commitment). Pass `decision` with the line to record: picking an option captures it in
+  the same turn. No misunderstandings, no second round trip.
+- **One id per item.** A "yes to everything" over three proposals is three decisions, not one.
+- **Say who decided.** `by: "agent"` when a plan already delegated the choice; the line reads
+  `(agente)` and nobody re-litigates it later.
 
 Do not wait for the end of the session, and do not batch them: what is not captured in the turn is
 lost when the context is compacted.

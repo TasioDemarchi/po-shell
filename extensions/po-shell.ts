@@ -40,6 +40,7 @@ import { mutatingCommand } from "../src/policy.js";
 import { semanticConfig } from "../src/semantic.js";
 import { planLines, sessionMetrics, statsLines } from "../src/stats.js";
 import { windowFrame, windowWidth } from "../src/window.js";
+import { askOptions, isFollowUp } from "../src/decisions.js";
 import { roleBudgets, roleTools, validateMission } from "../src/subagent-roles.js";
 import { createWorktree, worktreeChanges } from "../src/worktree.js";
 import { fetchUsage } from "../src/nan-usage.js";
@@ -992,10 +993,21 @@ export default function poShellExtension(pi: ExtensionAPI) {
     name: "po_shell_ask",
     label: "po-shell ask",
     description:
-      "Ask the human a decision that the agent must not make alone. Use only for scope changes, destructive actions, security exposure or delivery. Returns the chosen option.",
+      "Ask the human a decision that the agent must not make alone: scope, a design choice, destructive actions, security or delivery. Put the reasoning in your reply and only the options here. Always offer a way to keep talking; the kernel appends one if every option is a commitment. When the human picks an option, pass `decision` with the line to record and it is captured as D<n> in the same turn.",
     parameters: Type.Object({
       question: Type.String(),
       options: Type.Array(Type.String()),
+      decision: Type.Optional(
+        Type.String({
+          description:
+            "The decision to record if the human picks an option (not on keep-analyzing). Omit when the question is not a decision.",
+        }),
+      ),
+      by: Type.Optional(
+        Type.Union([Type.Literal("human"), Type.Literal("agent")], {
+          description: "Who decided. `human` unless the plan already delegated this choice to you.",
+        }),
+      ),
     }),
     async execute(_id, params, _signal, _onUpdate, ctx) {
       if (!ctx.hasUI) {
@@ -1004,9 +1016,21 @@ export default function poShellExtension(pi: ExtensionAPI) {
           isError: true,
         };
       }
-      const choice = await ctx.ui.select(params.question, params.options);
+      const choice = await ctx.ui.select(params.question, askOptions(params.options));
       if (!choice) return { ...text("El humano canceló la decisión."), isError: true };
-      return text(`Decisión humana: ${choice}`);
+      if (isFollowUp(choice)) return text(`El humano quiere seguir analizando; no hay decisión todavía.`);
+
+      const wanted = String(params.decision ?? "").trim();
+      if (!wanted) return text(`Decisión humana: ${choice}`);
+      try {
+        const recorded = addDecision(ctx.cwd, { text: wanted, by: params.by ?? "human" });
+        return text(
+          `Decisión humana: ${choice}\nCapturada como ${recorded.id} · ${recorded.total} decision(es)${recorded.doc ? `\n${recorded.doc}` : ""}`,
+        );
+      } catch (error) {
+        // A decision that could not be written down must not vanish silently.
+        return text(`Decisión humana: ${choice}\nNo se pudo capturar: ${(error as Error).message}`);
+      }
     },
   });
 

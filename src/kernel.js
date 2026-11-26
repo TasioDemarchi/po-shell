@@ -14,7 +14,14 @@ import {
 } from "./util.js";
 import { DEFAULT_POLICY, evaluateToolCall, deniedCommand, deniedPath } from "./policy.js";
 import { shellWriteTargets, withinSurfaces } from "./subagent-policy.js";
-import { appendDecision, docPath, nextDecisionId, orphanDecisions, readDoc } from "./decisions.js";
+import {
+  appendDecision,
+  decisionByPrefix,
+  docPath,
+  nextDecisionId,
+  orphanDecisions,
+  readDoc,
+} from "./decisions.js";
 import {
   DEFAULT_CONTEXT_GUARD,
   contextDirective,
@@ -408,10 +415,10 @@ export function isolationCommand(task, target = "worktree") {
  * away; the line lands in the feature document's `## Decisions`, which survives a
  * compaction, and in the task JSON, which is what the kernel can query.
  */
-export function addDecision(cwd, { text, taskId } = {}, env = process.env) {
+export function addDecision(cwd, { text, taskId, by = "human" } = {}, env = process.env) {
   const task = taskId ? getTask(cwd, taskId, env) : activeTask(cwd, env);
   if (!task) throw new Error("a decision needs a task: create one first");
-  const body = String(text ?? "").trim();
+  const body = `${decisionByPrefix(by)}${String(text ?? "").trim()}`.trim();
   if (body.length < 8) throw new Error("a decision needs its text (at least 8 characters)");
 
   const stored = Array.isArray(task.decisions) ? task.decisions : [];
@@ -422,12 +429,12 @@ export function addDecision(cwd, { text, taskId } = {}, env = process.env) {
   const id = `D${Math.max(fromTask, fromDoc) + 1}`;
 
   if (file) fs.writeFileSync(file, appendDecision(source, { id, line: body }));
-  const decisions = [...stored, { id, text: body, at: nowIso() }];
+  const decisions = [...stored, { id, text: body, by: String(by ?? "human"), at: nowIso() }];
   updateTask(cwd, task.id, { decisions }, env);
   appendEvent(cwd, "task.decision", { id, text: body, doc: file || null }, env);
 
   const orphans = file ? orphanDecisions(readDoc(file)) : [];
-  return { id, total: decisions.length, orphans, doc: file };
+  return { id, total: decisions.length, orphans, doc: file, by: String(by ?? "human") };
 }
 
 /** Only a human runs this (CLI). The orchestrator's tools do not expose it. */
