@@ -148,7 +148,7 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
             con cada run.
       - [x] La misma regla en `Directives` del protocolo y en una sección propia de la skill.
       - [x] `scripts/check-docs.mjs` (`npm run docs:check`): referencias rotas, `## State`/`## Log` en
-            feature docs, límite de 200 líneas, decisiones huérfanas. Con un ratchet
+            feature docs, límite de 200 líneas, decisiones huérfanas (D1, D2). Con un ratchet
             (`KNOWN_DEBT`) que solo encoge: hoy son cinco ítems de deuda previa, no deuda nueva.
       - [ ] Recorte del protocolo (290 → ~150) y de `AGENTS.md` (223 → ≤200) para que la regla no
             quede enterrada.
@@ -184,6 +184,8 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
 - **Los documentos los crea el harness o el orquestador, nunca el humano.** Son ayudas para el
   agente: el humano no los pide y no necesita saber que existen; solo aprueba el alcance del
   proyecto la primera vez.
+- D1 — El check de documentos destapó referencias a archivos inexistentes y un techo de 200 líneas que se llevaba tiempo violando; la deuda previa va en un ratchet que solo encoge.
+- D2 — Recortar el protocolo (290 → ~150) y AGENTS.md (223 → ≤200) queda para después, en detalle: la regla ya vive en el bloque de estado, así que el recorte es higiene, no corrección.
 
 ## Out of scope
 
