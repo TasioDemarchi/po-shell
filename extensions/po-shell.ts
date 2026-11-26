@@ -24,7 +24,6 @@ import {
   modelLabel,
   oneLine,
   panelRows,
-  resultText,
   shouldShowPanel,
   shortModel,
   taskLabel,
@@ -351,8 +350,8 @@ export default function poShellExtension(pi: ExtensionAPI) {
     },
   });
 
-  // One line per tool call. Collapsed is ours; expanded delegates to Pi, so
-  // ctrl+o still shows the native command, output and diff.
+  // One frame per tool, collapsed or expanded: the frame is ours in both modes,
+  // and Pi's native view only comes back under `ui full`.
   /** Frame width: the terminal, clamped so a frame never wraps or turns into a stamp. */
   function frameWidth() {
     const columns = Number(process.stdout.columns) || 0;
@@ -379,29 +378,38 @@ export default function poShellExtension(pi: ExtensionAPI) {
       ...(minimal ? { renderShell: "self" as const } : {}),
       renderCall(args: any, theme: any, context: any) {
         if (!minimal) return base?.renderCall?.(args, theme, context) ?? new Text(toolName, 0, 0);
-        if (context.expanded && base?.renderCall) return base.renderCall(args, theme, context);
-        const frame = formatFrame(toolName, args ?? {}, null, { cwd: context.cwd, width: frameWidth() });
+        // Expanded draws the whole frame in the result slot, body included: the
+        // call slot contributes no line, so the top rule is not drawn twice.
+        if (context?.expanded) return new Container();
+        const frame = formatFrame(toolName, args ?? {}, null, { cwd: context?.cwd, width: frameWidth() });
         return new Text(paintLine(frame.top, theme, frame.tone), 0, 0);
       },
       renderResult(result: any, options: any, theme: any, context: any) {
-        const expanded = options?.expanded ?? context?.expanded;
         if (!minimal) return base?.renderResult?.(result, options, theme, context) ?? new Container();
-        if (expanded && base?.renderResult) return base.renderResult(result, options, theme, context);
-        if (expanded) {
-          const full = resultText(result);
-          return full ? new Text(full.split("\n").map((line) => theme.fg("toolOutput", line)).join("\n"), 0, 0) : new Container();
-        }
-        // The bottom rule closes the frame the call opened, and carries the
-        // result: two lines per call, never three.
+        const expanded = Boolean(options?.expanded ?? context?.expanded);
         const frame = formatFrame(toolName, context?.args ?? {}, result, {
           cwd: context?.cwd,
           width: frameWidth(),
           isPartial: options?.isPartial,
           isError: context?.isError,
           durationMs: context?.durationMs,
+          expanded,
         });
-        const lines = [paintLine(frame.bottom, theme, frame.tone)];
-        for (const row of frame.extra ?? []) lines.push(theme.fg(row.kind === "error" ? "error" : "muted", row.text));
+        if (!expanded) {
+          // The bottom rule closes the frame the call opened, and carries the
+          // result: two lines per call, never three.
+          const lines = [paintLine(frame.bottom, theme, frame.tone)];
+          for (const row of frame.extra ?? []) {
+            lines.push(theme.fg(row.kind === "error" ? "error" : "muted", row.text));
+          }
+          return new Text(lines.join("\n"), 0, 0);
+        }
+        // Expanded is the same frame with the prepared body inside: no side
+        // bars, at most three lines, and the count of what stayed out.
+        const lines = [paintLine(frame.top, theme, frame.tone)];
+        for (const row of frame.body ?? []) lines.push(theme.fg("toolOutput", row.text));
+        if (frame.overflow > 0) lines.push(theme.fg("dim", `  … +${frame.overflow} lines`));
+        lines.push(paintLine(frame.bottom, theme, frame.tone));
         return new Text(lines.join("\n"), 0, 0);
       },
     };
@@ -1351,13 +1359,16 @@ export default function poShellExtension(pi: ExtensionAPI) {
               .join("\n"),
           );
         }
+        // The frame reads the cost from these, never from the report: the text
+        // above stays the report a human reads, `details` is what the row uses.
+        const elapsedMs = Date.now() - started;
         return {
           ...text(
             [
               `role: ${params.role}`,
               `status: ${result.status}`,
               `exit: ${result.code}`,
-              `ms: ${Date.now() - started}`,
+              `ms: ${elapsedMs}`,
               `turns: ${result.turns}`,
               `tools: ${tools.join(",")}`,
               `usage: input=${usage.input ?? 0} output=${usage.output ?? 0} cache=${(usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0)} total=${total}`,
@@ -1375,6 +1386,16 @@ export default function poShellExtension(pi: ExtensionAPI) {
             ].join("\n"),
           ),
           isError: result.status !== "ok",
+          details: {
+            role: params.role,
+            status: result.status,
+            turns: result.turns,
+            ms: elapsedMs,
+            credits: subagentCost?.credits ?? null,
+            model: costModel || null,
+            tokens: total,
+            artifact: artifact?.resultPath ?? null,
+          },
         };
       } catch (error) {
         return { ...text(`po-shell delegate error: ${(error as Error).message}`), isError: true };

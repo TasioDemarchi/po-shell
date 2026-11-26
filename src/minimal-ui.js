@@ -16,21 +16,23 @@ import path from "node:path";
  */
 export const TOOL_STYLE = {
   bash: { icon: "$", tone: "accent", label: "shell" },
-  edit: { icon: "~", tone: "warning", label: "edit" },
+  read: { icon: ":", tone: "muted", label: "read" },
   write: { icon: "+", tone: "warning", label: "write" },
-  read: { icon: "=", tone: "muted", label: "read" },
+  edit: { icon: "~", tone: "warning", label: "edit" },
   grep: { icon: "/", tone: "muted", label: "search" },
   find: { icon: "/", tone: "muted", label: "search" },
-  ls: { icon: ":", tone: "muted", label: "list" },
-  po_shell_status: { icon: "%", tone: "accent", label: "status" },
-  po_shell_task: { icon: "#", tone: "accent", label: "task" },
-  po_shell_memory: { icon: "*", tone: "accent", label: "memory" },
-  po_shell_check: { icon: "✓", tone: "success", label: "check" },
-  po_shell_review: { icon: "@", tone: "accent", label: "review" },
-  po_shell_ask: { icon: "?", tone: "warning", label: "ask" },
-  po_shell_delegate: { icon: ">", tone: "accent", label: "delegate" },
   context_search: { icon: "/", tone: "muted", label: "search" },
-  context_get: { icon: "<", tone: "muted", label: "get" },
+  ls: { icon: ".", tone: "muted", label: "list" },
+  context_get: { icon: "^", tone: "muted", label: "get" },
+  web_fetch: { icon: "@", tone: "muted", label: "web" },
+  web_search: { icon: "@", tone: "muted", label: "web" },
+  po_shell_task: { icon: "#", tone: "accent", label: "task" },
+  po_shell_memory: { icon: "=", tone: "accent", label: "memory" },
+  po_shell_check: { icon: "!", tone: "success", label: "check" },
+  po_shell_ask: { icon: "?", tone: "warning", label: "ask" },
+  po_shell_review: { icon: "%", tone: "accent", label: "review" },
+  po_shell_delegate: { icon: ">", tone: "accent", label: "delegate" },
+  po_shell_status: { icon: "*", tone: "accent", label: "status" },
 };
 
 export const DEFAULT_STYLE = { icon: "·", tone: "muted", label: "" };
@@ -64,6 +66,25 @@ export function shortPath(file, cwd) {
     return `~/${path.relative(home, absolute)}`;
   }
   return absolute;
+}
+
+/**
+ * `https://example.com/docs/a?q=1` → `example.com/docs/a?q=1`, cut from the
+ * end. `shortPath` is wrong here: a URL is not a file, and its head (the host)
+ * is the part that says where we went, so the path is what gets shortened.
+ */
+export function urlLabel(value, max = MAX_TEXT) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  let label = raw.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");
+  try {
+    const parsed = new URL(raw);
+    const tail = `${parsed.pathname === "/" ? "" : parsed.pathname}${parsed.search}`;
+    label = `${parsed.host}${tail}`;
+  } catch {
+    // Not a URL: keep the string and cut it from the end, never from the host.
+  }
+  return oneLine(label, max);
 }
 
 export function formatDuration(ms) {
@@ -109,6 +130,24 @@ function firstLine(text) {
     .map((line) => line.trim())
     .find((line) => line.length > 0) ?? "";
 }
+
+/** Result lines that say something, in order. */
+function nonEmptyLines(text) {
+  return String(text ?? "")
+    .split("\n")
+    .filter((line) => line.trim().length > 0);
+}
+
+/** `role: worker` → `worker`; "" when the line is not there. */
+function fieldOf(lines, name) {
+  const prefix = `${name}:`;
+  const line = lines.find((value) => value.trim().startsWith(prefix));
+  return line ? line.trim().slice(prefix.length).trim() : "";
+}
+
+// Pi appends this status to a failed shell result; it is the exit code, not content.
+const EXIT_LINE = /\bexited with code \d+\b/i;
+const EXIT_CODE = /\bexited with code (\d+)\b/i;
 
 function range(args) {
   const offset = Number(args?.offset);
@@ -161,6 +200,10 @@ export function formatCall(name, args = {}, options = {}) {
       };
     case "ls":
       return { ...style, text: shortPath(args.path || ".", cwd), meta: "" };
+    case "web_fetch":
+      return { ...style, text: urlLabel(args.url || args.query, MAX_TEXT), meta: "" };
+    case "web_search":
+      return { ...style, text: oneLine(args.query || args.url, MAX_TEXT), meta: "" };
     case "po_shell_task": {
       const action = oneLine(args.action, 12);
       const subject = oneLine(args.title || args.id || "", 46);
@@ -192,50 +235,165 @@ export function formatCall(name, args = {}, options = {}) {
 }
 
 /**
- * The collapsed result rows: `[{ text, tone }]`.
- * Empty array means "nothing to add": the call row already says it all.
+ * What one tool did, in the one line the bottom rule can hold. Every tool says
+ * something: a footer that only repeats the call is a dead rule.
+ */
+function summarize(name, args = {}, text = "", lines = [], options = {}) {
+  const duration = formatDuration(options.durationMs);
+  const status = options.isError ? "fail" : "ok";
+
+  switch (name) {
+    case "bash": {
+      const code = EXIT_CODE.exec(text)?.[1] ?? "";
+      const parts = [status];
+      if (code) parts.push(`exit ${code}`);
+      else if (duration) parts.push(duration);
+      const content = lines.filter((line) => !EXIT_LINE.test(line));
+      // The verdict of a shell command lives in its last lines; a failure opens
+      // with its reason.
+      const picked = options.isError ? content[0] ?? "" : content[content.length - 1] ?? "";
+      if (picked) parts.push(picked);
+      return { text: oneLine(parts.join(" · "), MAX_RESULT), tone: options.isError ? "error" : "success" };
+    }
+    case "read": {
+      const count = lineCount(String(text ?? "").replace(/\s+$/, ""));
+      return { text: `${count} ${count === 1 ? "line" : "lines"}`, tone: "muted" };
+    }
+    case "edit": {
+      // The `+N −M` already rides the top rule: repeating it here is the dead
+      // rule this section exists to kill.
+      const { added, removed } = editStats(args.edits);
+      if (!added && !removed) return { text: "no changes", tone: "muted" };
+      return { text: "applied", tone: "success" };
+    }
+    case "write": {
+      const count = lineCount(args.content);
+      return { text: `${count} ${count === 1 ? "line" : "lines"}`, tone: "success" };
+    }
+    case "grep":
+    case "find":
+    case "ls": {
+      const count = lines.length;
+      if (!count) return { text: "no matches", tone: "muted" };
+      return { text: `${count} ${count === 1 ? "result" : "results"}`, tone: "muted" };
+    }
+    case "po_shell_check": {
+      // `PASS npm test (exit 0, 12ms)` per check, then the task it was recorded on.
+      const verdicts = lines.filter((line) => /^(PASS|FAIL)\b/.test(line.trim()));
+      const failed = verdicts.filter((line) => /^FAIL\b/.test(line.trim())).length;
+      const passed = verdicts.length - failed;
+      const task = fieldOf(lines, "Tarea").split("·")[0].trim();
+      const parts = [failed > 0 ? "FAIL" : "PASS"];
+      if (verdicts.length) parts.push(`${passed}/${verdicts.length}`);
+      if (task) parts.push(task);
+      if (!verdicts.length) {
+        const head = firstLine(text);
+        if (head) parts.push(head);
+      }
+      return { text: oneLine(parts.join(" · "), MAX_RESULT), tone: failed > 0 ? "error" : "success" };
+    }
+    case "po_shell_delegate": {
+      // A settled delegation reads its cost from `details` (turns, time), never
+      // from a number parsed out of the report.
+      const details = options.details;
+      if (details) {
+        const state = oneLine(details.status, 16) || (options.isError ? "fail" : "ok");
+        const parts = [state];
+        const turns = details.turns;
+        if (Number.isFinite(turns) && turns >= 0) {
+          parts.push(`${turns} ${turns === 1 ? "turn" : "turns"}`);
+        }
+        if (Number.isFinite(details.ms) && details.ms >= 0) parts.push(formatDuration(details.ms));
+        return {
+          text: oneLine(parts.filter(Boolean).join(" · "), MAX_RESULT),
+          tone: state === "ok" ? "success" : "error",
+        };
+      }
+      const role = fieldOf(lines, "role") || oneLine(args.role, 16);
+      const state = fieldOf(lines, "status");
+      const turns = fieldOf(lines, "turns");
+      const parts = [role || "delegate"];
+      if (state) parts.push(state);
+      if (turns) parts.push(`turns ${turns}`);
+      if (parts.length === 1) {
+        const head = firstLine(text);
+        return {
+          text: oneLine(head || "delegated", MAX_RESULT),
+          tone: options.isError || (state && state !== "ok") ? "error" : "muted",
+        };
+      }
+      return {
+        text: oneLine(parts.join(" · "), MAX_RESULT),
+        tone: options.isError || (state && state !== "ok") ? "error" : "success",
+      };
+    }
+    default: {
+      const head = lines.find((line) => !EXIT_LINE.test(line)) ?? "";
+      if (!head) return { text: status, tone: options.isError ? "error" : "muted" };
+      const extra = lines.length > 1 ? ` +${lines.length - 1}` : "";
+      return {
+        text: oneLine(options.isError ? `fail · ${head}` : `${head}${extra}`, MAX_RESULT),
+        tone: options.isError ? "error" : "muted",
+      };
+    }
+  }
+}
+
+/**
+ * The collapsed result rows: `[{ text, tone }]`, never empty.
+ *
+ * The first row rides the bottom rule; the error tail (`  line`) goes below the
+ * frame, because a cut reason is not a reason. Tools that own their error
+ * vocabulary (`po_shell_check`, `po_shell_delegate`) say it all in the first row.
  */
 export function formatResult(name, args = {}, result, options = {}) {
   const text = resultText(result);
-  const lines = text.split("\n").filter((line) => line.trim().length > 0);
+  const lines = nonEmptyLines(text);
+  const details = delegationDetails(result);
+
+  // A delegation that has not settled says only that: no turns and no credits
+  // invented out of half a report. `details` is what settles it; a result with
+  // no details and no text yet is a delegation still running.
+  const pending =
+    name === "po_shell_delegate" &&
+    !options.isError &&
+    (Boolean(options.isPartial) || !result || (!details && !text));
+  if (pending) return [{ tone: "dim", text: DELEGATE_RUNNING }];
 
   if (options.isPartial) {
     const last = lines[lines.length - 1] ?? "";
     return [{ tone: "dim", text: last ? oneLine(last, MAX_RESULT) : "⋯" }];
   }
 
-  if (options.isError) {
-    const head = lines.slice(0, 3).map((line) => oneLine(line, MAX_RESULT));
-    if (head.length === 0) return [{ tone: "error", text: "✗ failed with no output" }];
-    return head.map((line, index) => ({
-      tone: "error",
-      text: index === 0 ? `✗ ${line}` : `  ${line}`,
-    }));
-  }
-
-  const duration = formatDuration(options.durationMs);
-
-  switch (name) {
-    case "bash":
-      return duration ? [{ tone: "success", text: `✓ ${duration}` }] : [];
-    case "edit":
-    case "write":
-      return [];
-    case "read":
-      return [];
-    case "grep":
-    case "find":
-    case "ls": {
-      const count = lines.length;
-      return count ? [{ tone: "muted", text: `${count} ${count === 1 ? "result" : "results"}` }] : [];
-    }
-    default: {
-      const head = firstLine(text);
-      if (!head) return [];
-      const extra = lines.length > 1 ? ` +${lines.length - 1}` : "";
-      return [{ tone: "muted", text: `${oneLine(head, MAX_RESULT)}${extra}` }];
+  const summary = summarize(name, args, text, lines, { ...options, details });
+  const rows = [{ tone: summary.tone, text: summary.text }];
+  const ownsError = name === "po_shell_check" || name === "po_shell_delegate";
+  if (options.isError && !ownsError) {
+    for (const line of lines.filter((value) => !EXIT_LINE.test(value)).slice(1, 3)) {
+      rows.push({ tone: "error", text: `  ${oneLine(line, MAX_RESULT)}` });
     }
   }
+  return rows;
+}
+
+/**
+ * A finished delegation's `details`; null while it runs or when the tool sent
+ * none. The frame reads these, never the report text.
+ */
+function delegationDetails(result) {
+  const details = result && typeof result === "object" ? result.details : null;
+  if (!details || typeof details !== "object") return null;
+  return String(details.status ?? "").trim() === "running" ? null : details;
+}
+
+/** The cost of a finished delegation: the credits, or `no cost` when unknown. */
+function delegationNote(name, result) {
+  if (name !== "po_shell_delegate") return "";
+  const details = delegationDetails(result);
+  if (!details) return "";
+  return typeof details.credits === "number" && Number.isFinite(details.credits)
+    ? creditLabel(details.credits)
+    : "no cost";
 }
 
 /* --------------------------------- frame --------------------------------- */
@@ -245,16 +403,21 @@ export function formatResult(name, args = {}, result, options = {}) {
  * rule and the result meta the bottom one, so the whole thing reads as one
  * block instead of two flat lines.
  */
-export const FRAME_HINT = "ctrl+o to expand";
+export const FRAME_HINT = "ctrl+o expand";
+export const FRAME_HINT_EXPANDED = "ctrl+o collapse";
+/** What the bottom rule says while a delegation has not settled yet. */
+export const DELEGATE_RUNNING = "running…";
 /** Below this the frame is a stamp: the extension clamps the terminal width here. */
 export const FRAME_MIN_WIDTH = 40;
+/** The expanded body never grows past three lines: the rest is a count. */
+export const FRAME_BODY_LINES = 3;
+/** Source lines an edit body reads before it stops scraping its hunks. */
+const FRAME_EDIT_SOURCE = 6;
 
 const FRAME_CORNER = { topLeft: "╭", topRight: "╮", bottomLeft: "╰", bottomRight: "╯" };
 const FRAME_RULE = "─";
 // `╭─ ` + one space before the fill + `─╮`.
 const FRAME_CHROME = 6;
-// The hint keeps one space on each side, and the fill still owns its own.
-const FRAME_HINT_COLUMNS = FRAME_HINT.length + 2;
 // A subject narrower than this says nothing, so the call meta leaves first.
 const FRAME_MIN_SUBJECT = 6;
 
@@ -300,25 +463,51 @@ function fitRowSegments(call, budget) {
   return rowSegments({ ...call, meta }, subject);
 }
 
-/**
- * `╭─ $ shell · npm test ───── ctrl+o to expand ─╮`: the row in the top rule,
- * the hint flush right. The hint leaves before the subject is cut.
- */
-function topLine(call, width) {
-  const plainBudget = Math.max(0, width - FRAME_CHROME);
-  const hintBudget = Math.max(0, plainBudget - FRAME_HINT_COLUMNS);
-  const full = rowSegments(call, call.text);
-  const fullWidth = segmentsWidth(full);
+/** The top-rule right side: the cost note (content) then the hint (chrome). */
+function rightSide(note, hint, withNote, withHint) {
+  const parts = [];
+  if (withNote && note) parts.push(note);
+  if (withHint && hint) parts.push(hint);
+  return parts.join(" · ");
+}
 
-  const hint = fullWidth <= hintBudget;
-  const row = hint || fullWidth <= plainBudget ? full : fitRowSegments(call, plainBudget);
-  const fill = Math.max(0, (hint ? hintBudget : plainBudget) - segmentsWidth(row));
-
+/** The drawn top rule: the row, the fill, and the right side flush against it. */
+function topSegments(row, budget, right) {
+  const fill = Math.max(0, budget - segmentsWidth(row));
   const segments = [{ kind: "border", text: `${FRAME_CORNER.topLeft}${FRAME_RULE} ` }, ...row];
   segments.push({ kind: "border", text: " " }, { kind: "border", text: dashes(fill) });
-  if (hint) segments.push({ kind: "hint", text: ` ${FRAME_HINT} ` });
+  if (right) segments.push({ kind: "hint", text: ` ${right} ` });
   segments.push({ kind: "border", text: `${FRAME_RULE}${FRAME_CORNER.topRight}` });
   return frameLine(segments);
+}
+
+/**
+ * `╭─ $ shell · npm test ───── 1.39cr · ctrl+o expand ─╮`: the row in the top
+ * rule, the cost note and the hint flush right. The note is content and leaves
+ * before the hint; the hint leaves before the subject is cut.
+ */
+function topLine(call, width, hint, note = "") {
+  const plainBudget = Math.max(0, width - FRAME_CHROME);
+  const full = rowSegments(call, call.text);
+  const fullWidth = segmentsWidth(full);
+  const sides = note
+    ? [
+        [true, true],
+        [false, true],
+        [false, false],
+      ]
+    : [
+        [false, true],
+        [false, false],
+      ];
+
+  for (const [withNote, withHint] of sides) {
+    const right = rightSide(note, hint, withNote, withHint);
+    const budget = Math.max(0, plainBudget - (right ? textWidth(right) + 2 : 0));
+    if (fullWidth <= budget) return topSegments(full, budget, right);
+  }
+  // Nothing fits whole: the subject is what gets cut, and the note goes with the hint.
+  return topSegments(fitRowSegments(call, plainBudget), plainBudget, "");
 }
 
 /** `╰─ ✓ 12ms ─────╯`, or `╰─────╯` when the result adds nothing. */
@@ -360,7 +549,44 @@ function resultFrame(rows) {
 }
 
 /**
- * The collapsed frame: `{ tone, top, bottom, meta, extra }`.
+ * The expanded body: up to three lines, chosen by tool, plus what did not fit.
+ *
+ * The verdict of a successful shell lives in its last lines, so it shows the
+ * tail; a failure shows the head. An edit shows its first changed lines with
+ * `-`/`+`; every other tool shows the first lines of its result.
+ */
+function bodySource(name, args, result, options) {
+  if (!result || options.isPartial) return { lines: [], overflow: 0 };
+  const lines = nonEmptyLines(resultText(result));
+
+  if (name === "edit") {
+    const source = [];
+    for (const edit of Array.isArray(args.edits) ? args.edits : []) {
+      for (const [prefix, value] of [
+        ["-", edit?.oldText],
+        ["+", edit?.newText],
+      ]) {
+        for (const line of String(value ?? "").split("\n")) {
+          if (source.length >= FRAME_EDIT_SOURCE) break;
+          if (!line.trim()) continue;
+          source.push(`${prefix} ${line}`);
+        }
+      }
+      if (source.length >= FRAME_EDIT_SOURCE) break;
+    }
+    const { added, removed } = editStats(args.edits);
+    const body = source.slice(0, FRAME_BODY_LINES);
+    // The totals are the whole change, not the slice that fit in the frame.
+    return { lines: body, overflow: Math.max(0, added + removed - body.length) };
+  }
+
+  const tail = name === "bash" && !options.isError;
+  const picked = tail ? lines.slice(-FRAME_BODY_LINES) : lines.slice(0, FRAME_BODY_LINES);
+  return { lines: picked, overflow: Math.max(0, lines.length - picked.length) };
+}
+
+/**
+ * The frame: `{ tone, top, bottom, body, meta, extra, overflow }`.
  *
  * `top`/`bottom` are lines (`{ text, segments }`); every segment carries a
  * `kind` the extension turns into a theme tone — `border`, `label`, `hint` and
@@ -369,9 +595,15 @@ function resultFrame(rows) {
  * (`{ text, kind }`) go below the bottom rule, colored `error`. `width` is
  * honored exactly; the caller clamps it to the terminal and to
  * `FRAME_MIN_WIDTH`.
+ *
+ * Collapsed is always two lines: `body` is empty and only `renderResult` draws
+ * the bottom. Expanded keeps the same two rules and puts the prepared body
+ * (`{ text }`, already cut to the inner width) between them; `overflow` is how
+ * many lines were dropped and `0` when everything fit.
  */
 export function formatFrame(name, args = {}, result = null, options = {}) {
   const width = Math.max(4, Math.trunc(Number(options.width) || 80));
+  const expanded = Boolean(options.expanded);
   const call = formatCall(name, args, { cwd: options.cwd });
   const rows = result
     ? formatResult(name, args, result, {
@@ -379,14 +611,27 @@ export function formatFrame(name, args = {}, result = null, options = {}) {
         isError: options.isError,
         durationMs: options.durationMs,
       })
-    : [];
+    : name === "po_shell_delegate" && !options.isError
+      ? [{ tone: "dim", text: DELEGATE_RUNNING }]
+      : [];
   const { meta, tone, extra } = resultFrame(rows);
+  const picked = expanded ? bodySource(name, args, result, options) : { lines: [], overflow: 0 };
+  const bodyWidth = Math.max(1, width - FRAME_CHROME);
+  // The renderer builds the top rule before the result exists, so it may hand
+  // over the note it already learned; otherwise the result is the only source.
+  const note =
+    typeof options.note === "string" && options.note
+      ? options.note
+      : delegationNote(name, result);
   return {
     tone: call.tone,
-    top: topLine(call, width),
+    top: topLine(call, width, expanded ? FRAME_HINT_EXPANDED : FRAME_HINT, note),
     bottom: bottomLine(meta, tone, width),
+    body: picked.lines.map((text) => ({ text: cutWidth(`  ${text}`, bodyWidth) })),
     meta,
+    note,
     extra,
+    overflow: picked.overflow,
   };
 }
 
