@@ -141,6 +141,16 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
 - [ ] **U7 — Memoria read-only para el explorer.**
       - [ ] Tool de búsqueda en la extensión del guard (ya cargada en el hijo), habilitada solo para
             `explorer`: `search` y `get`, scope del proyecto, nunca `all_projects`, nunca `save`.
+- [ ] **U10 — Decisiones con id.**
+      - [x] `po_shell_task action=decision`: `D<n> — texto` en `## Decisions` del feature doc, el
+            registro en el JSON de la tarea, y el eco con el total y las huérfanas.
+      - [x] Bloque de estado: una línea fija con la regla, al lado de la tarea. Sin listas: crecerían
+            con cada run.
+      - [ ] La misma regla en `Directives` del protocolo y en la skill de workflow.
+      - [ ] `scripts/check-docs.mjs` en `po_shell_check`: referencias rotas, `## State`/`## Log` en
+            feature docs, límite de 200 líneas, decisiones huérfanas.
+      - [ ] Recorte del protocolo (290 → ~150) y de `AGENTS.md` (223 → ≤200) para que la regla no
+            quede enterrada.
 - [ ] **U9 — `AGENTS.md` por debajo de 200 líneas.** Hoy tiene 223: mover detalle a `docs/` o a una
       skill, sin comprimir hasta volverse ambiguo.
 - [x] **U8 — Documentos: mudanza.**
@@ -159,6 +169,9 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
 - **El aislamiento y el merge son del humano.** El padre reporta; no decide el blast radius.
 - **El feature doc describe, no lleva estado.** Duplicar fase o evidencia creó tres fuentes de
   verdad y ninguna confiable.
+- **Las decisiones se capturan en el turno, con id.** Sin inbox ni contadores: una llamada a la tool
+  escribe `D<n>` en el feature doc, que sobrevive al compact, y la regla vive en el bloque de estado
+  con tamaño fijo. Una decisión sin unidad que la implemente se reporta como huérfana.
 - **Sin `planner`.** Un rol que produce planes sin el contexto del usuario es ceremonia.
 - **El perfil no se elige: `config.delegation` vale `"auto"`.** Un `"inline"` por defecto pisaba la
   regla del riesgo en cada `init`; `"auto"` significa "lo decide el riesgo" y un valor explícito en

@@ -14,6 +14,7 @@ import {
 } from "./util.js";
 import { DEFAULT_POLICY, evaluateToolCall, deniedCommand, deniedPath } from "./policy.js";
 import { shellWriteTargets, withinSurfaces } from "./subagent-policy.js";
+import { appendDecision, docPath, nextDecisionId, orphanDecisions, readDoc } from "./decisions.js";
 import {
   DEFAULT_CONTEXT_GUARD,
   contextDirective,
@@ -398,6 +399,35 @@ export function updateTask(cwd, id, patch = {}, env = process.env) {
 export function isolationCommand(task, target = "worktree") {
   const handle = taskLabelOf(task);
   return `po-shell task isolation ${target}${handle ? ` ${handle}` : ""}`;
+}
+
+/**
+ * Record a decision the human made, in the same turn it was made.
+ *
+ * The id and the total go back to the caller so a missed capture is visible right
+ * away; the line lands in the feature document's `## Decisions`, which survives a
+ * compaction, and in the task JSON, which is what the kernel can query.
+ */
+export function addDecision(cwd, { text, taskId } = {}, env = process.env) {
+  const task = taskId ? getTask(cwd, taskId, env) : activeTask(cwd, env);
+  if (!task) throw new Error("a decision needs a task: create one first");
+  const body = String(text ?? "").trim();
+  if (body.length < 8) throw new Error("a decision needs its text (at least 8 characters)");
+
+  const stored = Array.isArray(task.decisions) ? task.decisions : [];
+  const file = docPath(cwd, task.featureDoc ?? task.feature_doc);
+  const source = file ? readDoc(file) : "";
+  const fromTask = stored.reduce((max, item) => Math.max(max, Number(String(item?.id ?? "").slice(1)) || 0), 0);
+  const fromDoc = Number(nextDecisionId(source).slice(1)) - 1;
+  const id = `D${Math.max(fromTask, fromDoc) + 1}`;
+
+  if (file) fs.writeFileSync(file, appendDecision(source, { id, line: body }));
+  const decisions = [...stored, { id, text: body, at: nowIso() }];
+  updateTask(cwd, task.id, { decisions }, env);
+  appendEvent(cwd, "task.decision", { id, text: body, doc: file || null }, env);
+
+  const orphans = file ? orphanDecisions(readDoc(file)) : [];
+  return { id, total: decisions.length, orphans, doc: file };
 }
 
 /** Only a human runs this (CLI). The orchestrator's tools do not expose it. */
@@ -887,6 +917,9 @@ export function renderStatus(cwd = process.cwd(), env = process.env) {
       `Tarea: ${taskLabelOf(t)} · ${t.id} · ${t.phase} · riesgo ${t.risk} · evidencia ${(t.evidence ?? []).length}`,
       `Título: ${t.title}`,
     );
+    // Constant, one line, next to the task: the rule has to survive the turn it
+    // was written in, and a list of decisions would grow with every run.
+    lines.push("rule: a decision the human makes is captured in the same turn — po_shell_task action=decision");
     if (t.isolation === "worktree") {
       lines.push(`Aislamiento: worktree (rama por hijo, sin tocar tu árbol)`);
     }
@@ -937,6 +970,9 @@ export function renderContext(cwd = process.cwd(), env = process.env) {
     }
     if (t.scope) lines.push(`scope: ${t.scope}`);
     if (t.planSummary) lines.push(`plan_summary: ${t.planSummary}`);
+    // Constant, one line, next to the task: the rule has to survive the turn it
+    // was written in, and a list of decisions would grow with every run.
+    lines.push("rule: a decision the human makes is captured in the same turn — po_shell_task action=decision");
     if (t.isolation === "worktree") {
       lines.push(`Aislamiento: worktree (rama por hijo, sin tocar tu árbol)`);
     }

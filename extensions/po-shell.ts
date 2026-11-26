@@ -45,6 +45,7 @@ import { createWorktree, worktreeChanges } from "../src/worktree.js";
 import { fetchUsage } from "../src/nan-usage.js";
 import {
   activeTask,
+  addDecision,
   appendEvent,
   attributableTask,
   checkPolicy,
@@ -590,6 +591,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
           Type.Literal("update"),
           Type.Literal("approve"),
           Type.Literal("isolation"),
+          Type.Literal("decision"),
         ]),
       ),
       title: Type.Optional(Type.String()),
@@ -603,6 +605,12 @@ export default function poShellExtension(pi: ExtensionAPI) {
         Type.String({
           description:
             "With action=isolation: two lines, in the user's language, about why this project needs it and what it protects. Required — the dialog shows it.",
+        }),
+      ),
+      text: Type.Optional(
+        Type.String({
+          description:
+            "With action=decision: the decision the human just made, in one line. Capture it in the same turn; it becomes D<n> in the feature doc and survives a compaction.",
         }),
       ),
       id: Type.Optional(
@@ -705,6 +713,21 @@ export default function poShellExtension(pi: ExtensionAPI) {
           snapshotTask(cwd, task);
           return text(taskSummary(task));
         }
+        if (action === "decision") {
+          try {
+            const decision = addDecision(cwd, {
+              text: params.text ?? "",
+              taskId: params.id,
+            });
+            const orphan = decision.orphans.length ? ` · ${decision.orphans.length} orphan (${decision.orphans.join(", ")})` : "";
+            return text(
+              `${decision.id} · ${decision.total} decision(es)${orphan}${decision.doc ? `\n${decision.doc}` : "\n(task JSON: la tarea no tiene feature doc)"}`,
+            );
+          } catch (error) {
+            return { ...text(`po_shell_task: ${(error as Error).message}`), isError: true };
+          }
+        }
+
         if (action === "isolation") {
           const task = params.id ? getTask(cwd, params.id) : activeTask(cwd);
           if (!task) return { ...text("(sin tarea)"), isError: true };
