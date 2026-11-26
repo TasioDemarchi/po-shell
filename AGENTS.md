@@ -97,7 +97,6 @@ docs/recovery.md       backup, restore and recovery runbook
 docs/scratch.md        temporary files and cleanup policy
 docs/self-hosting.md   dogfooding and self-modification rules
 docs/subagentes.md     gentle-shell subagents vs po_shell_delegate, port backlog
-docs/status.md         state, pending, paused, discarded
 docs/agents-md-y-skill-md-investigacion.md  reference research
 ```
 
@@ -218,7 +217,7 @@ A change is done when:
 
 - Goal, scope, users and constraints: `PROJECT.md`.
 - Architecture, components and memory: `docs/architecture.md`.
-- State, pending and discarded: `docs/status.md`.
+- State, pending and discarded: `PROJECT.md` §7-9.
 - Rules for writing instructions: `docs/agents-md-y-skill-md-investigacion.md`.
 
 Read those files only when the task needs them.

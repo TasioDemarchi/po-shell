@@ -1,6 +1,6 @@
 ---
 status: confirmed
-updated: 2026-11-21
+updated: 2026-11-25
 source: conversation
 ---
 
@@ -79,19 +79,84 @@ docs/
   recovery.md                         backup, restore y runbook de recuperación
   scratch.md                          temporales, cleanup y límites
   self-hosting.md                     cómo usar po-shell para mejorar po-shell
-  status.md                           estado, pendientes, pausados, descartado
   features/                           un archivo por feature sustancial
   agents-md-y-skill-md-investigacion.md  criterios para instrucciones de agentes
 ```
 
 `AGENTS.md` es la fuente de verdad del comportamiento del agente en el repo. `PROJECT.md` es la fuente de verdad del proyecto para humanos. No dupliques secciones entre los dos.
 
-## 7. Estado y próximos pasos
+## 7. Estado
 
-El detalle está en `docs/status.md`.
+El estado vive acá. No hay un `docs/status.md` paralelo: cuando este archivo crezca, lo que sobre se
+muda a `docs/features/` o a memoria, no a otro doc de estado.
 
-- **Hecho:** kernel, CLI, launcher, policy, checks, review congelado, memoria, directivas, subagentes aislados, modelos fijos por rol, `doctor`, `checks suggest`, `projects prune`, ledger de costo, `backup`, `restore`, `integrity`, runbook de recuperación, scratch temporal por sesión/subagente e instalador propio (verificación, `install`/`update`/`uninstall` y bootstrap).
-- **Pendiente:** MCP, sandbox, evals, scope `personal`, deduplicación, `checks set`.
-- **Pausado:** perfiles de subagentes, `AGENTS.md` por subagente, medición ampliada.
-- **Descartado:** router automático por fase, `.po-shell` dentro del repo, modelo frontera por defecto.
+- **Fase:** v0.16 — estética minimalista y delegación con contrato. El arnés es usable de punta a
+  punta: tareas, memoria, checks, review congelado, backup y subagentes.
+- **Próximo paso:** cerrar el replanteo de delegación (U6 documentos del proyecto en runtime, U7
+  memoria read-only para el explorer). Diseño, decisiones y unidades en
+  `docs/features/delegation-contract.md`.
+- **Riesgos abiertos:** el aislamiento por worktree todavía no se ejercitó en una sesión real; el
+  índice se actualiza por búsqueda, no por escritura, así que un doc recién creado no aparece hasta
+  la primera consulta.
 
+### Hecho
+
+Kernel, CLI, launcher, policy, checks, review congelado, memoria, directivas, ledger de costo,
+`backup`/`restore`/`integrity` con runbook, scratch temporal por sesión y subagente, instalador
+propio, identidad de proyecto por root, guard de contexto, estética minimalista (filas de dos líneas,
+footer, panel, `/usage` y `/plan`) y delegación con contrato: matriz de roles en runtime, misión
+estructurada, reporte parcial, reviewer que ejecuta y worktree opt-in.
+
+### Pendiente
+
+| Item | Descripción |
+|---|---|
+| Replanteo de delegación | U6, U7 y la extensión web propia para el explorer. Ver `docs/features/delegation-contract.md`. |
+| Servidor MCP | Exponer el kernel a Claude Code/Codex y otros clientes. |
+| Sandbox del SO | bubblewrap/seatbelt/contenedor + egress allowlist. |
+| Evals del arnés | Set más amplio que el bench de 3 tareas. |
+| Scope `personal` | Tercer scope además de `project` y `global`. |
+| Deduplicación y `topic_key` | Evitar memorias repetidas y actualizar por tema. |
+| `po-shell checks set "<comando>"` | Agregar checks sin editar JSON a mano. |
+| Artefactos de scratch | Registrar worktrees creados por la sesión y limpiarlos con confirmación. |
+| Quarantine de subagentes | Token de inicio de proceso para no confundir PID reutilizado. |
+| Guard de `TMPDIR` en bash | Detectar `TMPDIR=...` dentro del repo también en comandos, no solo en tests. |
+| Scratch en Windows | Validar permisos, locks y rutas largas con más casos reales. |
+
+### Pausado
+
+| Item | Descripción | Por qué / cuándo retomar |
+|---|---|---|
+| Medición real ampliada | Repetir el bench y medir más tareas. | Con 3 pruebas hay base suficiente. Retomar si cambia una pieza grande. |
+| Portes de subagentes de gentle-shell | Cap de reporte, presupuesto de silencio renovable, tool de estado del hijo. | La matriz de roles, la misión y el worktree ya están; esto es lo que queda del análisis en `docs/subagentes.md`. |
+
+### Descartado
+
+| Item | Descripción | Por qué |
+|---|---|---|
+| Router automático por fase | Cambiar modelo según `exploring/planned/implementing`. | Rompe cache y consistencia; se eligió modelo fijo para el orquestador. |
+| `.po-shell` dentro del proyecto | Estado oculto en cada repo. | Se centralizó en `~/.po-shell/projects/<id>/`; el repo solo guarda `.md`. |
+| Modelo frontera por defecto | Usar siempre un modelo grande. | La comparativa de NaN no justificó frontera para estas tareas. |
+| Rol `planner` | Un subagente que arma el plan. | No tiene las palabras del usuario ni lo ya intentado; el plan es del orquestador. |
+| Aprobación por tarea | Pedir permiso para cada delegación. | La aprobación va donde está el riesgo: solo `high`, y sobre el plan. |
+
+## 8. Decisiones de diseño
+
+- **Sin ADRs.** Las decisiones se guardan en memoria con What/Why/Where/Learned; lo estructural se
+  refleja en este archivo.
+- **El índice se deriva** de los docs y se puede reconstruir; nunca es la fuente.
+- **La memoria es canónica en SQLite** y se exporta a Markdown para auditoría.
+- **Una sola búsqueda** sobre dos corpus (docs y memorias).
+- **Formato compacto** para el modelo: etiquetas, no JSON ni Markdown pesado.
+- **po-shell es un producto sobre Pi:** provee launcher, kernel y extensión; no reescribe el loop ni
+  la TUI.
+
+## 9. Criterios de éxito
+
+- 20 tareas representativas ejecutadas con el arnés.
+- Reducción medible de tokens por tarea frente a "leer todo".
+- Cero secretos guardados en memoria.
+- Policy bloqueando los casos definidos sin falsos negativos conocidos.
+- Review reproducible: mismo hash, mismo diff.
+- Tests del kernel pasando en cada cambio.
+- Un humano puede entender el proyecto leyendo `README.md`, `PROJECT.md` y `docs/` cuando haga falta.

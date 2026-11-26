@@ -152,7 +152,7 @@ dice qué pasó, qué tocó y la meta (líneas del diff, duración).
 ╰─ ✓ 6.5s ────────────────────────────────────────────────────────────────────╯
 ╭─ ~ edit · src/kernel.js  +12 −3 ────────────────────────── ctrl+o to expand ─╮
 ╰─────────────────────────────────────────────────────────────────────────────╯
-╭─ + write · docs/status.md  18 L ────────────────────────── ctrl+o to expand ─╮
+╭─ + write · PROJECT.md  18 L ────────────────────────────── ctrl+o to expand ─╮
 ╰─────────────────────────────────────────────────────────────────────────────╯
 … thinking…
 ```
@@ -956,7 +956,6 @@ po-shell/
 ├── docs/recovery.md       backup, restore y runbook de recuperación
 ├── docs/scratch.md        política de temporales y cleanup
 ├── docs/self-hosting.md   cómo usar po-shell para mejorar po-shell
-├── docs/status.md         estado, pendientes, pausados y descartado
 ├── docs/agents-md-y-skill-md-investigacion.md  criterios para instrucciones de agentes
 ├── bin/po-shell.js            dispatcher: agente o CLI
 ├── src/kernel.js          estado, tasks, memory, checks, reviews

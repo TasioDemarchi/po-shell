@@ -130,7 +130,7 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
       - [ ] Tool de búsqueda en la extensión del guard (ya cargada en el hijo), habilitada solo para
             `explorer`: `search` y `get`, scope del proyecto, nunca `all_projects`, nunca `save`.
 - [ ] **U8 — Documentos: mudanza.**
-      - [ ] Matar `docs/status.md`: estado del proyecto a `PROJECT.md §State`, backlog a este doc.
+      - [x] Matar `docs/status.md`: el estado quedó en `PROJECT.md` §7-9 y el backlog en este doc.
       - [ ] Actualizar referencias en `AGENTS.md`, `README.md` y `docs/architecture.md`.
       - [ ] Reescribir la parte de documentos del protocolo con este modelo.
 
