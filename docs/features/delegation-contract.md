@@ -113,6 +113,13 @@ Reglas del feature doc:
   doc dice *qué*, la task *con qué alcance aprobado* y el artefacto *quién hizo qué unidad*.
 - `Tasks`, `State` y `Log` no se indexan (secciones mutables); el resto sí.
 
+### Lo que un hijo puede leer
+
+Un hijo lee el repo, su scratch y —solo si la misión lo habilita— los prefijos de `read_outside`. El
+explorer además podrá buscar en la memoria del proyecto (`memory_search`, read-only): su trabajo es
+mapear qué se sabe ya. El worker no la busca, porque recibe el contexto curado por el padre, y el
+reviewer tampoco, porque verifica contra el spec. Un hijo nunca escribe memoria.
+
 ### El índice
 
 `src/indexer.js` mantiene `docs` y `doc_chunks` en SQLite. `context_search` reindexa en cada
@@ -135,13 +142,19 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
             llamado desde `init()`; nunca pisa un archivo existente, ni uno vacío.
       - [x] `feature_doc` en la task: se valida que exista y sea `.md`, es obligatorio para pasar a
             `implementing` en `medium`/`high` (el gate va donde empieza el trabajo, no al crear la
-            tarea), y `missionContextFiles` lo antepone al contexto de cada misión.
+            tarea) (D7), y `missionContextFiles` lo antepone al contexto de cada misión.
       - [x] Gate de `AGENTS.md` por contenido: si sigue con placeholders, la delegación lo avisa en el
             reporte, sin bloquear.
       - [x] Explorer a 16 turnos / 420 s.
-- [ ] **U7 — Memoria read-only para el explorer.**
-      - [ ] Tool de búsqueda en la extensión del guard (ya cargada en el hijo), habilitada solo para
-            `explorer`: `search` y `get`, scope del proyecto, nunca `all_projects`, nunca `save`.
+- [ ] **U7 — Memoria read-only para el explorer.** Diseño cerrado, sin implementar:
+      - [ ] `src/subagent-memory.js`: `memorySearch(cwd, { query, limit })` con query mínimo, límite
+            1–10, resultados compactos (tipo, título, snippet) y **solo el proyecto activo**: nunca
+            `all_projects`, nunca `save`.
+      - [ ] `src/subagent-roles.js`: `memory_search` en las tools del explorer y de nadie más.
+      - [ ] `src/subagent-policy.js`: el guard lo rechaza para `worker` y `reviewer`.
+      - [ ] `extensions/po-shell-subagent.ts`: registra el tool `memory_search`, read-only, solo si el
+            rol es explorer (la extensión del guard ya está cargada en el hijo).
+      - [ ] Tests: matriz por rol, límites de la query, y que no exista forma de escribir memoria.
 - [ ] **U10 — Decisiones con id.**
       - [x] `po_shell_task action=decision`: `D<n> — texto` en `## Decisions` del feature doc, el
             registro en el JSON de la tarea, y el eco con el total y las huérfanas.
