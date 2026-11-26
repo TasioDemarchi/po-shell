@@ -1,6 +1,6 @@
 ---
 type: feature
-status: to-do
+status: done
 ---
 
 # Feature: TUI status line, panel and stats

@@ -90,13 +90,21 @@ docs/
 El estado vive acá. No hay un documento de estado paralelo: cuando este archivo crezca, lo que sobre
 se muda a `docs/features/` o a memoria, nunca a otro archivo de estado.
 
-- **Fase:** v0.16 — estética minimalista y delegación con contrato. El arnés es usable de punta a
-  punta: tareas, memoria, checks, review congelado, backup y subagentes.
-- **Próximo paso:** cerrar el replanteo de delegación (U7 memoria read-only para el explorer). Diseño,
-  decisiones y unidades en `docs/features/delegation-contract.md`.
+- **Fase:** v0.17 — delegación con contrato cerrada y estado legible. El arnés es usable de punta a
+  punta: tareas, memoria, checks, review congelado, backup y subagentes con memoria read-only para el
+  explorer.
+- **Próximo paso:** la extensión web del explorer (`web_search`/`fetch`), única unidad que queda del
+  replanteo de delegación. Diseño, decisiones y unidades en `docs/features/delegation-contract.md`.
+- **Estado del árbol:** el trabajo vive en la rama `feat/delegacion-real`, **58 commits por delante
+  de `origin/main`**, sin push ni merge. `main` local está en `59b7253` y `origin/main` en `53db6f8`.
+  Hasta que eso se mergee, el `po-shell` del `PATH` (worktree de `main`) corre el código viejo; este
+  checkout se usa con `node bin/po-shell.js`.
+- **Semántica de `delivered`:** una task entregada es una task **commiteada y lista para merge**, no
+  mergeada. El merge, el push y el deploy siguen siendo del humano.
 - **Riesgos abiertos:** el aislamiento por worktree todavía no se ejercitó en una sesión real; el
   índice se actualiza por búsqueda, no por escritura, así que un doc recién creado no aparece hasta
-  la primera consulta.
+  la primera consulta; seis tasks `high` no se pueden cerrar porque el gate de `delivered` exige que
+  la **última review del repo** sea de esa task, y hace días que la última es de otra.
 
 ### Hecho
 
@@ -104,13 +112,15 @@ Kernel, CLI, launcher, policy, checks, review congelado, memoria, directivas, le
 `backup`/`restore`/`integrity` con runbook, scratch temporal por sesión y subagente, instalador
 propio, identidad de proyecto por root, guard de contexto, estética minimalista (filas de dos líneas,
 footer, panel, `/usage` y `/plan`) y delegación con contrato: matriz de roles en runtime, misión
-estructurada, reporte parcial, reviewer que ejecuta y worktree opt-in.
+estructurada, reporte parcial, reviewer que ejecuta, worktree opt-in y memoria read-only para el
+explorer. La task activa es la que se nombra, y el estado muestra las otras en curso.
 
 ### Pendiente
 
 | Item | Descripción |
 |---|---|
-| Replanteo de delegación | U7 y la extensión web propia para el explorer. Ver `docs/features/delegation-contract.md`. |
+| Replanteo de delegación | La extensión web propia para el explorer: U7 (memoria read-only) ya está. Ver `docs/features/delegation-contract.md`. |
+| Cierre de las tasks `high` | El gate de `delivered` exige que la última review del repo sea de esa task. Guardar la review en la task al congelar, y aceptar cualquier review de esa task al entregar. |
 | Servidor MCP | Exponer el kernel a Claude Code/Codex y otros clientes. |
 | Sandbox del SO | bubblewrap/seatbelt/contenedor + egress allowlist. |
 | Evals del arnés | Set más amplio que el bench de 3 tareas. |

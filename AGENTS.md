@@ -43,6 +43,11 @@ po-shell                     # start the agent
 `po-shell` loads the extension with `--extension` and the skills with `--skill`. Do not also run
 `pi install ./po-shell`: it would load twice.
 
+The `po-shell` in `PATH` runs the `main` worktree (`/home/tachii/dev/po-shell`). While working on a
+branch, launch from the checkout you are editing with `node bin/po-shell.js`: a session started
+anywhere else loads the code of `main`, and a delegation launched from it builds its mission with
+that older kernel.
+
 ## Map
 
 ```text
@@ -109,6 +114,8 @@ docs/                           architecture, recovery, scratch, self-hosting, s
 - Durable decisions captured (`D<n>`) and memory saved if it matters.
 - `docs/recovery.md` and its tests updated if recovery changed.
 - No scratch path or temporary artifact in the diff.
+- `delivered` means committed and ready to merge, never merged: the merge, the push and the deploy
+  stay with the human.
 
 ## Invariants
 
