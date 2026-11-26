@@ -415,7 +415,7 @@ export function isolationCommand(task, target = "worktree") {
  * away; the line lands in the feature document's `## Decisions`, which survives a
  * compaction, and in the task JSON, which is what the kernel can query.
  */
-export function addDecision(cwd, { text, taskId, by = "human" } = {}, env = process.env) {
+export function addDecision(cwd, { text, taskId, by = "human", durable = false } = {}, env = process.env) {
   const task = taskId ? getTask(cwd, taskId, env) : activeTask(cwd, env);
   if (!task) throw new Error("a decision needs a task: create one first");
   const body = `${decisionByPrefix(by)}${String(text ?? "").trim()}`.trim();
@@ -433,8 +433,28 @@ export function addDecision(cwd, { text, taskId, by = "human" } = {}, env = proc
   updateTask(cwd, task.id, { decisions }, env);
   appendEvent(cwd, "task.decision", { id, text: body, doc: file || null }, env);
 
+  // A decision that outlives the slice is a memory: the `D<n>` binds the units, the
+  // memory is what a search finds months later. One call, both artifacts.
+  let memory = null;
+  if (durable === true) {
+    try {
+      memory = saveMemory(cwd, {
+        title: `Decision ${id}: ${body.slice(0, 80)}`,
+        what: body,
+        why: `Decisión tomada en la tarea ${taskLabelOf(task)}.`,
+        where: file || `tasks/${task.id}.json`,
+        learned: body,
+        type: "lesson",
+        topic: `lesson/decision-${id.toLowerCase()}`,
+        aliases: `decision, ${id}`,
+      }, env);
+    } catch {
+      memory = null;
+    }
+  }
+
   const orphans = file ? orphanDecisions(readDoc(file)) : [];
-  return { id, total: decisions.length, orphans, doc: file, by: String(by ?? "human") };
+  return { id, total: decisions.length, orphans, doc: file, by: String(by ?? "human"), durable: durable === true, memory };
 }
 
 /** Only a human runs this (CLI). The orchestrator's tools do not expose it. */
@@ -926,7 +946,11 @@ export function renderStatus(cwd = process.cwd(), env = process.env) {
     );
     // Constant, one line, next to the task: the rule has to survive the turn it
     // was written in, and a list of decisions would grow with every run.
-    lines.push("rule: a decision the human makes is captured in the same turn — po_shell_task action=decision");
+    // Two constant lines, memory first: it is the artifact that survives everything.
+    lines.push(
+      "rule: knowledge is saved in the turn you learn it — po_shell_memory (a bug cause, a constraint, a decision)",
+      "rule: a human decision also gets an id — po_shell_task action=decision, durable: true adds the memory",
+    );
     if (t.isolation === "worktree") {
       lines.push(`Aislamiento: worktree (rama por hijo, sin tocar tu árbol)`);
     }
@@ -979,7 +1003,11 @@ export function renderContext(cwd = process.cwd(), env = process.env) {
     if (t.planSummary) lines.push(`plan_summary: ${t.planSummary}`);
     // Constant, one line, next to the task: the rule has to survive the turn it
     // was written in, and a list of decisions would grow with every run.
-    lines.push("rule: a decision the human makes is captured in the same turn — po_shell_task action=decision");
+    // Two constant lines, memory first: it is the artifact that survives everything.
+    lines.push(
+      "rule: knowledge is saved in the turn you learn it — po_shell_memory (a bug cause, a constraint, a decision)",
+      "rule: a human decision also gets an id — po_shell_task action=decision, durable: true adds the memory",
+    );
     if (t.isolation === "worktree") {
       lines.push(`Aislamiento: worktree (rama por hijo, sin tocar tu árbol)`);
     }

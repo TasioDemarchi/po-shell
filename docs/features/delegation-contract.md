@@ -150,6 +150,9 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
       - [x] `scripts/check-docs.mjs` (`npm run docs:check`): referencias rotas, `## State`/`## Log` en
             feature docs, límite de 200 líneas, decisiones huérfanas (D1, D2). Con un ratchet
             (`KNOWN_DEBT`) que solo encoge: hoy son cinco ítems de deuda previa, no deuda nueva.
+      - [x] `durable: true` escribe el `D#` y la memoria en una llamada, y el bloque de estado lleva las
+            dos reglas con la memoria primero (D5): una decisión guardada solo como memoria ya está
+            guardada; el `D#` existe para atar unidades.
       - [x] Captura al aceptar, no al proponer (D3): `po_shell_ask` lleva solo las opciones y una
             salida para seguir hablando; al elegir, la decisión se registra sola. `by: agent` marca
             las que tomó el orquestador bajo un plan delegado.
@@ -194,6 +197,7 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
 - D2 — Recortar el protocolo (290 → ~150) y AGENTS.md (223 → ≤200) queda para después, en detalle: la regla ya vive en el bloque de estado, así que el recorte es higiene, no corrección.
 - D3 — Las decisiones se confirman por po_shell_ask: la explicación va en la respuesta y el diálogo solo lleva las opciones más «seguir analizando»; aceptar captura el D# en el turno, sin esperar a que el humano lo repita.
 - D4 — El protocolo es el AGENTS.md global del harness y no delega procedimiento a docs/architecture.md, que es documentación de desarrollo: el procedimiento de memoria vuelve al protocolo (153 líneas), el diseño del índice se queda en architecture.md.
+- D5 — La memoria pesa más que el D#: si una decisión se guarda solo como memoria ya está guardada; el D# existe para atar unidades. durable: true escribe los dos en una llamada y las dos reglas viven en el bloque de estado, memoria primero.
 
 ## Out of scope
 

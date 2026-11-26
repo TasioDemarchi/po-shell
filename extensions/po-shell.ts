@@ -614,6 +614,12 @@ export default function poShellExtension(pi: ExtensionAPI) {
             "With action=decision: the decision the human just made, in one line. Capture it in the same turn; it becomes D<n> in the feature doc and survives a compaction.",
         }),
       ),
+      durable: Type.Optional(
+        Type.Boolean({
+          description:
+            "With action=decision: true when the decision outlives this slice. It also saves a `lesson` memory in the same call, because the D<n> only indexes the units.",
+        }),
+      ),
       id: Type.Optional(
         Type.String({
           description: "Task id, or its human number (`#12` or `12`) as shown in the panel and `po-shell task list`.",
@@ -719,10 +725,16 @@ export default function poShellExtension(pi: ExtensionAPI) {
             const decision = addDecision(cwd, {
               text: params.text ?? "",
               taskId: params.id,
+              durable: params.durable === true,
             });
             const orphan = decision.orphans.length ? ` · ${decision.orphans.length} orphan (${decision.orphans.join(", ")})` : "";
+            const memory = decision.durable
+              ? decision.memory
+                ? " · memoria guardada"
+                : " · memoria NO guardada (revisá po_shell_memory)"
+              : "";
             return text(
-              `${decision.id} · ${decision.total} decision(es)${orphan}${decision.doc ? `\n${decision.doc}` : "\n(task JSON: la tarea no tiene feature doc)"}`,
+              `${decision.id} · ${decision.total} decision(es)${memory}${orphan}${decision.doc ? `\n${decision.doc}` : "\n(task JSON: la tarea no tiene feature doc)"}`,
             );
           } catch (error) {
             return { ...text(`po_shell_task: ${(error as Error).message}`), isError: true };

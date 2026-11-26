@@ -41,7 +41,9 @@ A decision is captured **in the turn the human accepts it**, with an id.
 - A proposal is not a decision. A rejection is: `descartado: X, porque Y`.
 - One id per item: "yes to all" over three proposals is three decisions.
 - `by: "agent"` when an approved plan already delegated that choice to you.
-- The conversation is not durable; `D<n>` in the feature doc is.
+- A decision that outlives this slice is **also a memory**: `D<n>` binds the units that implement it,
+  the memory is what you find by search six months later. `durable: true` writes both in one call.
+- If you only do one, do the memory. A `D#` is an index for units; memory is the record.
 
 ## Documents
 
@@ -118,6 +120,8 @@ memory is empty or stale, read the feature doc; if there is none, read the code.
 After a non-obvious bugfix, a durable decision, a discovery, a configuration or environment
 constraint, an established pattern, or a human behavior rule. Never for trivial changes, what the
 code already says, or secrets.
+
+A decision the human just made is a memory too, not only a `D#`: see `Decisions`.
 
 ### Types, topics and format
 

@@ -13,7 +13,8 @@ import {
   orphanDecisions,
   parseDecisions,
 } from "../src/decisions.js";
-import { activeTask, addDecision, createTask, getTask, init, renderContext, updateTask } from "../src/kernel.js";
+import { activeTask, addDecision, createTask, getTask, init, renderContext, searchMemory, updateTask } from "../src/kernel.js";
+import { indexProject } from "../src/indexer.js";
 
 const DOC = [
   "# Feature: ejemplo",
@@ -91,7 +92,7 @@ test("addDecision writes the line in the doc and the record in the task", () => 
 
   const stored = getTask(dir, task.id, env).decisions;
   assert.deepEqual(stored.map((item) => item.id), ["D3", "D4"]);
-  assert.match(renderContext(dir, env), /rule: a decision the human makes is captured in the same turn/);
+  assert.match(renderContext(dir, env), /rule: knowledge is saved in the turn you learn it/);
 });
 
 test("addDecision without text, task or feature doc", () => {
@@ -119,7 +120,7 @@ test("a decision is one line in the state block, whatever the count", () => {
 
   const before = renderContext(dir, env);
   const rule = before.split("\n").filter((line) => line.startsWith("rule:"));
-  assert.equal(rule.length, 1);
+  assert.equal(rule.length, 2, "the block carries both rules");
 
   for (let index = 0; index < 5; index += 1) {
     addDecision(dir, { text: `decision numero ${index} del proyecto` }, env);
@@ -160,4 +161,42 @@ test("a decision the agent took under a delegated plan says so", () => {
   assert.equal(stored[0].text, "el humano eligio esto");
   assert.equal(stored[1].text, "(agente) el agente decidio aquello", "the line says who decided");
   assert.equal(stored[1].by, "agent");
+});
+
+test("a durable decision writes both artifacts, in one call", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-durable-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-durable-repo-"));
+  const env = { ...process.env, PO_SHELL_HOME: home };
+  init(dir, env);
+  fs.mkdirSync(path.join(dir, "docs/features"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "docs/features/x.md"), DOC.replace("- [ ] U6 — documentos (D1)", "- [ ] U6 — documentos (D1, D3, D4)"));
+  const task = createTask(dir, { title: "Con durables", risk: "low" }, env);
+  updateTask(dir, task.id, { featureDoc: "docs/features/x.md" }, env);
+
+  const slice = addDecision(dir, { text: "una decision de esta rebanada" }, env);
+  assert.equal(slice.durable, false);
+  assert.equal(slice.memory, null, "a slice decision does not touch memory");
+
+  const durable = addDecision(dir, { text: "el protocolo es el AGENTS.md global", durable: true }, env);
+  assert.equal(durable.durable, true);
+  assert.ok(durable.memory, "the memory was written");
+
+  indexProject(dir, { env });
+  const hits = searchMemory(dir, "AGENTS global", 5, env);
+  const found = JSON.stringify(hits);
+  assert.match(found, /AGENTS\.md global|decision-d4/);
+  assert.equal(getTask(dir, task.id, env).decisions.length, 2);
+});
+
+test("the state block states memory before decisions, in two constant lines", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-rules-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-rules-repo-"));
+  const env = { ...process.env, PO_SHELL_HOME: home };
+  init(dir, env);
+  createTask(dir, { title: "Reglas", risk: "low" }, env);
+
+  const rules = renderContext(dir, env).split("\n").filter((line) => line.startsWith("rule:"));
+  assert.equal(rules.length, 2);
+  assert.match(rules[0], /po_shell_memory/, "memory first");
+  assert.match(rules[1], /action=decision/, "and durable: true adds the memory");
 });
