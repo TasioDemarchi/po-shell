@@ -378,10 +378,14 @@ export default function poShellExtension(pi: ExtensionAPI) {
       ...(minimal ? { renderShell: "self" as const } : {}),
       renderCall(args: any, theme: any, context: any) {
         if (!minimal) return base?.renderCall?.(args, theme, context) ?? new Text(toolName, 0, 0);
-        // Expanded draws the whole frame in the result slot, body included: the
-        // call slot contributes no line, so the top rule is not drawn twice.
-        if (context?.expanded) return new Container();
-        const frame = formatFrame(toolName, args ?? {}, null, { cwd: context?.cwd, width: frameWidth() });
+        // The top rule is drawn here in both modes: the call slot renders as soon
+        // as the tool starts, so an expanded row still shows its header while the
+        // command runs instead of appearing only when the result lands.
+        const frame = formatFrame(toolName, args ?? {}, null, {
+          cwd: context?.cwd,
+          width: frameWidth(),
+          expanded: Boolean(context?.expanded),
+        });
         return new Text(paintLine(frame.top, theme, frame.tone), 0, 0);
       },
       renderResult(result: any, options: any, theme: any, context: any) {
@@ -405,8 +409,9 @@ export default function poShellExtension(pi: ExtensionAPI) {
           return new Text(lines.join("\n"), 0, 0);
         }
         // Expanded is the same frame with the prepared body inside: no side
-        // bars, at most three lines, and the count of what stayed out.
-        const lines = [paintLine(frame.top, theme, frame.tone)];
+        // bars, at most three lines, and the count of what stayed out. The top
+        // rule already came from the call slot, so it is not repeated here.
+        const lines: string[] = [];
         for (const row of frame.body ?? []) lines.push(theme.fg("toolOutput", row.text));
         if (frame.overflow > 0) lines.push(theme.fg("dim", `  … +${frame.overflow} lines`));
         lines.push(paintLine(frame.bottom, theme, frame.tone));
