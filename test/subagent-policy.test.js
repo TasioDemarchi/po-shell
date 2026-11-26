@@ -100,6 +100,20 @@ test("only the explorer gets the web, and only the reviewer and worker run bash"
   assert.equal(roleCase("bash", { command: "npm test" }, { role: "reviewer", scratch: "/tmp/x" }), null);
 });
 
+test("only the explorer gets memory_search, and nobody gets po_shell_*", () => {
+  assert.equal(roleCase("memory_search", { query: "upload" }, { role: "explorer" }), null);
+  assert.match(roleCase("memory_search", { query: "upload" }, { role: "worker" }), /no busca en la memoria del proyecto/);
+  assert.match(roleCase("memory_search", { query: "upload" }, { role: "reviewer" }), /no busca en la memoria del proyecto/);
+  // Read-only search is not a way back into the orchestrator's tools.
+  for (const role of ["explorer", "worker", "reviewer"]) {
+    for (const tool of ["po_shell_memory", "po_shell_task", "po_shell_status", "po_shell_delegate"]) {
+      assert.match(roleCase(tool, {}, { role }), /no puede usar tools de memoria/, `${role} + ${tool}`);
+    }
+  }
+  assert.equal(roleCase("read", { path: "src/a.js" }, {}), null, "no role keeps the old behaviour");
+  assert.equal(roleCase("memory_search", { query: "upload" }, {}), null, "the guard only knows roles");
+});
+
 test("an unknown role is refused instead of falling back to worker", () => {
   assert.match(roleCase("read", { path: "src/a.js" }, { role: "planner" }), /unknown subagent role/);
 });

@@ -26,7 +26,7 @@ test("an unknown role throws instead of falling back to worker", () => {
 });
 
 test("tools come from the role, and asking for a foreign tool is an error", () => {
-  assert.deepEqual(roleTools("explorer"), ["read", "grep", "find", "ls"]);
+  assert.deepEqual(roleTools("explorer"), ["read", "grep", "find", "ls", "memory_search"]);
   assert.deepEqual(roleTools("reviewer"), ["read", "grep", "find", "ls", "bash"]);
   assert.ok(roleTools("worker").includes("edit"));
 
@@ -34,6 +34,15 @@ test("tools come from the role, and asking for a foreign tool is an error", () =
   assert.throws(() => roleTools("reviewer", ["bash", "write"]), /reviewer cannot use write/);
   assert.deepEqual(roleTools("worker", ["read", "read"]), ["read"], "duplicates collapse");
   assert.deepEqual(roleTools("worker", []), ROLE_RULES.worker.tools, "empty means the role default");
+});
+
+test("memory_search is the explorer's, and asking for it elsewhere throws", () => {
+  assert.ok(roleTools("explorer").includes("memory_search"));
+  assert.equal(roleTools("worker").includes("memory_search"), false);
+  assert.equal(roleTools("reviewer").includes("memory_search"), false);
+  assert.throws(() => roleTools("worker", ["read", "memory_search"]), /worker cannot use memory_search/);
+  assert.throws(() => roleTools("reviewer", ["memory_search"]), /reviewer cannot use memory_search/);
+  assert.deepEqual(roleTools("explorer", ["memory_search"]), ["memory_search"], "the explorer may ask for less");
 });
 
 test("capabilities: writing is worker-only, web is explorer-only", () => {

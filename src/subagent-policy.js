@@ -1,7 +1,7 @@
 import path from "node:path";
 import { recognizeDestructive } from "./destructive.js";
 import { testScratchViolation } from "./scratch-guard.js";
-import { READ_TOOLS, WEB_TOOLS, WRITE_TOOLS, roleRules, withinPrefixes } from "./subagent-roles.js";
+import { MEMORY_TOOLS, READ_TOOLS, WEB_TOOLS, WRITE_TOOLS, roleRules, withinPrefixes } from "./subagent-roles.js";
 
 const isMarkdown = (value) => /\.md$/i.test(String(value ?? "").replace(/\\/g, "/"));
 const isPoShellState = (value) => {
@@ -98,6 +98,11 @@ function roleBlock(toolName, input, cwd, options) {
 
   if (WEB_TOOLS.includes(toolName) && !rules.web) {
     return `${role} no tiene acceso a la web; devolvé la pregunta al padre.`;
+  }
+  // Memory is read-only and project-scoped, and only the explorer gets it: the
+  // other two are already working from the mission the parent wrote.
+  if (MEMORY_TOOLS.includes(toolName) && !rules.tools.includes(toolName)) {
+    return `${role} no busca en la memoria del proyecto; solo el explorer la lee, y solo la del proyecto activo. Devolvé la pregunta al padre.`;
   }
   if (WRITE_TOOLS.includes(toolName) && !rules.write) {
     return `${role} no escribe archivos: solo un worker edita, y solo dentro de sus superficies.`;

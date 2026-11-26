@@ -18,10 +18,16 @@ export const READ_TOOLS = ["read", "grep", "find", "ls"];
 export const WEB_TOOLS = ["web_search", "web_fetch", "fetch_content", "get_search_content", "source_check"];
 /** Tools that change the worktree. */
 export const WRITE_TOOLS = ["edit", "write"];
+/**
+ * The project's own memory, read-only and scoped to the active project.
+ * Explorer-only: a worker or reviewer that could search memory would need the
+ * parent's context, and the parent is the one holding it.
+ */
+export const MEMORY_TOOLS = ["memory_search"];
 
 export const ROLE_RULES = {
   explorer: {
-    tools: [...READ_TOOLS],
+    tools: [...READ_TOOLS, ...MEMORY_TOOLS],
     write: false,
     bash: false,
     web: true,
