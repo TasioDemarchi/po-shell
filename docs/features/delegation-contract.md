@@ -55,6 +55,15 @@ campo de la task que el kernel inyecta en `CONTEXT` sin que el padre tenga que a
 `buildMission` la arma en secciones: MISSION, CONTEXT (archivos y comandos), EDIT SURFACES, DONE
 WHEN, OUT OF SCOPE.
 
+### El guard, en runtime
+
+Independiente del rol, un hijo nunca publica ni instala: `git add|commit|push|pull|checkout|switch|
+restore|reset|stash|clean|rebase|merge|tag` y `npm|pnpm|yarn install|add|publish`, `pip install` se
+rechazan en `tool_call`. Las lecturas se confinan a `cwd` + su scratch + los prefijos de
+`read_outside`; el scratch del hijo (que vive bajo `~/.po-shell/tmp/`) queda eximido de la regla de
+estado central, porque si no el reviewer no puede ni escribir sus probes. El reviewer, además,
+escribe **solo** dentro de su scratch: una redirección hacia el repo se rechaza.
+
 ### El handoff
 
 Si el hijo muere por turnos, presupuesto o tiempo, el padre recibe `partialReport`: estado con el
@@ -77,7 +86,10 @@ que ahí vive el gate.
 
 `po-shell task isolation worktree` (o `po_shell_task action=isolation` con un `reason` de dos
 líneas) le da al hijo un `git worktree` propio con rama `po-shell/<run>`. El árbol del padre no
-cambia; mergear o descartar es del humano. El orquestador no puede habilitarlo.
+cambia; mergear o descartar es del humano. El orquestador no puede habilitarlo, pero sí recomendarlo:
+muestra el comando exacto (`isolationCommand(task)`) o abre el diálogo con `action=isolation`, que
+exige un `reason` de dos líneas y explica qué protege. Después lee el resultado del estado, así que
+continúa sin que el humano tenga que avisarle.
 
 ### Documentos del proyecto
 
@@ -129,7 +141,9 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
 - [ ] **U7 — Memoria read-only para el explorer.**
       - [ ] Tool de búsqueda en la extensión del guard (ya cargada en el hijo), habilitada solo para
             `explorer`: `search` y `get`, scope del proyecto, nunca `all_projects`, nunca `save`.
-- [ ] **U8 — Documentos: mudanza.**
+- [ ] **U9 — `AGENTS.md` por debajo de 200 líneas.** Hoy tiene 223: mover detalle a `docs/` o a una
+      skill, sin comprimir hasta volverse ambiguo.
+- [x] **U8 — Documentos: mudanza.**
       - [x] Matar `docs/status.md`: el estado quedó en `PROJECT.md` §7-9 y el backlog en este doc.
       - [ ] Actualizar referencias en `AGENTS.md`, `README.md` y `docs/architecture.md`.
       - [ ] Reescribir la parte de documentos del protocolo con este modelo.
@@ -146,6 +160,16 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
 - **El feature doc describe, no lleva estado.** Duplicar fase o evidencia creó tres fuentes de
   verdad y ninguna confiable.
 - **Sin `planner`.** Un rol que produce planes sin el contexto del usuario es ceremonia.
+- **El perfil no se elige: `config.delegation` vale `"auto"`.** Un `"inline"` por defecto pisaba la
+  regla del riesgo en cada `init`; `"auto"` significa "lo decide el riesgo" y un valor explícito en
+  la tarea o el proyecto sigue ganando.
+- **La web va en una extensión propia, no en un MCP.** Menos piezas y sin dependencias externas; la
+  regla de rol es la misma: solo el explorer.
+- **El diálogo de aislamiento exige un motivo.** Un botón que no se explica no es una decisión; sin
+  `reason` de al menos 20 caracteres, el diálogo no abre.
+- **Los documentos los crea el harness o el orquestador, nunca el humano.** Son ayudas para el
+  agente: el humano no los pide y no necesita saber que existen; solo aprueba el alcance del
+  proyecto la primera vez.
 
 ## Out of scope
 
