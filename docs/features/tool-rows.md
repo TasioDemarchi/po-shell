@@ -112,8 +112,9 @@ reporte. Cuando el hijo termina, el marco lo muestra en la misma línea del hint
       líneas) y `overflow`; elección de líneas por tool (tail en bash ok, head en error, diff en
       edit). (D1)
 - [x] **U3 — El renderer.** `extensions/po-shell.ts` dibuja el marco en los dos modos (colapsado y
-      expandido) y solo delega a Pi en `ui full`; el hint cambia según el modo. El expandido dibuja el
-      marco entero en el slot del resultado, para no duplicar la regla superior. (D1)
+      expandido) y solo delega a Pi en `ui full`; el hint cambia según el modo. La tapa la dibuja el
+      slot de la llamada —así la tool se ve mientras corre— y el expandido aporta cuerpo, overflow y
+      pie. (D1)
 - [x] **U4 — Tests.** Sigilo por tool, pie nunca vacío, cuerpo de tres líneas con overflow correcto,
       ancho exacto del marco, bash ok/head vs error/tail, y que `ui full` no cambie. (D1)
 - [x] **U5 — El costo de delegar.** `po_shell_delegate` devuelve `details` (rol, estado, turnos,
