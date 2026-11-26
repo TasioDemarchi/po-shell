@@ -177,8 +177,8 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
             `skills/po-shell-workflow/references/delegation.md`; el procedimiento de memoria se
             quedó en el protocolo, porque es el `AGENTS.md` global y no delega procedimiento a un
             doc de desarrollo (D4).
-- [ ] **U9 — `AGENTS.md` por debajo de 200 líneas.** Hoy tiene 223: mover detalle a `docs/` o a una
-      skill, sin comprimir hasta volverse ambiguo.
+- [x] **U9 — `AGENTS.md` por debajo de 200 líneas.** Bajó de 223 a 132 en U10e; el detalle que
+      sobraba se mudó a `docs/` y a la skill, no se comprimió.
 - [x] **U8 — Documentos: mudanza.**
       - [x] Matar el viejo doc de estado: su contenido quedó en `PROJECT.md` §7-9 y el backlog en este doc.
       - [ ] Actualizar referencias en `AGENTS.md`, `README.md` y `docs/architecture.md`.
