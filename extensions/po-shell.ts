@@ -554,20 +554,9 @@ export default function poShellExtension(pi: ExtensionAPI) {
     },
   });
 
-  // The same toggle without typing: on shows it, off hides it. `auto` is one
-  // command away, because the shortcut is the emergency hatch.
-  pi.registerShortcut("ctrl+shift+p", {
-    description: "Toggle the po-shell panel",
-    handler: async (ctx) => {
-      try {
-        panel = setPanelMode(panel === "off" ? "on" : "off", process.env);
-        applyPanel(ctx);
-        ctx.ui.notify(`Panel: ${panel}`, "info");
-      } catch (error) {
-        ctx.ui.notify(String((error as Error).message), "warning");
-      }
-    },
-  });
+  // The panel toggle used to hang off ctrl+shift+p, but the binding collided with
+  // another one and broke the shortcut. It is rarely used by hand: `po-shell ui
+  // panel` (or `/panel`) still toggles it.
 
   pi.registerTool({
     name: "po_shell_status",
@@ -1077,6 +1066,33 @@ export default function poShellExtension(pi: ExtensionAPI) {
       ]),
       task: Type.String(),
       surfaces: Type.Optional(Type.Array(Type.String())),
+      done: Type.Optional(
+        Type.Array(Type.String(), {
+          description:
+            "DONE WHEN: what finished looks like, one observable item each. Required for every role: the child cannot ask.",
+        }),
+      ),
+      build_test: Type.Optional(
+        Type.String({
+          description:
+            "The exact command that proves the work. Required for a worker and a reviewer; an explorer does not run commands.",
+        }),
+      ),
+      context_files: Type.Optional(
+        Type.Array(Type.String(), {
+          description:
+            "Repo-relative files the child must read first. The task's feature_doc is prepended automatically.",
+        }),
+      ),
+      out_of_scope: Type.Optional(
+        Type.String({ description: "What the child must not touch or decide." }),
+      ),
+      read_outside: Type.Optional(
+        Type.Array(Type.String(), {
+          description:
+            "Paths (absolute or ~) an explorer may read outside the repo. Only the explorer accepts it; every other role keeps reads inside.",
+        }),
+      ),
       tools: Type.Optional(Type.Array(Type.String())),
       model: Type.Optional(Type.String()),
       timeout_seconds: Type.Optional(Type.Number()),

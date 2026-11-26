@@ -215,8 +215,8 @@ po-shell ui panel           # muestra el modo del panel
 po-shell ui panel auto      # auto (default) | on | off
 ```
 
-En sesión: `/panel on|off|auto` y `ctrl+shift+p` para prenderlo o apagarlo. Vive en
-`~/.po-shell/ui.json` junto al modo `minimal|full`.
+En sesión: `/panel on|off|auto`. El atajo `ctrl+shift+p` se quitó porque chocaba con otro
+binding y rompía. Vive en `~/.po-shell/ui.json` junto al modo `minimal|full`.
 
 ### `/usage` y `/plan`
 

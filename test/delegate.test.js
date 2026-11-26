@@ -347,3 +347,28 @@ test("runPiJson keeps the assistant notes that became a partial report", async (
   assert.equal(result.status, "ok");
   assert.deepEqual(result.notes, ["first note", "second note"]);
 });
+
+test("the delegate tool declares every mission parameter its execute reads", () => {
+  const source = fs.readFileSync(new URL("../extensions/po-shell.ts", import.meta.url), "utf8");
+  const start = source.indexOf('name: "po_shell_delegate"');
+  assert.ok(start > 0, "po_shell_delegate is registered");
+
+  const next = source.indexOf("pi.registerTool", start);
+  const body = source.slice(start, next === -1 ? source.length : next);
+  const declared = new Set(
+    [...body.matchAll(/^\s+([a-z_]+): Type\./gm)].map((match) => match[1]),
+  );
+  const read = new Set([...body.matchAll(/params\.([a-z_]+)/g)].map((match) => match[1]));
+
+  // `isolation` is read only to refuse it: the worktree is the human's decision
+  // and the CLI is the only path, so it is not an input the model may pass.
+  const inputs = [...read].filter((key) => key !== "isolation");
+  assert.ok(inputs.length > 0, "execute reads parameters");
+  for (const key of inputs) {
+    assert.ok(declared.has(key), `execute reads params.${key} but the schema does not declare it`);
+  }
+  for (const key of ["done", "build_test", "context_files", "out_of_scope", "read_outside"]) {
+    assert.ok(read.has(key), `the mission contract reads ${key}`);
+    assert.ok(declared.has(key), `the mission contract declares ${key}`);
+  }
+});

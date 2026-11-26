@@ -76,8 +76,8 @@ Cascada al achicar, manteniendo los dos bloques: primero se compacta todo (`~/de
 - `🤖` hijos vivos con elapsed y créditos; ticker de 1 s **solo** mientras corren.
 - `✓` evidencia de checks, review congelado y si hay cambios sin commitear.
 
-Modos: `/panel on|off|auto` y `ctrl+shift+p`. Persistido en `~/.po-shell/ui.json`
-junto al modo minimal (`po-shell ui panel auto`).
+Modos: `/panel on|off|auto`. El atajo `ctrl+shift+p` se quitó porque chocaba con otro
+binding y rompía. Persistido en `~/.po-shell/ui.json` junto al modo minimal (`po-shell ui panel auto`).
 
 `auto` (default) = **no existe** mientras todo va normal. Aparece con: un hijo
 corriendo, la última evidencia en rojo, un plan `high` esperando aprobación, el
@@ -192,7 +192,7 @@ sigue en `costSummary` y se mostrará en el panel de la fase 3.
 Panel implementado (2026-11-25): `src/minimal-ui.js` arma las tres filas
 (`panelRowTask`, `panelRowChildren`, `panelRowEvidence`, `panelRows`) y decide
 (`shouldShowPanel`); `src/ui.js` guarda `panel: auto|on|off` junto al modo, así que
-`po-shell ui panel`, `/panel` y `ctrl+shift+p` escriben lo mismo. La extensión mantiene
+`po-shell ui panel` y `/panel` escriben lo mismo. La extensión mantiene
 un registro en memoria de los hijos vivos (`po_shell_delegate` es sincrónico: se anota al
 arrancar y se borra en el `finally`), y repinta cada segundo solo mientras hay alguno.
 Las filas no se comprimen: la que no entra en el ancho se oculta entera.
