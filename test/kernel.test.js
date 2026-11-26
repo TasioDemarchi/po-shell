@@ -610,6 +610,78 @@ test("a medium-risk task delegates without any approval", () => {
   assert.equal(checkPolicy(dir, "po_shell_delegate", {}).block ?? false, false);
 });
 
+test("the orchestrator writes PROJECT.md, AGENTS.md and README.md under delegate-writes", () => {
+  const dir = tempRepo();
+  init(dir);
+  createTask(dir, { title: "Documentos", risk: "medium", delegation: "delegate-writes" });
+  assert.equal(delegationMode(dir), "delegate-writes");
+
+  const documents = ["PROJECT.md", "AGENTS.md", "README.md", "docs/features/anything.md"];
+  for (const file of documents) {
+    assert.equal(
+      checkPolicy(dir, "write", { path: file, content: "x" }).block ?? false,
+      false,
+      `write ${file}`,
+    );
+    assert.equal(
+      checkPolicy(dir, "edit", { path: file, edits: [{ oldText: "a", newText: "b" }] }).block ?? false,
+      false,
+      `edit ${file}`,
+    );
+  }
+});
+
+test("the parent still delegates code and every other path in the repo", () => {
+  const dir = tempRepo();
+  init(dir);
+  createTask(dir, { title: "Código", risk: "medium", delegation: "delegate-writes" });
+
+  for (const file of ["src/kernel.js", "package.json", "AGENTS.md.bak", "docs/architecture.md"]) {
+    const verdict = checkPolicy(dir, "write", { path: file, content: "x" });
+    assert.equal(verdict.block, true, `${file} stays delegated`);
+    assert.match(verdict.reason, /delegate-writes/);
+    assert.match(verdict.reason, /role=worker/);
+    assert.ok(verdict.reason.includes(file), "the message names the file");
+    assert.match(verdict.reason, /PROJECT\.md/, "the message names the documents the parent owns");
+  }
+});
+
+test("a bash redirect follows the same surfaces as write and edit", () => {
+  const dir = tempRepo();
+  init(dir);
+  createTask(dir, { title: "Shell", risk: "medium", delegation: "delegate-writes" });
+
+  assert.equal(checkPolicy(dir, "bash", { command: "echo hola > PROJECT.md" }).block ?? false, false);
+  assert.equal(checkPolicy(dir, "bash", { command: "printf x >> AGENTS.md" }).block ?? false, false);
+
+  const code = checkPolicy(dir, "bash", { command: "echo hola > src/kernel.js" });
+  assert.equal(code.block, true, "a redirect into code is still delegated");
+  assert.match(code.reason, /delegate-writes/);
+  assert.match(code.reason, /src\/kernel\.js/);
+
+  const tee = checkPolicy(dir, "bash", { command: "echo hola | tee package.json" });
+  assert.equal(tee.block, true, "tee into code is still delegated");
+  assert.match(tee.reason, /package\.json/);
+});
+
+test("the inline profile allows the same writes it allowed before", () => {
+  const dir = tempRepo();
+  init(dir);
+  createTask(dir, { title: "Inline", risk: "low", delegation: "inline" });
+  assert.equal(delegationMode(dir), "inline");
+
+  for (const file of [
+    "PROJECT.md",
+    "AGENTS.md",
+    "README.md",
+    "docs/features/anything.md",
+    "src/kernel.js",
+  ]) {
+    assert.equal(checkPolicy(dir, "write", { path: file, content: "x" }).block ?? false, false, file);
+  }
+  assert.equal(checkPolicy(dir, "bash", { command: "echo x > src/kernel.js" }).block ?? false, false);
+});
+
 test("a medium task cannot implement without a feature doc", () => {
   const dir = tempRepo();
   const task = createTask(dir, { title: "Sin doc", risk: "medium" });
