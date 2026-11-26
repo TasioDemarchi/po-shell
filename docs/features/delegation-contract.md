@@ -153,8 +153,9 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
       - [x] Captura al aceptar, no al proponer (D3): `po_shell_ask` lleva solo las opciones y una
             salida para seguir hablando; al elegir, la decisión se registra sola. `by: agent` marca
             las que tomó el orquestador bajo un plan delegado.
-      - [ ] Recorte del protocolo (290 → ~150) y de `AGENTS.md` (223 → ≤200) para que la regla no
-            quede enterrada.
+      - [x] Recorte del protocolo (290 → 123 líneas) y de `AGENTS.md` (223 → 132) para que la regla
+            no quede enterrada (D2). El detalle operativo de delegación se mudó a
+            `skills/po-shell-workflow/references/delegation.md`.
 - [ ] **U9 — `AGENTS.md` por debajo de 200 líneas.** Hoy tiene 223: mover detalle a `docs/` o a una
       skill, sin comprimir hasta volverse ambiguo.
 - [x] **U8 — Documentos: mudanza.**

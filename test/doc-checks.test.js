@@ -28,6 +28,14 @@ test("a reference to a missing file is a problem; an existing one is not", () =>
   assert.equal(problems[0].line, 3);
 });
 
+test("a reference resolves next to the file before the repo root", () => {
+  const dir = repo();
+  write(dir, "skills/x/SKILL.md", "Ver `references/detail.md` y `docs/guide.md`.\n");
+  write(dir, "skills/x/references/detail.md", "# detail\n");
+  write(dir, "docs/guide.md", "# guía\n");
+  assert.deepEqual(messages(dir), [], "both resolve: one next to the skill, one at the root");
+});
+
 test("bare file names in inline code are not pointers", () => {
   const dir = repo();
   write(dir, "skills/x/SKILL.md", "No crees `brief.md` ni `spec.md` sueltos.\n");

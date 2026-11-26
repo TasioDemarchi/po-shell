@@ -15,8 +15,6 @@ export const MAX_DOC_LINES = 200;
 // names the file and the problem, and it disappears when the file is fixed. The
 // list only shrinks, which is the point — new violations are never added here.
 export const KNOWN_DEBT = [
-  // U9: split it, do not compress it until it is ambiguous.
-  "AGENTS.md — 223 lines, over the 200-line ceiling",
   "docs/features/instalador-propio.md — \"## State\" does not belong in a feature doc",
   "docs/features/instalador-propio.md — \"## Log\" does not belong in a feature doc",
   "docs/features/tui-status.md — \"## State\" does not belong in a feature doc",
@@ -77,7 +75,10 @@ export function checkDocs(cwd = process.cwd()) {
       for (const match of text.matchAll(pattern)) {
         const target = String(match[1] ?? "").replace(/^<|>$/g, "");
         if (!target || /^https?:/i.test(target) || target.startsWith("#")) continue;
-        if (!fs.existsSync(path.resolve(root, target))) {
+        // Relative to the file first (a skill points at `references/x.md`), then to the root.
+        const fromFile = path.resolve(path.dirname(absolute), target);
+        const fromRoot = path.resolve(root, target);
+        if (!fs.existsSync(fromFile) && !fs.existsSync(fromRoot)) {
           add(rel, `reference to a file that does not exist: ${target}`, lineOf(text, match.index ?? 0));
         }
       }

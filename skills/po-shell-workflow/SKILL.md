@@ -134,10 +134,9 @@ Only for a named reason:
 
 Never delegate "because it is large". Size is not a reason.
 
-A `worker` must declare `surfaces` (repo-relative paths or globs): the child guard blocks writes
-outside them, both from `edit`/`write` and from shell redirection. The report comes back capped and
-the full text stays in the artifact.
+The mission is a contract: `done`, `build_test`, `context_files`, `out_of_scope` and, for a worker,
+`surfaces`. The kernel refuses an incomplete one; do not work around it.
 
-In the `delegate-writes` profile the parent does not implement at all: it decides, explores, writes
-`docs/features/` and commits, and every code mutation goes to a worker. The kernel blocks the rest;
-the profile lives in the task's `delegation` field, not in this table.
+The profile follows the risk: `low` edits in place, `medium` and `high` delegate every write and the
+parent only touches `docs/features/`. Read `references/delegation.md` for the role matrix, the
+budget ceilings, the partial report and the worktree.
