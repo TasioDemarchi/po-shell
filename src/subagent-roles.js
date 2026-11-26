@@ -27,8 +27,8 @@ export const ROLE_RULES = {
     web: true,
     // Reads outside the repo only along the prefixes the mission grants.
     outside: "granted",
-    maxTurns: 12,
-    timeoutSeconds: 300,
+    maxTurns: 16,
+    timeoutSeconds: 420,
   },
   worker: {
     tools: [...READ_TOOLS, "bash", ...WRITE_TOOLS],

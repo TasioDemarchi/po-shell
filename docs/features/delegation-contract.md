@@ -130,14 +130,15 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
       estado, aislamiento que el orquestador no puede habilitar.
 - [x] **U5 — Perfil por riesgo y gate.** `low` inline, `medium`/`high` delegate-writes, y `high` sin
       plan aprobado no delega.
-- [ ] **U6 — Documentos del proyecto en runtime.**
-      - [ ] `src/scaffold.js`: `PROJECT.md` y `AGENTS.md` desde plantillas **en inglés**, idempotente,
-            llamado desde `init()`; nunca pisa un archivo existente.
-      - [ ] `feature_doc` en la task: validado al crear (existe, es `.md`), obligatorio en
-            `medium`/`high`, inyectado por `buildMission` a worker y reviewer.
-      - [ ] Gate de `AGENTS.md` por contenido: si los comandos siguen con `<command>`, avisar en la
-            delegación que el contexto va incompleto, sin bloquear.
-      - [ ] Explorer a 16 turnos / 420 s.
+- [x] **U6 — Documentos del proyecto en runtime.**
+      - [x] `src/scaffold.js`: `PROJECT.md` y `AGENTS.md` desde plantillas **en inglés**, idempotente,
+            llamado desde `init()`; nunca pisa un archivo existente, ni uno vacío.
+      - [x] `feature_doc` en la task: se valida que exista y sea `.md`, es obligatorio para pasar a
+            `implementing` en `medium`/`high` (el gate va donde empieza el trabajo, no al crear la
+            tarea), y `missionContextFiles` lo antepone al contexto de cada misión.
+      - [x] Gate de `AGENTS.md` por contenido: si sigue con placeholders, la delegación lo avisa en el
+            reporte, sin bloquear.
+      - [x] Explorer a 16 turnos / 420 s.
 - [ ] **U7 — Memoria read-only para el explorer.**
       - [ ] Tool de búsqueda en la extensión del guard (ya cargada en el hijo), habilitada solo para
             `explorer`: `search` y `get`, scope del proyecto, nunca `all_projects`, nunca `save`.
@@ -201,6 +202,7 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
 - D4 — El protocolo es el AGENTS.md global del harness y no delega procedimiento a docs/architecture.md, que es documentación de desarrollo: el procedimiento de memoria vuelve al protocolo (153 líneas), el diseño del índice se queda en architecture.md.
 - D5 — La memoria pesa más que el D#: si una decisión se guarda solo como memoria ya está guardada; el D# existe para atar unidades. durable: true escribe los dos en una llamada y las dos reglas viven en el bloque de estado, memoria primero.
 - D6 — El flag durable es explícito y no hay paso de promoción al cerrar: una decisión de rebanada queda solo como D# y no entra a memoria, para que la memoria no acumule verdades que caducan. El juicio se hace al capturar, con la regla en el bloque de estado y el eco de la tool.
+- D7 — El feature_doc se exige al pasar a implementing, no al crear la tarea: crear tareas es barato y se hace para reviews, perfiles y pruebas; el doc importa cuando empieza el trabajo y es el momento en que el orquestador ya lo escribió.
 
 ## Out of scope
 

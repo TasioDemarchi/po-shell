@@ -7,6 +7,7 @@
  */
 
 import { Type } from "typebox";
+import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { Container, Text } from "@earendil-works/pi-tui";
@@ -41,6 +42,7 @@ import { semanticConfig } from "../src/semantic.js";
 import { planLines, sessionMetrics, statsLines } from "../src/stats.js";
 import { windowFrame, windowWidth } from "../src/window.js";
 import { askOptions, isFollowUp } from "../src/decisions.js";
+import { looksUnfilled } from "../src/scaffold.js";
 import { roleBudgets, roleTools, validateMission } from "../src/subagent-roles.js";
 import { createWorktree, worktreeChanges } from "../src/worktree.js";
 import { fetchUsage } from "../src/nan-usage.js";
@@ -60,6 +62,7 @@ import {
   latestReview,
   taskLabelOf,
   messagePromptTokens,
+  missionContextFiles,
   saveContextPressure,
   poShellPath,
   readContextPressure,
@@ -630,6 +633,12 @@ export default function poShellExtension(pi: ExtensionAPI) {
       scope: Type.Optional(Type.String()),
       out_of_scope: Type.Optional(Type.String()),
       plan: Type.Optional(Type.String()),
+      feature_doc: Type.Optional(
+        Type.String({
+          description:
+            "Path to this slice's feature doc (`docs/features/<slug>.md`). Required for medium and high risk: the kernel refuses the task without it and injects it into every mission of that task.",
+        }),
+      ),
       plan_summary: Type.Optional(Type.String()),
       next: Type.Optional(Type.String()),
       acceptance: Type.Optional(Type.Array(Type.String())),
@@ -691,6 +700,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
             plan: params.plan ?? "",
             planSummary: params.plan_summary,
             delegation: params.delegation,
+            featureDoc: params.feature_doc,
           });
           snapshotTask(cwd, task);
           const next =
@@ -1115,6 +1125,20 @@ export default function poShellExtension(pi: ExtensionAPI) {
       }
       const isolation = activeTask(ctx.cwd)?.isolation === "worktree" ? "worktree" : "none";
 
+      // The child only learns conventions from AGENTS.md if the mission names it, and
+      // a file full of `<command>` teaches it nothing. Say so; do not block the work.
+      const agentsNote = (() => {
+        const file = path.join(ctx.cwd, "AGENTS.md");
+        try {
+          if (!fs.existsSync(file)) return "AGENTS.md: missing (the mission's CONTEXT is the child's only instruction)";
+          return looksUnfilled(fs.readFileSync(file, "utf8"))
+            ? "AGENTS.md: still has placeholders"
+            : "";
+        } catch {
+          return "";
+        }
+      })();
+
       const readOutside = (params.read_outside ?? [])
         .map((value: string) => String(value).trim())
         .filter(Boolean)
@@ -1128,7 +1152,11 @@ export default function poShellExtension(pi: ExtensionAPI) {
         }
       }
       const done = (params.done ?? []).map((value: string) => String(value).trim()).filter(Boolean);
-      const contextFiles = (params.context_files ?? []).map((value: string) => String(value).trim()).filter(Boolean);
+      // The task's feature doc is injected here, not remembered by the parent.
+      const contextFiles = missionContextFiles(
+        ctx.cwd,
+        (params.context_files ?? []).map((value: string) => String(value).trim()),
+      );
       const buildTest = String(params.build_test ?? "").trim();
       // The contract is a kernel predicate, not a paragraph: a delegation that
       // fails it never launches, for any role.
@@ -1287,6 +1315,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
               `status: ${result.status}`,
               `turns: ${result.turns}/${budgets.maxTurns}`,
               `credits: ${subagentCost ? formatCredits(subagentCost.credits) : "n/a"}`,
+              agentsNote,
               artifact?.resultPath ? `artifact: ${artifact.resultPath}` : "",
               "",
               partialReport({
@@ -1315,6 +1344,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
               `usage: input=${usage.input ?? 0} output=${usage.output ?? 0} cache=${(usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0)} total=${total}`,
               `credits: ${subagentCost ? formatCredits(subagentCost.credits) : "n/a"}`,
               `model: ${costModel || "(default)"}`,
+              agentsNote,
               worktree ? `worktree: ${worktree.path} (branch ${worktree.branch})` : "",
               worktree ? `changes: ${worktreeChanges(worktree.path).files.length} files — revisá el diff antes de mergear o descartar` : "",
               `budget: max_tokens=${params.max_tokens ?? 0} (output acumulado) max_turns=${params.max_turns ?? 0}`,

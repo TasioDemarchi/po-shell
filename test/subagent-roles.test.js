@@ -48,7 +48,7 @@ test("capabilities: writing is worker-only, web is explorer-only", () => {
 });
 
 test("budgets default to the role and never exceed its ceiling", () => {
-  assert.deepEqual(roleBudgets("explorer"), { maxTurns: 12, maxTokens: 0, timeoutSeconds: 300 });
+  assert.deepEqual(roleBudgets("explorer"), { maxTurns: 16, maxTokens: 0, timeoutSeconds: 420 });
   assert.deepEqual(roleBudgets("worker", { maxTurns: 25 }), { maxTurns: 25, maxTokens: 0, timeoutSeconds: 900 });
   assert.equal(roleBudgets("worker", { maxTurns: 500 }).maxTurns, 40, "the role owns the ceiling");
   assert.equal(roleBudgets("worker", { timeoutSeconds: 7200 }).timeoutSeconds, 900);

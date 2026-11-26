@@ -10,6 +10,7 @@ import {
   checkPolicy,
   createTask,
   delegationMode,
+  missionContextFiles,
   ensureTaskNumbers,
   freezeReview,
   getTask,
@@ -32,6 +33,13 @@ import { evaluateToolCall } from "../src/policy.js";
 import { DEFAULT_POLICY } from "../src/policy.js";
 
 process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-home-"));
+
+function featureDoc(dir, slug = "slice") {
+  const file = path.join(dir, "docs", "features", `${slug}.md`);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, `---\ntype: feature\nstatus: active\n---\n\n# ${slug}\n`);
+  return path.relative(dir, file);
+}
 
 function tempRepo() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-test-"));
@@ -83,7 +91,8 @@ test("init in the directory that holds the central home does not migrate it into
 
 test("tasks move through phases and stay active", () => {
   const dir = tempRepo();
-  const task = createTask(dir, { title: "Add retries", risk: "medium", scope: "upload" });
+  const doc = featureDoc(dir);
+  const task = createTask(dir, { title: "Add retries", risk: "medium", scope: "upload", featureDoc: doc });
   assert.equal(activeTask(dir).id, task.id);
   const next = updateTask(dir, task.id, { phase: "implementing", next: "write test" });
   assert.equal(next.phase, "implementing");
@@ -93,7 +102,8 @@ test("tasks move through phases and stay active", () => {
 
 test("high-risk tasks require explicit plan approval", () => {
   const dir = tempRepo();
-  const task = createTask(dir, { title: "Change public contract", risk: "high" });
+  const doc = featureDoc(dir);
+  const task = createTask(dir, { title: "Change public contract", risk: "high", featureDoc: doc });
   assert.equal(task.planApproved, false);
   assert.throws(
     () => updateTask(dir, task.id, { phase: "implementing" }),
@@ -205,6 +215,9 @@ test("freezeReview captures a stable hash of a real diff", () => {
   git(dir, ["add", "."]);
   git(dir, ["commit", "-m", "init"]);
   init(dir);
+  // The scaffold lands once and is committed: only the intended change is the candidate.
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-m", "scaffold"]);
 
   fs.writeFileSync(path.join(dir, "a.txt"), "one\ntwo\n");
   const meta = freezeReview(dir, { base: "HEAD" });
@@ -240,6 +253,8 @@ test("freezeReview refuses an empty candidate", () => {
   git(dir, ["add", "."]);
   git(dir, ["commit", "-m", "init"]);
   init(dir);
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-m", "scaffold"]);
   assert.throws(() => freezeReview(dir), /no changes/);
 });
 
@@ -460,4 +475,51 @@ test("a medium-risk task delegates without any approval", () => {
   const task = createTask(dir, { title: "Riesgo medio", risk: "medium", plan: "1. tocar el renderer" });
   assert.equal(task.planApproved, true, "medium is not a human decision");
   assert.equal(checkPolicy(dir, "po_shell_delegate", {}).block ?? false, false);
+});
+
+test("a medium task cannot implement without a feature doc", () => {
+  const dir = tempRepo();
+  const task = createTask(dir, { title: "Sin doc", risk: "medium" });
+  assert.throws(() => updateTask(dir, task.id, { phase: "implementing" }), /needs `feature_doc`/);
+
+  const missing = featureDoc(dir, "slice");
+  fs.rmSync(path.join(dir, missing));
+  assert.throws(
+    () => updateTask(dir, task.id, { phase: "implementing", featureDoc: missing }),
+    /does not exist/,
+  );
+
+  const real = featureDoc(dir, "real");
+  assert.equal(updateTask(dir, task.id, { phase: "implementing", featureDoc: real }).phase, "implementing");
+});
+
+test("a low task never needs a feature doc", () => {
+  const dir = tempRepo();
+  const task = createTask(dir, { title: "Chico", risk: "low" });
+  assert.equal(updateTask(dir, task.id, { phase: "implementing" }).phase, "implementing");
+});
+
+test("the mission reads the task's feature doc first, without the parent repeating it", () => {
+  const dir = tempRepo();
+  const doc = featureDoc(dir, "delegation");
+  const task = createTask(dir, { title: "Con doc", risk: "medium", featureDoc: doc });
+  assert.equal(activeTask(dir).id, task.id);
+
+  assert.deepEqual(missionContextFiles(dir, ["AGENTS.md"]), [doc, "AGENTS.md"]);
+  assert.deepEqual(missionContextFiles(dir, [doc, "AGENTS.md"]), [doc, "AGENTS.md"], "no duplicates");
+  assert.deepEqual(missionContextFiles(dir, []), [doc]);
+
+  createTask(dir, { title: "Otra sin doc", risk: "low" });
+  assert.deepEqual(missionContextFiles(dir, ["AGENTS.md"]), ["AGENTS.md"], "the doc comes from the active task");
+});
+
+test("init scaffolds the two documents and never overwrites them", () => {
+  const dir = tempRepo();
+  init(dir);
+  assert.ok(fs.existsSync(path.join(dir, "PROJECT.md")));
+  assert.ok(fs.existsSync(path.join(dir, "AGENTS.md")));
+
+  fs.writeFileSync(path.join(dir, "PROJECT.md"), "# propio\n");
+  init(dir);
+  assert.equal(fs.readFileSync(path.join(dir, "PROJECT.md"), "utf8"), "# propio\n");
 });

@@ -1,27 +1,27 @@
-# Proyecto
+# Project
 
-## Objetivo
+## Goal
 
-Qué problema resuelve y para quién.
+What problem it solves and for whom.
 
 ## MVP
 
-Qué debe funcionar en la primera versión.
+What has to work in the first version.
 
-## No objetivos
+## Non-goals
 
-Qué queda explícitamente fuera.
+What is explicitly out of scope.
 
 ## Stack
 
-Lenguaje, runtime, base de datos, UI y restricciones técnicas.
+Language, runtime, database, UI and technical constraints.
 
-## Restricciones
+## Constraints
 
-Tiempo, presupuesto, seguridad, privacidad, hardware y compatibilidad.
+Time, budget, security, privacy, hardware and compatibility.
 
-## Estado
+## State
 
-- Fase actual:
-- Próximo paso:
-- Riesgos abiertos:
+- Current phase:
+- Next step:
+- Open risks:

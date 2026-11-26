@@ -22,6 +22,7 @@ import {
   orphanDecisions,
   readDoc,
 } from "./decisions.js";
+import { ensureProjectDocs } from "./scaffold.js";
 import {
   DEFAULT_CONTEXT_GUARD,
   contextDirective,
@@ -118,6 +119,9 @@ export function init(cwd = process.cwd(), env = process.env) {
       ["events.jsonl", "reviews/", "agents/", "active", "tasks/.seq", "*.tmp-*", ""].join("\n"),
     );
   }
+  // The project's two documents are an agent aid, not a request: they appear on
+  // the first run and never overwrite an existing file.
+  ensureProjectDocs(cwd);
   if (firstRun) appendEvent(cwd, "init", {}, env);
   // One-time, idempotent: tasks created before `number` existed get theirs here.
   ensureTaskNumbers(cwd, env);
@@ -308,12 +312,24 @@ export function activeTask(cwd, env = process.env) {
 
 export function createTask(
   cwd,
-  { title, risk = "medium", scope = "", outOfScope = "", acceptance = [], plan = "", planSummary = "", delegation },
+  {
+    title,
+    risk = "medium",
+    scope = "",
+    outOfScope = "",
+    acceptance = [],
+    plan = "",
+    planSummary = "",
+    delegation,
+    featureDoc = "",
+  },
   env = process.env,
 ) {
   if (!title || !String(title).trim()) throw new Error("task title is required");
   if (!RISKS.includes(risk)) throw new Error(`risk must be one of ${RISKS.join(", ")}`);
   init(cwd, env);
+  const doc = String(featureDoc ?? "").trim();
+  if (doc) assertFeatureDoc(cwd, doc);
   if (delegation && !DELEGATIONS.includes(delegation)) {
     throw new Error(`delegation must be one of ${DELEGATIONS.join(", ")}`);
   }
@@ -328,6 +344,7 @@ export function createTask(
     // `worktree` is the human's decision: `setTaskIsolation` is the only path to
     // it, and that path is the CLI, not a tool the model can call.
     isolation: "none",
+    featureDoc: doc,
     title: String(title).trim(),
     phase: "authorized",
     risk,
@@ -382,6 +399,9 @@ export function updateTask(cwd, id, patch = {}, env = process.env) {
       "high-risk task requires plan approval before implementing. Show the plan and call po_shell_task with action=approve.",
     );
   }
+  if (next.phase === "implementing" && next.risk !== "low") {
+    assertFeatureDoc(cwd, next.featureDoc, "a medium or high task needs `feature_doc` before implementing: write docs/features/<slug>.md and pass it to po_shell_task");
+  }
   if (next.phase === "ready") {
     const checked = (next.evidence ?? []).some((item) => item.kind === "checks" && item.ok === true);
     if (!checked) {
@@ -415,6 +435,27 @@ export function isolationCommand(task, target = "worktree") {
  * away; the line lands in the feature document's `## Decisions`, which survives a
  * compaction, and in the task JSON, which is what the kernel can query.
  */
+/** A feature doc that does not exist is a mission with no design. */
+function assertFeatureDoc(cwd, doc, missing = "`feature_doc` does not exist: write docs/features/<slug>.md first") {
+  const value = String(doc ?? "").trim();
+  if (!value) throw new Error(missing);
+  if (!/\.md$/i.test(value)) throw new Error("`feature_doc` must be a markdown file");
+  if (!fs.existsSync(path.resolve(cwd, value))) throw new Error(`feature_doc does not exist: ${value}`);
+}
+
+/**
+ * What a mission reads first: the slice's feature doc, then the files the parent
+ * named. Duplicates collapse, so the kernel can add the doc without the parent
+ * having to remember it.
+ */
+export function missionContextFiles(cwd, given = [], env = process.env) {
+  const task = activeTask(cwd, env);
+  const doc = String(task?.featureDoc ?? "").trim();
+  const list = (Array.isArray(given) ? given : []).map((item) => String(item).trim()).filter(Boolean);
+  const merged = doc ? [doc, ...list.filter((item) => item !== doc)] : list;
+  return [...new Set(merged)];
+}
+
 export function addDecision(cwd, { text, taskId, by = "human", durable = false } = {}, env = process.env) {
   const task = taskId ? getTask(cwd, taskId, env) : activeTask(cwd, env);
   if (!task) throw new Error("a decision needs a task: create one first");
