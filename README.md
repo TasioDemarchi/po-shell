@@ -144,33 +144,55 @@ Configurá tus checks en `~/.po-shell/projects/<id>/config.json`:
 
 ## Estética
 
-Por defecto la terminal muestra **una línea por acción**: el icono de la herramienta, la palabra que
-dice qué pasó, qué tocó y la meta (líneas del diff, duración).
+Por defecto cada acción es **un marco de dos líneas**: el sigilo de la familia, la palabra que dice
+qué pasó, el sujeto y el dato útil; el resultado cierra el borde inferior.
 
 ```text
-╭─ $ shell · npm test ───────────────────────────────────── ctrl+o to expand ─╮
-╰─ ✓ 6.5s ────────────────────────────────────────────────────────────────────╯
-╭─ ~ edit · src/kernel.js  +12 −3 ────────────────────────── ctrl+o to expand ─╮
-╰─────────────────────────────────────────────────────────────────────────────╯
-╭─ + write · PROJECT.md  18 L ────────────────────────────── ctrl+o to expand ─╮
-╰─────────────────────────────────────────────────────────────────────────────╯
+╭─ $ shell · npm test ───────────────────────────────────────── ctrl+o expand ─╮
+╰─ ok · 6.5s · # pass 339 ─────────────────────────────────────────────────────╯
+╭─ : read · src/kernel.js:101-139 ───────────────────────────── ctrl+o expand ─╮
+╰─ 2 lines ────────────────────────────────────────────────────────────────────╯
+╭─ ~ edit · src/kernel.js  +3 −2 ────────────────────────────── ctrl+o expand ─╮
+╰─ applied ────────────────────────────────────────────────────────────────────╯
+╭─ > delegate · worker  Implementar U1 con tests ───── 1.39cr · ctrl+o expand ─╮
+╰─ ok · 29 turns · 2m19s ──────────────────────────────────────────────────────╯
 … thinking…
 ```
 
-Cada llamada es un recuadro de dos líneas: la fila viaja en el borde superior y el resultado
-(`✓ 6.5s`, `✗ failed`, `2 results`) cierra el inferior, así que el bloque se lee como una unidad y
-no como dos renglones sueltos. El ancho es el de la terminal, y cuando no entra se va primero el
-hint, después se corta el sujeto con `…`; el borde siempre cierra.
+Cada llamada es un recuadro de dos líneas: la fila viaja en el borde superior y el resultado cierra el
+inferior, así que el bloque se lee como una unidad y no como dos renglones sueltos. El pie **nunca**
+queda vacío: `bash` da duración y la última línea de la salida (el veredicto está al final), `read`
+cuenta líneas, `edit` dice si aplicó, `search` cuenta resultados. El ancho es el de la terminal, y
+cuando no entra se va primero el hint, después se corta el sujeto con `…`; el borde siempre cierra.
 
 La etiqueta va en inglés y en dim; sin ella una fila que dice `docs/x.md +23 −15` no aclara si el
-archivo se leyó, se editó o se escribió. El marcador es ASCII de una celda (`$ ~ + = / : # * ✓ @ ?
-> <`): un emoji sin cobertura en la fuente se dibuja como un recuadro y la fila pierde su marca.
+archivo se leyó, se editó o se escribió. El sigilo es ASCII de una celda, uno por familia —`$` shell,
+`:` read, `+` write, `~` edit, `/` search, `.` list, `#` task, `=` memory, `!` check, `?` ask, `%`
+review, `>` delegate, `^` get, `@` web—: un emoji o un icono de Nerd Font sin cobertura se dibuja como
+un recuadro y la fila pierde su marca. Los resultados dicen `ok` y `fail` en palabras, no `✓`/`✗`.
 Las filas no llevan fondo de color: la herramienta declara `renderShell: "self"` y Pi no las envuelve
 en su caja de `toolPendingBg`/`toolSuccessBg`/`toolErrorBg`.
 
+Una delegación es la acción más cara, así que cuando termina muestra lo que costó: los créditos a la
+derecha, junto al hint, y los turnos y el tiempo en el pie. Mientras corre dice `running…`; si el
+costo no es calculable dice `no cost` en vez de un número falso.
+
 El thinking arranca oculto con esa etiqueta y el indicador de trabajo anima puntos. Nada se pierde:
-`ctrl+o` expande la acción y muestra el comando, la salida y el diff nativos; `ctrl+t` muestra el
-razonamiento completo.
+`ctrl+o` abre el mismo marco con el cuerpo adentro, recortado a tres líneas y con `… +N lines` cuando
+queda más:
+
+```text
+╭─ $ shell · npm test 2>&1 | tail -8 ──────────────────────── ctrl+o collapse ─╮
+    ok 3
+    ok 4
+    # pass 339
+  … +2 lines
+╰─ ok · 6.5s · # pass 339 ─────────────────────────────────────────────────────╯
+```
+
+En `bash` con éxito el cuerpo son las últimas líneas; con error, las primeras. En `edit`, las líneas
+cambiadas con `-`/`+`. `ui full` devuelve la vista nativa de Pi para todo el resto, y `ctrl+t` muestra
+el razonamiento completo.
 
 ### Footer de una línea
 

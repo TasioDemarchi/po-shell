@@ -91,8 +91,9 @@ docs/                           architecture, recovery, scratch, self-hosting, s
 
 ## Change rules
 
-- **Do not rewrite Pi or its TUI.** Display changes go through `registerToolRenderer`/`ctx.ui`:
-  collapsed is ours, expanded delegates to Pi.
+- **Do not rewrite Pi or its TUI.** Display changes go through `registerToolRenderer`/`ctx.ui`. The
+  tool rows are ours in both modes, collapsed and expanded; the rest of Pi's TUI is Pi's, and
+  `ui full` hands the rows back.
 - **TUI chrome is English; the agent answers in the user's language.** Rows, dialog titles and
   buttons, toasts and the thinking label are English; results, CLI output and docs keep theirs.
 - **Zero runtime dependencies.** Node 22+ and Git.
