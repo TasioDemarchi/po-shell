@@ -15,7 +15,7 @@ export const SUBAGENT_ROLES = ["explorer", "worker", "reviewer"];
 /** Tools that only look at the filesystem. */
 export const READ_TOOLS = ["read", "grep", "find", "ls"];
 /** Web tools. The explorer gets them, nobody else: a child with network is a child that can exfiltrate. */
-export const WEB_TOOLS = ["web_search", "web_fetch", "fetch_content", "get_search_content", "source_check"];
+export const WEB_TOOLS = ["web_search", "web_fetch"];
 /** Tools that change the worktree. */
 export const WRITE_TOOLS = ["edit", "write"];
 /**
@@ -24,10 +24,15 @@ export const WRITE_TOOLS = ["edit", "write"];
  * parent's context, and the parent is the one holding it.
  */
 export const MEMORY_TOOLS = ["memory_search"];
+/**
+ * Reading one public page, bounded and validated. Explorer-only for the same
+ * reason as the rest of the web: it is egress.
+ */
+export const WEB_FETCH_TOOLS = ["web_fetch"];
 
 export const ROLE_RULES = {
   explorer: {
-    tools: [...READ_TOOLS, ...MEMORY_TOOLS],
+    tools: [...READ_TOOLS, ...MEMORY_TOOLS, ...WEB_FETCH_TOOLS],
     write: false,
     bash: false,
     web: true,

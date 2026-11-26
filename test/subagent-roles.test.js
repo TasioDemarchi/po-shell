@@ -26,7 +26,7 @@ test("an unknown role throws instead of falling back to worker", () => {
 });
 
 test("tools come from the role, and asking for a foreign tool is an error", () => {
-  assert.deepEqual(roleTools("explorer"), ["read", "grep", "find", "ls", "memory_search"]);
+  assert.deepEqual(roleTools("explorer"), ["read", "grep", "find", "ls", "memory_search", "web_fetch"]);
   assert.deepEqual(roleTools("reviewer"), ["read", "grep", "find", "ls", "bash"]);
   assert.ok(roleTools("worker").includes("edit"));
 
