@@ -181,16 +181,14 @@ Verificado end-to-end: una delegación real con `max_tokens=2000` completó y gu
 
 ### Pendiente
 
-### Replanteo de la delegación (en curso)
+### Replanteo de la delegación
 
-| # | Unidad | Estado |
-|---|---|---|
-| 1 | Matriz de roles en runtime (padre valida + guard del hijo re-valida), `planner` eliminado | ✅ hecho |
-| 2 | Misión estructurada (`done`, `build_test`, `context_files`, `out_of_scope`) + `partialReport` en kill | ✅ hecho |
-| 3 | `reviewer` que ejecuta: contrato de `gentle-ai-verify` (comandos autorizados, copia scratch, veredicto por ítem, probes como tests) | ✅ hecho |
-| 4 | Worktree por hijo, **aprobado por el humano**: CLI (`po-shell task isolation worktree #12`) o diálogo en sesión (`po_shell_task action=isolation`); el orquestador solo lo recomienda con el comando exacto y ve el resultado en el estado | ✅ hecho |
-| 5 | Extensión web propia para el explorer (`web_search`/`fetch`) y `.md` de rol alineados | pendiente |
-| 6 | **Gate de aprobación**: el perfil sale del riesgo (`low` → inline, `medium`/`high` → delegate-writes) y una tarea `high` sin plan aprobado no puede delegar — la única puerta al código queda cerrada por el kernel | ✅ hecho |
+El diseño completo, las decisiones y el estado por unidad viven en
+`docs/features/delegation-contract.md`. Ahí está la fuente: no se duplica acá.
+
+Resumen: U1–U5 hechas (matriz de roles, misión y reporte parcial, contrato en el kernel, reviewer
+que ejecuta, worktree opt-in, perfil por riesgo). Pendientes: U6 (documentos del proyecto en
+runtime), U7 (memoria read-only para el explorer) y U8 (mudanza de este archivo a `PROJECT.md`).
 
 | Item | Descripción |
 |---|---|
