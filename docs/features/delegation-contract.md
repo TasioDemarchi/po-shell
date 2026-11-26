@@ -150,6 +150,8 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
       - [x] `scripts/check-docs.mjs` (`npm run docs:check`): referencias rotas, `## State`/`## Log` en
             feature docs, límite de 200 líneas, decisiones huérfanas (D1, D2). Con un ratchet
             (`KNOWN_DEBT`) que solo encoge: hoy son cinco ítems de deuda previa, no deuda nueva.
+      - [x] Sin paso de promoción al cerrar (D6): el flag `durable` es explícito y el juicio se hace al
+            capturar, para que la memoria no acumule verdades que caducan.
       - [x] `durable: true` escribe el `D#` y la memoria en una llamada, y el bloque de estado lleva las
             dos reglas con la memoria primero (D5): una decisión guardada solo como memoria ya está
             guardada; el `D#` existe para atar unidades.
@@ -198,6 +200,7 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
 - D3 — Las decisiones se confirman por po_shell_ask: la explicación va en la respuesta y el diálogo solo lleva las opciones más «seguir analizando»; aceptar captura el D# en el turno, sin esperar a que el humano lo repita.
 - D4 — El protocolo es el AGENTS.md global del harness y no delega procedimiento a docs/architecture.md, que es documentación de desarrollo: el procedimiento de memoria vuelve al protocolo (153 líneas), el diseño del índice se queda en architecture.md.
 - D5 — La memoria pesa más que el D#: si una decisión se guarda solo como memoria ya está guardada; el D# existe para atar unidades. durable: true escribe los dos en una llamada y las dos reglas viven en el bloque de estado, memoria primero.
+- D6 — El flag durable es explícito y no hay paso de promoción al cerrar: una decisión de rebanada queda solo como D# y no entra a memoria, para que la memoria no acumule verdades que caducan. El juicio se hace al capturar, con la regla en el bloque de estado y el eco de la tool.
 
 ## Out of scope
 
