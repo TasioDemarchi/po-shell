@@ -63,6 +63,15 @@ Rules:
 - If `po-shell integrity` reports an ERROR: stop and follow `docs/recovery.md`.
 - `po-shell restore` requires `--yes`; do not restore without an explicit human request.
 
+## Decisions
+
+The moment the human says yes, capture it: `po_shell_task action=decision` with one line.
+It becomes `D<n>` in `## Decisions` of the feature doc, which survives a compaction; the chat does
+not. The tool answers with the id, the total and the orphans — decisions no unit references yet.
+
+Do not wait for the end of the session, and do not batch them: what is not captured in the turn is
+lost when the context is compacted.
+
 ## During work
 
 - One unit of behavior at a time.

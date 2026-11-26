@@ -146,15 +146,16 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
             registro en el JSON de la tarea, y el eco con el total y las huérfanas.
       - [x] Bloque de estado: una línea fija con la regla, al lado de la tarea. Sin listas: crecerían
             con cada run.
-      - [ ] La misma regla en `Directives` del protocolo y en la skill de workflow.
-      - [ ] `scripts/check-docs.mjs` en `po_shell_check`: referencias rotas, `## State`/`## Log` en
-            feature docs, límite de 200 líneas, decisiones huérfanas.
+      - [x] La misma regla en `Directives` del protocolo y en una sección propia de la skill.
+      - [x] `scripts/check-docs.mjs` (`npm run docs:check`): referencias rotas, `## State`/`## Log` en
+            feature docs, límite de 200 líneas, decisiones huérfanas. Con un ratchet
+            (`KNOWN_DEBT`) que solo encoge: hoy son cinco ítems de deuda previa, no deuda nueva.
       - [ ] Recorte del protocolo (290 → ~150) y de `AGENTS.md` (223 → ≤200) para que la regla no
             quede enterrada.
 - [ ] **U9 — `AGENTS.md` por debajo de 200 líneas.** Hoy tiene 223: mover detalle a `docs/` o a una
       skill, sin comprimir hasta volverse ambiguo.
 - [x] **U8 — Documentos: mudanza.**
-      - [x] Matar `docs/status.md`: el estado quedó en `PROJECT.md` §7-9 y el backlog en este doc.
+      - [x] Matar el viejo doc de estado: su contenido quedó en `PROJECT.md` §7-9 y el backlog en este doc.
       - [ ] Actualizar referencias en `AGENTS.md`, `README.md` y `docs/architecture.md`.
       - [ ] Reescribir la parte de documentos del protocolo con este modelo.
 

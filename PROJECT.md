@@ -87,8 +87,8 @@ docs/
 
 ## 7. Estado
 
-El estado vive acá. No hay un `docs/status.md` paralelo: cuando este archivo crezca, lo que sobre se
-muda a `docs/features/` o a memoria, no a otro doc de estado.
+El estado vive acá. No hay un documento de estado paralelo: cuando este archivo crezca, lo que sobre
+se muda a `docs/features/` o a memoria, nunca a otro archivo de estado.
 
 - **Fase:** v0.16 — estética minimalista y delegación con contrato. El arnés es usable de punta a
   punta: tareas, memoria, checks, review congelado, backup y subagentes.

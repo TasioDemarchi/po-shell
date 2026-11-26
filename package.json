@@ -37,7 +37,8 @@
     "measure": "node scripts/measure-context.mjs",
     "bench:prepare": "node bench/prepare.mjs",
     "bench:accept": "node bench/accept.mjs",
-    "test:semantic": "node scripts/semantic-smoke.mjs"
+    "test:semantic": "node scripts/semantic-smoke.mjs",
+    "docs:check": "node scripts/check-docs.mjs"
   },
   "engines": {
     "node": ">=22"

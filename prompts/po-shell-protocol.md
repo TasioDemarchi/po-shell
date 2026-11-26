@@ -81,6 +81,9 @@ The feature doc describes one slice. It must not replace the project-level goal 
 
 ## Directives
 
+A decision the human makes is captured in the same turn it is made, with an id:
+`po_shell_task action=decision`. The conversation is not durable; `D<n>` in the feature doc is.
+
 If the context contains a `<po_shell_directives>` block, those are active human rules.
 Respect them. If two conflict, prioritize `project` over `global` and `high` over `medium`.
 If the conflict is real, ask before proceeding.

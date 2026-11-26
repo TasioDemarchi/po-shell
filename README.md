@@ -347,7 +347,7 @@ Dentro de Pi, el agente tiene:
 | `skill-md-authoring` | Escribir o revisar `SKILL.md` |
 | `feature-doc` | Crear y mantener `docs/features/<slug>.md` |
 
-Las dos de autoría aplican los criterios de `docs/agents-md-y-skill-md-investigacion.md`.
+Las dos de autoría comparten los criterios de esta tabla y de `AGENTS.md`.
 
 ## Feature docs
 

@@ -218,6 +218,5 @@ A change is done when:
 - Goal, scope, users and constraints: `PROJECT.md`.
 - Architecture, components and memory: `docs/architecture.md`.
 - State, pending and discarded: `PROJECT.md` §7-9.
-- Rules for writing instructions: `docs/agents-md-y-skill-md-investigacion.md`.
 
 Read those files only when the task needs them.
