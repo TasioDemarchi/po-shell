@@ -90,7 +90,7 @@ instalarse. El primer usuario que probaba el comando documentado chocaba con un
 - [x] T3. Comandos `install`, `update`, `uninstall` — S3, S4 — check: `test/install.test.js`
 - [x] T4. `scripts/install.sh` — S5 — check: `sh -n` + corrida manual
 - [x] T5. `postinstall` en `package.json` — S2 — check: `test/install.test.js`
-- [x] T6. Docs (README, AGENTS.md, PROJECT.md, docs/status.md) — S1..S5 — check: revisión
+- [x] T6. Docs (README, AGENTS.md, PROJECT.md) — S1..S5 — check: revisión
 
 ## State
 

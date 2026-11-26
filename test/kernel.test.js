@@ -296,6 +296,36 @@ test("ready requires passing check evidence", () => {
   );
 });
 
+test("ready rejects checks evidence older than the last move to implementing", () => {
+  const dir = tempRepo();
+  const task = createTask(dir, { title: "Ship", risk: "low" });
+  const working = updateTask(dir, task.id, { phase: "implementing" });
+  assert.ok(working.implementingAt, "entering implementing starts the clock");
+
+  const stale = new Date(Date.parse(working.implementingAt) - 60_000).toISOString();
+  assert.throws(
+    () => updateTask(dir, task.id, { phase: "ready", evidence: [{ ts: stale, kind: "checks", ok: true }] }),
+    /older than the last move to implementing/,
+  );
+});
+
+test("a check after implementing reaches ready, and a legacy check does not", () => {
+  const dir = tempRepo();
+  const task = createTask(dir, { title: "Ship", risk: "low" });
+
+  // Evidence without ever entering implementing cannot vouch for the work.
+  const now = new Date().toISOString();
+  assert.throws(
+    () => updateTask(dir, task.id, { phase: "ready", evidence: [{ ts: now, kind: "checks", ok: true }] }),
+    /never entered implementing/,
+  );
+
+  const working = updateTask(dir, task.id, { phase: "implementing" });
+  const fresh = new Date(Date.parse(working.implementingAt) + 1000).toISOString();
+  const ready = updateTask(dir, task.id, { phase: "ready", evidence: [{ ts: fresh, kind: "checks", ok: true }] });
+  assert.equal(ready.phase, "ready");
+});
+
 
 test("high-risk delivery requires a frozen review", () => {
   const dir = tempRepo();
@@ -313,7 +343,9 @@ test("cost attribution skips a task that is no longer in progress", () => {
   const task = createTask(dir, { title: "en curso", risk: "low" });
   assert.equal(attributableTask(dir)?.id, task.id);
 
-  updateTask(dir, task.id, { phase: "ready", evidence: [{ kind: "checks", ok: true }] });
+  const working = updateTask(dir, task.id, { phase: "implementing" });
+  const fresh = new Date(Date.parse(working.implementingAt) + 1000).toISOString();
+  updateTask(dir, task.id, { phase: "ready", evidence: [{ ts: fresh, kind: "checks", ok: true }] });
   assert.equal(attributableTask(dir), null);
 
   updateTask(dir, task.id, { phase: "implementing" });

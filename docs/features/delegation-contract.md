@@ -155,7 +155,7 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
       - [ ] `extensions/po-shell-subagent.ts`: registra el tool `memory_search`, read-only, solo si el
             rol es explorer (la extensión del guard ya está cargada en el hijo).
       - [ ] Tests: matriz por rol, límites de la query, y que no exista forma de escribir memoria.
-- [ ] **U10 — Decisiones con id.**
+- [x] **U10 — Decisiones con id.**
       - [x] `po_shell_task action=decision`: `D<n> — texto` en `## Decisions` del feature doc, el
             registro en el JSON de la tarea, y el eco con el total y las huérfanas.
       - [x] Bloque de estado: una línea fija con la regla, al lado de la tarea. Sin listas: crecerían
@@ -163,7 +163,7 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
       - [x] La misma regla en `Directives` del protocolo y en una sección propia de la skill.
       - [x] `scripts/check-docs.mjs` (`npm run docs:check`): referencias rotas, `## State`/`## Log` en
             feature docs, límite de 200 líneas, decisiones huérfanas (D1, D2). Con un ratchet
-            (`KNOWN_DEBT`) que solo encoge: hoy son cinco ítems de deuda previa, no deuda nueva.
+            (`KNOWN_DEBT`) que solo encoge: hoy son cuatro ítems de deuda previa, no deuda nueva.
       - [x] Sin paso de promoción al cerrar (D6): el flag `durable` es explícito y el juicio se hace al
             capturar, para que la memoria no acumule verdades que caducan.
       - [x] `durable: true` escribe el `D#` y la memoria en una llamada, y el bloque de estado lleva las
@@ -172,7 +172,7 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
       - [x] Captura al aceptar, no al proponer (D3): `po_shell_ask` lleva solo las opciones y una
             salida para seguir hablando; al elegir, la decisión se registra sola. `by: agent` marca
             las que tomó el orquestador bajo un plan delegado.
-      - [x] Recorte del protocolo (290 → 153 líneas) y de `AGENTS.md` (223 → 132) para que la regla
+      - [x] Recorte del protocolo (290 → 157 líneas hoy) y de `AGENTS.md` (223 → 132) para que la regla
             no quede enterrada (D2). El detalle operativo de delegación se mudó a
             `skills/po-shell-workflow/references/delegation.md`; el procedimiento de memoria se
             quedó en el protocolo, porque es el `AGENTS.md` global y no delega procedimiento a un
@@ -181,8 +181,8 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
       sobraba se mudó a `docs/` y a la skill, no se comprimió.
 - [x] **U8 — Documentos: mudanza.**
       - [x] Matar el viejo doc de estado: su contenido quedó en `PROJECT.md` §7-9 y el backlog en este doc.
-      - [ ] Actualizar referencias en `AGENTS.md`, `README.md` y `docs/architecture.md`.
-      - [ ] Reescribir la parte de documentos del protocolo con este modelo.
+      - [x] Actualizar referencias en `AGENTS.md`, `README.md` y `docs/architecture.md`.
+      - [x] Reescribir la parte de documentos del protocolo con este modelo.
 
 ## Decisions
 

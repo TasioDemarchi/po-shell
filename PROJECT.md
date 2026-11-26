@@ -92,9 +92,8 @@ se muda a `docs/features/` o a memoria, nunca a otro archivo de estado.
 
 - **Fase:** v0.16 — estética minimalista y delegación con contrato. El arnés es usable de punta a
   punta: tareas, memoria, checks, review congelado, backup y subagentes.
-- **Próximo paso:** cerrar el replanteo de delegación (U6 documentos del proyecto en runtime, U7
-  memoria read-only para el explorer). Diseño, decisiones y unidades en
-  `docs/features/delegation-contract.md`.
+- **Próximo paso:** cerrar el replanteo de delegación (U7 memoria read-only para el explorer). Diseño,
+  decisiones y unidades en `docs/features/delegation-contract.md`.
 - **Riesgos abiertos:** el aislamiento por worktree todavía no se ejercitó en una sesión real; el
   índice se actualiza por búsqueda, no por escritura, así que un doc recién creado no aparece hasta
   la primera consulta.
@@ -111,7 +110,7 @@ estructurada, reporte parcial, reviewer que ejecuta y worktree opt-in.
 
 | Item | Descripción |
 |---|---|
-| Replanteo de delegación | U6, U7 y la extensión web propia para el explorer. Ver `docs/features/delegation-contract.md`. |
+| Replanteo de delegación | U7 y la extensión web propia para el explorer. Ver `docs/features/delegation-contract.md`. |
 | Servidor MCP | Exponer el kernel a Claude Code/Codex y otros clientes. |
 | Sandbox del SO | bubblewrap/seatbelt/contenedor + egress allowlist. |
 | Evals del arnés | Set más amplio que el bench de 3 tareas. |

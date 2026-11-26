@@ -390,6 +390,12 @@ export function updateTask(cwd, id, patch = {}, env = process.env) {
     updatedAt: nowIso(),
     evidence: cleanPatch.evidence ?? task.evidence,
   };
+  // The clock starts when the work starts. `ready` only accepts a check that ran
+  // after this instant, so evidence from an earlier round cannot vouch for this
+  // one. Re-entering `implementing` (including a failed check) moves the clock.
+  if (next.phase === "implementing" && task.phase !== "implementing") {
+    next.implementingAt = next.updatedAt;
+  }
   if (
     next.risk === "high" &&
     next.phase === "implementing" &&
@@ -403,9 +409,26 @@ export function updateTask(cwd, id, patch = {}, env = process.env) {
     assertFeatureDoc(cwd, next.featureDoc, "a medium or high task needs `feature_doc` before implementing: write docs/features/<slug>.md and pass it to po_shell_task");
   }
   if (next.phase === "ready") {
-    const checked = (next.evidence ?? []).some((item) => item.kind === "checks" && item.ok === true);
-    if (!checked) {
+    const passing = (next.evidence ?? []).filter(
+      (item) => item.kind === "checks" && item.ok === true,
+    );
+    if (passing.length === 0) {
       throw new Error("cannot move to ready without a passing po_shell_check evidence entry");
+    }
+    if (!next.implementingAt) {
+      throw new Error(
+        "cannot move to ready before implementing: the task never entered implementing, so no check can prove the work",
+      );
+    }
+    const since = Date.parse(next.implementingAt);
+    const fresh = passing.some((item) => {
+      const ts = Date.parse(item.ts ?? "");
+      return Number.isFinite(ts) && ts >= since;
+    });
+    if (!fresh) {
+      throw new Error(
+        "cannot move to ready: the passing checks evidence is older than the last move to implementing; run po_shell_check again",
+      );
     }
   }
   if (next.phase === "delivered" && next.risk === "high") {
@@ -795,7 +818,10 @@ export function runChecks(cwd, commands = null, env = process.env) {
     );
   }
   const task = activeTask(cwd, env);
-  if (task) updateTask(cwd, task.id, { phase: "checking" }, env);
+  // A check on a task that is not being worked on is a preflight: it records
+  // evidence but moves no phase, because there is no `implementingAt` to prove.
+  const working = Boolean(task) && ["implementing", "checking"].includes(task.phase);
+  if (working) updateTask(cwd, task.id, { phase: "checking" }, env);
   const results = list.map((command) => {
     const started = Date.now();
     const proc = spawnSync(command, {
@@ -816,7 +842,7 @@ export function runChecks(cwd, commands = null, env = process.env) {
   });
   const ok = results.every((r) => r.ok);
   addEvidence(cwd, { ts: nowIso(), kind: "checks", ok, results }, env);
-  if (task) updateTask(cwd, task.id, { phase: ok ? "ready" : "implementing" }, env);
+  if (working) updateTask(cwd, task.id, { phase: ok ? "ready" : "implementing" }, env);
   appendEvent(cwd, "checks.run", { ok, commands: list }, env);
   return { ok, results };
 }
