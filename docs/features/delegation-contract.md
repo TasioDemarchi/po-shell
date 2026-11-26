@@ -153,9 +153,11 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
       - [x] Captura al aceptar, no al proponer (D3): `po_shell_ask` lleva solo las opciones y una
             salida para seguir hablando; al elegir, la decisión se registra sola. `by: agent` marca
             las que tomó el orquestador bajo un plan delegado.
-      - [x] Recorte del protocolo (290 → 123 líneas) y de `AGENTS.md` (223 → 132) para que la regla
+      - [x] Recorte del protocolo (290 → 153 líneas) y de `AGENTS.md` (223 → 132) para que la regla
             no quede enterrada (D2). El detalle operativo de delegación se mudó a
-            `skills/po-shell-workflow/references/delegation.md`.
+            `skills/po-shell-workflow/references/delegation.md`; el procedimiento de memoria se
+            quedó en el protocolo, porque es el `AGENTS.md` global y no delega procedimiento a un
+            doc de desarrollo (D4).
 - [ ] **U9 — `AGENTS.md` por debajo de 200 líneas.** Hoy tiene 223: mover detalle a `docs/` o a una
       skill, sin comprimir hasta volverse ambiguo.
 - [x] **U8 — Documentos: mudanza.**
@@ -191,6 +193,7 @@ búsqueda comparando hash y mtime, así que un doc recién escrito aparece en la
 - D1 — El check de documentos destapó referencias a archivos inexistentes y un techo de 200 líneas que se llevaba tiempo violando; la deuda previa va en un ratchet que solo encoge.
 - D2 — Recortar el protocolo (290 → ~150) y AGENTS.md (223 → ≤200) queda para después, en detalle: la regla ya vive en el bloque de estado, así que el recorte es higiene, no corrección.
 - D3 — Las decisiones se confirman por po_shell_ask: la explicación va en la respuesta y el diálogo solo lleva las opciones más «seguir analizando»; aceptar captura el D# en el turno, sin esperar a que el humano lo repita.
+- D4 — El protocolo es el AGENTS.md global del harness y no delega procedimiento a docs/architecture.md, que es documentación de desarrollo: el procedimiento de memoria vuelve al protocolo (153 líneas), el diseño del índice se queda en architecture.md.
 
 ## Out of scope
 

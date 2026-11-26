@@ -100,10 +100,40 @@ each; context running out → the role for the next unit; verification of a high
 
 ## Memory
 
-The fast path; the feature doc is the precise source. Search when resuming, before re-deciding, or
-when the human asks to recall. Save after a non-obvious bugfix, a durable decision, a discovery or a
-constraint. Stable topics so snapshots overwrite: `state/<task-id>`, `feature/<slug>`. Design and
-format: `docs/architecture.md`.
+The fast path; the feature doc is the precise source, and code beats both.
+
+### When to search
+
+- You resume a task, a feature or a session.
+- You are about to decide something again.
+- The human asks to recall: "recordá", "qué sabemos de", "cómo resolvimos", "buscá".
+
+Search with 2–4 distinctive keywords in the project's language; if there is no hit, retry with
+English or Spanish synonyms. Project memories first, then the rest. `context_get` for 1–2 results,
+never for all. A result marked `requiresConfirmation` is global: stop, tell the human, wait. If
+memory is empty or stale, read the feature doc; if there is none, read the code.
+
+### When to save
+
+After a non-obvious bugfix, a durable decision, a discovery, a configuration or environment
+constraint, an established pattern, or a human behavior rule. Never for trivial changes, what the
+code already says, or secrets.
+
+### Types, topics and format
+
+Types: `lesson` (bug, decision, discovery, pattern), `state` (phase, next step, blocker), `feature`
+(summary that links to its doc), `session` (compaction checkpoint, written by the adapter),
+`behavior` (human rule, injected at every session start).
+
+Stable topics so a snapshot overwrites instead of piling up: `state/<task-id>`, `feature/<slug>`,
+`session/current`. Body in `WHAT / WHY / WHERE / LEARNED`; for a bugfix add `SYMPTOM`, `CAUSE`,
+`FIX`, `PREVENTION` when they add something. One language per memory, the project's, plus bilingual
+`aliases` (2–5 terms) when it may be searched in another language.
+
+`po-shell remember` (or `po_shell_memory` with `type: "behavior"`) stores a directive injected at
+session start; `--scope global` lives in `~/.po-shell/memory`, everything else in the project.
+
+The index, the ranking and the schema are design: `docs/architecture.md`.
 
 ## Temporary files
 
