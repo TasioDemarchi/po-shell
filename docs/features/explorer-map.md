@@ -147,7 +147,7 @@ en su código:
 | Pregunta | po-shell hoy | gentle-shell |
 |---|---|---|
 | **Contexto del hijo** | `--no-context-files`: el hijo no ve ningún `AGENTS.md` | El hijo carga los mismos context files que el orquestador y después un filtro quita los bloques que solo obligan al padre (`lib/child-context-files.ts:1-20`): son **~37k tokens de prefijo por hijo**, y le daban al worker reglas de orquestación que no le tocan |
-| **Buscar código** | `grep`/`find` y suerte | Tool `codegraph` con índice propio (`.codegraph/`), y el contrato manda usarlo **antes** de barrer el filesystem; `grep` es el fallback, no el método (`assets/agents/gentle-ai-explore.md`) |
+| **Buscar código** | `grep`/`find` y suerte | Tool `codegraph` con índice propio (`.codegraph/`), y el contrato manda usarlo **antes** de barrer el filesystem; `grep` es el fallback, no el método (assets/agents/gentle-ai-explore.md, en el repo hermano) |
 | **Presupuesto de búsqueda** | Contador de llamadas, visible a las 3 | `lib/exploration-budget.ts`: mide **lookups y bytes leídos** (3 lookups + 40 KB), e inyecta un aviso en runtime: «ongoing discovery needs one configured explorer» |
 | **Memoria del hijo** | Nadie escribe: solo el explorer puede leer | El **worker puede** `mem_save`; el explorer no lo tiene en su lista de tools. Lo durable lo escribe quien cambió algo |
 
