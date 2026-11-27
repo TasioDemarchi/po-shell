@@ -93,7 +93,9 @@ docs/                           architecture, recovery, scratch, self-hosting, s
 
 - **Do not rewrite Pi or its TUI.** Display changes go through `registerToolRenderer`/`ctx.ui`. The
   tool rows are ours in both modes, collapsed and expanded; the rest of Pi's TUI is Pi's, and
-  `ui full` hands the rows back.
+  `ui full` hands the rows back. Pi **swallows** an exception thrown inside a renderer and draws its
+  native row instead, so a broken renderer looks like a change that was never applied: verify a TUI
+  change in a real pty (`tmux` + `pi --extension …` + `capture-pane`), not only with tests.
 - **TUI chrome is English; the agent answers in the user's language.** Rows, dialog titles and
   buttons, toasts and the thinking label are English; results, CLI output and docs keep theirs.
 - **Zero runtime dependencies.** Node 22+ and Git.
