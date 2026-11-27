@@ -79,6 +79,39 @@ El estado central es **compartido entre checkouts del mismo repo**: las tareas, 
 reviews son los mismos para `po-shell` y `po-shell-test`. No corras dos sesiones escribiendo estado a
 la vez.
 
+### Migrar a otra máquina
+
+Un comando, desde un clone nuevo. `bootstrap.sh` verifica, instala, restaura el paquete y comprueba:
+
+```bash
+# en la máquina vieja: el paquete con estado, memoria global y repo
+git push origin main                     # el código viaja por git; el bundle del backup es el respaldo
+po-shell backup --output ~/po-shell-migracion/backup
+tar czf ~/po-shell-migracion.tar.gz -C ~/po-shell-migracion backup
+
+# en la nueva
+git clone https://github.com/TasioDemarchi/po-shell.git ~/dev/po-shell
+cd ~/dev/po-shell && sh scripts/bootstrap.sh --from ~/po-shell-migracion.tar.gz
+```
+
+Qué hace y qué no: instala con `scripts/install.sh`, restaura el estado con `po-shell restore --yes
+--global --no-db`, reindexa con `index --rebuild` y termina en `integrity` (si no da OK, sale 1 y
+apunta a `docs/recovery.md`). El `--yes` lo da quien invoca el script: sin `--from` solo instala y
+verifica. Sin `--from` no hay restore.
+
+Dos cosas que conviene saber antes:
+
+- **La identidad del proyecto puede cambiar.** Sale de `sha256` del `origin`, con el path como
+  respaldo. Si en la máquina nueva cambia, `restore` escribe el estado en el proyecto actual y lo
+  avisa: no es un error, es una migración. Por eso no se restaura el `context.db` adjunto —pertenece a
+  la identidad vieja— y el índice se reconstruye desde el estado. El ledger de costos arranca de cero.
+- **El paquete no lleva secretos de Pi.** Las credenciales viven en `~/.pi/agent` (o donde diga
+  `PO_SHELL_PI_AGENT_DIR`); copiá esa carpeta aparte, y no te lleves `sessions/` si alguna sesión pudo
+  exponer una key.
+
+El paquete de `po-shell backup` pesa poco porque el repo viaja como `repo.bundle` (~500 KB) y el
+volumen real son el estado y el índice. En este proyecto: 62 MB, 18 comprimido.
+
 Cuando el paquete esté publicado:
 
 ```bash
