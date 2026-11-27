@@ -66,11 +66,13 @@ export function buildMission({
   // written down and the final turn is reserved for the plain-text report.
   const turnBudget = Math.trunc(Number(maxTurns) || 0);
   if (turnBudget > 0) {
-    lines.push(
-      "",
-      "BUDGET (turns)",
-      `- You have ${turnBudget} turns in total. Spend the last one answering in plain text: no tool calls after turn ${turnBudget - 1}.`,
-    );
+    // One turn has no "last one": it is the only one, so the sentence says so
+    // instead of counting down from turn 0.
+    const budgetLine =
+      turnBudget === 1
+        ? "- You have one turn in total. Answer in plain text now: no tool calls, just the report."
+        : `- You have ${turnBudget} turns in total. Spend the last one answering in plain text: no tool calls after turn ${turnBudget - 1}.`;
+    lines.push("", "BUDGET (turns)", budgetLine);
   }
   if (items.length) lines.push("", "DONE WHEN", ...items.map((item) => `- ${item}`));
   if (outOfScope) lines.push("", "OUT OF SCOPE", String(outOfScope).trim());
@@ -95,7 +97,17 @@ export function partialReport({ status, turns = 0, maxTurns = 0, text = "", note
     lines.push("", "progress:");
     for (const note of history.slice(-3)) lines.push(`- ${note.split("\n")[0].slice(0, 240)}`);
   }
-  if (diffStat) lines.push("", `changed so far (uncommitted):`, diffStat.trim());
+  // An unattributed diff is worse than no diff: without its own worktree the
+  // only tree to look at is the parent's, and that one was already dirty.
+  const diff = String(diffStat ?? "").trim();
+  if (diff) {
+    lines.push("", `changed so far (uncommitted):`, diff);
+  } else {
+    lines.push(
+      "",
+      "changed so far (uncommitted): not attributable — the child ran without an isolated worktree, so no diff is its own. The parent must check its own tree.",
+    );
+  }
   lines.push(
     "",
     "pending: the mission's DONE WHEN was not confirmed. Read the diff before trusting any of it.",

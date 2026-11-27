@@ -1367,15 +1367,17 @@ export default function poShellExtension(pi: ExtensionAPI) {
           artifactPath: artifact?.resultPath,
         });
         if (result.status !== "ok") {
-          const diffStat = (() => {
-            try {
-              return worktree
-                ? worktreeChanges(worktree.path).stat
-                : execFileSync("git", ["diff", "--stat"], { cwd: ctx.cwd, encoding: "utf8", timeout: 2000 }).trim();
-            } catch {
-              return "";
-            }
-          })();
+          // Without an isolated worktree the only diff in reach is the parent's
+          // own, already dirty before the child started: it is not the child's.
+          const diffStat = worktree
+            ? (() => {
+                try {
+                  return worktreeChanges(worktree.path).stat;
+                } catch {
+                  return "";
+                }
+              })()
+            : "";
           return text(
             [
               `role: ${params.role}`,

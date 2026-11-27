@@ -113,10 +113,10 @@ el turno no alcanzó ni para leer, y ahí quedó a la vista que el reporte parci
       (D1)
 - [x] **U4 — El turno de cierre.** Sección de presupuesto en la misión, un turno de gracia antes del
       SIGTERM, presupuesto efectivo en el reporte, y tres tests nuevos. (D1)
-- [ ] **U5 — El texto del borde.** Con `maxTurns` 1 la sección dice «1 turns… after turn 0»: singular
-      y caso extremo propio.
-- [ ] **U6 — El diff atribuido.** El reporte parcial corre `git diff --stat` en el cwd del padre y
-      presenta como del hijo lo que estaba sucio antes: sin aislamiento, no hay diff atribuible.
+- [x] **U5 — El texto del borde.** Un turno tiene su propia oración; de dos en adelante, la de
+      siempre con el plural correcto. (D1)
+- [x] **U6 — El diff atribuido.** Sin worktree aislado no se colecta el diff del padre: el reporte
+      dice «not attributable» y manda al padre a mirar su propio árbol. (D1)
 
 ## Out of scope
 

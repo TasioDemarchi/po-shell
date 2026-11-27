@@ -379,6 +379,29 @@ test("buildMission writes the turn budget when it has one", () => {
   assert.ok(!buildMission({ role: "worker", task: "x", maxTurns: "nope" }).includes("BUDGET"));
 });
 
+test("buildMission has a sentence of its own for a single turn", () => {
+  const mission = buildMission({ role: "worker", task: "x", maxTurns: 1 });
+  assert.ok(mission.includes("BUDGET (turns)"));
+  assert.ok(mission.includes("one turn"));
+  assert.ok(mission.includes("plain text"));
+  assert.ok(mission.includes("no tool calls"));
+  // El conteo hacia atrás de un solo turno no se escribe.
+  assert.ok(!mission.includes("1 turns"));
+  assert.ok(!mission.includes("after turn 0"));
+  assert.equal(
+    mission,
+    [
+      "MISSION (role: worker):",
+      "x",
+      "",
+      "BUDGET (turns)",
+      "- You have one turn in total. Answer in plain text now: no tool calls, just the report.",
+    ].join("\n"),
+  );
+  // De dos turnos en adelante el texto sigue siendo el de siempre.
+  assert.ok(buildMission({ role: "worker", task: "x", maxTurns: 2 }).includes("You have 2 turns in total. Spend the last one answering in plain text: no tool calls after turn 1."));
+});
+
 test("partialReport says what the child did, not only what it was saying", () => {
   const report = partialReport({
     status: "turns_exceeded",
@@ -399,6 +422,20 @@ test("partialReport says what the child did, not only what it was saying", () =>
   const bare = partialReport({ status: "timeout" });
   assert.equal(bare.split("\n")[0], "status: timeout");
   assert.ok(!bare.includes("progress:"));
+});
+
+test("partialReport does not attribute the parent's diff to the child", () => {
+  // Sin worktree aislado no hay diff del hijo: decirlo, no mostrar el del padre.
+  const without = partialReport({ status: "turns_exceeded", turns: 1, maxTurns: 1, diffStat: "" });
+  assert.ok(without.includes("changed so far (uncommitted): not attributable"));
+  assert.ok(without.includes("no diff is its own"));
+  assert.ok(without.includes("The parent must check its own tree."));
+  assert.ok(!without.includes(" src/minimal-ui.js"));
+  assert.ok(without.includes("pending: the mission's DONE WHEN was not confirmed"));
+
+  const withDiff = partialReport({ status: "turns_exceeded", diffStat: " src/a.js | 1 +" });
+  assert.ok(withDiff.includes("changed so far (uncommitted):\nsrc/a.js | 1 +"));
+  assert.ok(!withDiff.includes("not attributable"));
 });
 
 test("runPiJson keeps the assistant notes that became a partial report", async () => {
