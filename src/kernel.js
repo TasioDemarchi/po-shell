@@ -32,7 +32,7 @@ import {
   promptTokens,
 } from "./context-guard.js";
 import { GLOBAL_PROJECT_ID, contextDbPath, openContextDb } from "./indexer.js";
-import { discoveryNote } from "./discovery.js";
+import { discoveryKb, discoveryNote } from "./discovery.js";
 import { costSummary, formatCredits } from "./costs.js";
 import {
   legacyStateDir,
@@ -1143,10 +1143,13 @@ export function renderContext(cwd = process.cwd(), env = process.env) {
       `evidence_count: ${(t.evidence ?? []).length}`,
       `delegation: ${t.delegation ?? "inline"}`,
     );
-    // Informational, next to the delegation line: three discovery calls without a
-    // child is the moment the skill asks for an explorer.
+    // Informational, next to the delegation line: three discovery calls, or 40 KiB
+    // read, without a child is the moment the skill asks for an explorer.
     const discovery = discoveryNote(cwd, t, env);
-    if (discovery.text) lines.push(`discovery: ${discovery.count} calls · delegate an explorer`);
+    if (discovery.text) {
+      const kb = discoveryKb(discovery.bytes);
+      lines.push(`discovery: ${discovery.count} calls · ${kb} KB · delegate an explorer`);
+    }
     const others = otherInProgress(cwd, t.id, env);
     if (others.length) lines.push(`other_in_progress: ${others.join(" · ")}`);
     if (t.risk === "high") {

@@ -76,7 +76,7 @@ import {
   saveMemory,
   updateTask,
 } from "../src/kernel.js";
-import { bumpDiscovery } from "../src/discovery.js";
+import { addDiscoveryBytes, bumpDiscovery } from "../src/discovery.js";
 
 function text(value: string) {
   return { content: [{ type: "text" as const, text: value }], details: undefined };
@@ -1495,6 +1495,22 @@ export default function poShellExtension(pi: ExtensionAPI) {
       // Fail closed: if the policy cannot be evaluated, do not run the tool.
       return { block: true, reason: `po-shell policy error: ${(error as Error).message}` };
     }
+  });
+
+  // Bytes are the other half of the signal: one 50 KB read finds as much as three
+  // greps. Bookkeeping must never alter or block the result it measures.
+  pi.on("tool_result", async (event, ctx) => {
+    try {
+      if (!isInitialized(ctx.cwd)) return undefined;
+      const bytes = (event.content ?? []).reduce((sum, part) => {
+        if (part?.type !== "text" || typeof part.text !== "string") return sum;
+        return sum + Buffer.byteLength(part.text, "utf8");
+      }, 0);
+      if (bytes > 0) addDiscoveryBytes(ctx.cwd, event.toolName, activeTask(ctx.cwd), bytes);
+    } catch {
+      // Ignored on purpose: counting must never break a tool call.
+    }
+    return undefined;
   });
 
   pi.on("message_end", async (event, ctx) => {

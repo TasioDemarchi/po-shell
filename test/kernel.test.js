@@ -36,7 +36,7 @@ import {
 import { poShellPath } from "../src/kernel.js";
 import { evaluateToolCall } from "../src/policy.js";
 import { DEFAULT_POLICY } from "../src/policy.js";
-import { bumpDiscovery, discoveryNote } from "../src/discovery.js";
+import { addDiscoveryBytes, bumpDiscovery, discoveryNote } from "../src/discovery.js";
 
 process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-home-"));
 
@@ -783,11 +783,14 @@ test("the discovery counter shows from the third call and resets with implementi
 
   bumpDiscovery(dir, "ls", working);
   assert.equal(discoveryNote(dir, working).count, 3);
-  assert.equal(discoveryNote(dir, working).text, "3 llamadas sin delegar — el skill pide un explorer");
-  assert.match(renderContext(dir), /discovery: 3 calls · delegate an explorer/);
+  assert.equal(
+    discoveryNote(dir, working).text,
+    "3 llamadas y 0 KB leídos sin delegar — el skill pide un explorer",
+  );
+  assert.match(renderContext(dir), /discovery: 3 calls · 0 KB · delegate an explorer/);
   const shown = renderStatus(dir).split("\n");
   const line = shown.find((l) => l.startsWith("Descubrimiento:"));
-  assert.equal(line, "Descubrimiento: 3 llamadas sin delegar — el skill pide un explorer");
+  assert.equal(line, "Descubrimiento: 3 llamadas y 0 KB leídos sin delegar — el skill pide un explorer");
   assert.ok(
     shown.indexOf(line) < shown.findIndex((l) => l.startsWith("Checks:")),
     "the line sits before the checks",
@@ -809,7 +812,7 @@ test("the discovery counter shows from the third call and resets with implementi
   await sleep(5);
   const reentered = updateTask(dir, task.id, { phase: "implementing" });
   assert.notEqual(reentered.implementingAt, working.implementingAt);
-  assert.deepEqual(discoveryNote(dir, reentered), { count: 0, text: null });
+  assert.deepEqual(discoveryNote(dir, reentered), { count: 0, bytes: 0, text: null });
   bumpDiscovery(dir, "read", reentered);
   assert.equal(discoveryNote(dir, reentered).count, 1, "the calls of the previous round are gone");
 });
@@ -825,6 +828,67 @@ test("edits, writes and delegation do not count as discovery", () => {
   }
   assert.equal(discoveryNote(dir, working).count, 0);
   assert.equal(bumpDiscovery(dir, "read", null), null, "no task, nothing to attribute");
+});
+
+test("the discovery counter weighs bytes too, and resets both with the key", async () => {
+  const dir = tempRepo();
+  init(dir);
+  const task = createTask(dir, { title: "Leer mucho", risk: "low" });
+
+  // Round one: calls alone, almost no bytes.
+  const working = updateTask(dir, task.id, { phase: "implementing" });
+  bumpDiscovery(dir, "read", working);
+  bumpDiscovery(dir, "grep", working);
+  bumpDiscovery(dir, "find", working);
+  const byCalls = discoveryNote(dir, working);
+  assert.equal(byCalls.count, 3);
+  assert.equal(byCalls.bytes, 0);
+  assert.equal(byCalls.text, "3 llamadas y 0 KB leídos sin delegar — el skill pide un explorer");
+
+  // Round two: a single 50 KB read trips the line by bytes alone.
+  await sleep(5);
+  updateTask(dir, task.id, { phase: "checking" });
+  const heavy = updateTask(dir, task.id, { phase: "implementing" });
+  const afterCall = bumpDiscovery(dir, "read", heavy);
+  assert.deepEqual({ count: afterCall.count, bytes: afterCall.bytes }, { count: 1, bytes: 0 });
+  const afterBytes = addDiscoveryBytes(dir, "read", heavy, 50 * 1024);
+  assert.deepEqual(
+    { count: afterBytes.count, bytes: afterBytes.bytes },
+    { count: 1, bytes: 51_200 },
+  );
+  assert.equal(
+    discoveryNote(dir, heavy).text,
+    "1 llamadas y 50 KB leídos sin delegar — el skill pide un explorer",
+    "both numbers show even when only the bytes trip",
+  );
+  const onDisk = JSON.parse(fs.readFileSync(path.join(poShellPath(dir), "discovery.json"), "utf8"));
+  assert.equal(onDisk.count, 1);
+  assert.equal(onDisk.bytes, 51_200, "the state carries the bytes next to the count");
+
+  // Round three: both conditions, both numbers, and the previous round erased.
+  await sleep(5);
+  updateTask(dir, task.id, { phase: "checking" });
+  const reentered = updateTask(dir, task.id, { phase: "implementing" });
+  assert.deepEqual(discoveryNote(dir, reentered), { count: 0, bytes: 0, text: null });
+  bumpDiscovery(dir, "read", reentered);
+  bumpDiscovery(dir, "grep", reentered);
+  bumpDiscovery(dir, "bash", reentered);
+  addDiscoveryBytes(dir, "bash", reentered, 12 * 1024);
+  assert.equal(
+    discoveryNote(dir, reentered).text,
+    "3 llamadas y 12 KB leídos sin delegar — el skill pide un explorer",
+  );
+
+  // A different task starts over, and only discovery tools add bytes.
+  const other = createTask(dir, { title: "Otra", risk: "low" });
+  assert.deepEqual(addDiscoveryBytes(dir, "read", other, 2048), {
+    taskId: other.id,
+    implementingAt: null,
+    count: 0,
+    bytes: 2048,
+  });
+  assert.equal(addDiscoveryBytes(dir, "edit", reentered, 5000), null, "edit is not discovery");
+  assert.equal(addDiscoveryBytes(dir, "read", null, 5000), null, "no task, nothing to attribute");
 });
 
 test("knowledgeSince counts what was saved after implementing", async () => {
