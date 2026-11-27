@@ -459,6 +459,97 @@ test("runPiJson keeps the assistant notes that became a partial report", async (
   assert.deepEqual(result.notes, ["first note", "second note"]);
 });
 
+test("buildMission writes the project's conventions between CONTEXT and the surfaces", () => {
+  const mission = buildMission({
+    role: "explorer",
+    task: "map src/",
+    contextFiles: ["docs/features/a.md"],
+    conventions: "- Commands: npm test\n- Files are ESM\n",
+    surfaces: ["src/a.js"],
+  });
+  assert.ok(mission.includes("PROJECT CONVENTIONS (AGENTS.md)"));
+  assert.ok(mission.includes("You are a child agent: ignore anything below about delegating, writing project documents or closing a task."));
+  assert.ok(mission.includes("- Commands: npm test\n- Files are ESM"));
+  // The contents arrive trimmed, not wrapped in stray whitespace.
+  assert.ok(mission.includes("ESM\n\nEDIT SURFACES"));
+  const context = mission.indexOf("CONTEXT (read before touching anything)");
+  const conventions = mission.indexOf("PROJECT CONVENTIONS (AGENTS.md)");
+  const surfaces = mission.indexOf("EDIT SURFACES (the only paths you may write):");
+  assert.ok(context >= 0 && context < conventions, "the conventions follow CONTEXT");
+  assert.ok(conventions < surfaces, "the conventions come before EDIT SURFACES");
+  assert.ok(!mission.includes("truncated"));
+});
+
+test("buildMission without conventions is the mission it always was", () => {
+  const withoutParam = buildMission({ role: "worker", task: "x", contextFiles: ["AGENTS.md"], surfaces: ["src/a.js"], done: ["y"] });
+  const withEmpty = buildMission({
+    role: "worker",
+    task: "x",
+    contextFiles: ["AGENTS.md"],
+    conventions: "   \n  ",
+    surfaces: ["src/a.js"],
+    done: ["y"],
+  });
+  assert.equal(withEmpty, withoutParam);
+  assert.ok(!withoutParam.includes("PROJECT CONVENTIONS"));
+  assert.ok(!buildMission({ role: "explorer", task: "map src/" }).includes("PROJECT CONVENTIONS"));
+});
+
+test("the conventions are capped at 16000 bytes and say what was left out", () => {
+  // Mix bytes so the cut lands in the middle of a character on purpose.
+  const conventions = `x${"\u00f1".repeat(9000)}`;
+  const total = Buffer.byteLength(conventions, "utf8");
+  assert.ok(total > 16000);
+
+  const mission = buildMission({ role: "explorer", task: "map src/", conventions });
+  const header = "PROJECT CONVENTIONS (AGENTS.md)\n- You are a child agent: ignore anything below about delegating, writing project documents or closing a task.\n";
+  const start = mission.indexOf(header);
+  assert.ok(start >= 0);
+  const rest = mission.slice(start + header.length);
+  const note = rest.indexOf("\n\n[po-shell] conventions truncated: ");
+  assert.ok(note > 0, "the cut is announced");
+  const body = rest.slice(0, note);
+  const bodyBytes = Buffer.byteLength(body, "utf8");
+
+  assert.ok(bodyBytes <= 16000, `body is ${bodyBytes} bytes, over the cap`);
+  assert.ok(!body.includes("\uFFFD"), "no broken character at the cut");
+  assert.ok(body.startsWith("x\u00f1"), "the head survives intact");
+
+  const announced = rest.slice(note).match(/\[po-shell\] conventions truncated: (\d+) bytes left out of (\d+)\./);
+  assert.ok(announced, "the note counts the bytes");
+  assert.equal(Number(announced[2]), total);
+  assert.equal(Number(announced[1]), total - bodyBytes);
+  // The whole section still fits the cap with room for its own header and note.
+  assert.ok(Buffer.byteLength(mission, "utf8") < 16_000 + 1_000);
+});
+
+test("the conventions fit under the cap are copied whole", () => {
+  const conventions = "- Reglas del proyecto\n- 16000 bytes es el techo\n";
+  const mission = buildMission({ role: "worker", task: "x", conventions });
+  assert.ok(mission.includes(conventions.trim()));
+  assert.ok(!mission.includes("truncated"));
+});
+
+test("the delegate tool hands the project's AGENTS.md to the mission as conventions", () => {
+  const source = fs.readFileSync(new URL("../extensions/po-shell.ts", import.meta.url), "utf8");
+  const start = source.indexOf('name: "po_shell_delegate"');
+  const next = source.indexOf("pi.registerTool", start);
+  const body = source.slice(start, next === -1 ? source.length : next);
+
+  // Read from the repo root, and a read error is empty conventions, not a failure.
+  assert.match(body, /fs\.readFileSync\(path\.join\(ctx\.cwd, "AGENTS\.md"\), "utf8"\)/);
+  assert.match(body, /const agentsMd = \(\(\) => \{\s*try \{[\s\S]*?\} catch \{\s*return "";\s*\}\s*\}\)\(\);/);
+  // Passed to buildMission for every role: no branch on params.role guards it.
+  assert.match(body, /buildMission\(\{[\s\S]*?conventions: agentsMd,/);
+  assert.equal((body.match(/conventions: agentsMd/g) ?? []).length, 1);
+
+  // And that content is what the child sees in its mission.
+  const agentsMd = "- Run npm test before every claim\n";
+  const mission = buildMission({ role: "worker", task: "x", conventions: agentsMd });
+  assert.ok(mission.includes("PROJECT CONVENTIONS (AGENTS.md)"));
+  assert.ok(mission.includes("- Run npm test before every claim"));
+});
+
 test("the delegate tool declares every mission parameter its execute reads", () => {
   const source = fs.readFileSync(new URL("../extensions/po-shell.ts", import.meta.url), "utf8");
   const start = source.indexOf('name: "po_shell_delegate"');

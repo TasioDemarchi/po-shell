@@ -184,14 +184,26 @@ Codegraph queda como etapa 2 con variable de entorno, sólo si el mapa demuestra
 
 ## Units
 
-- [ ] **U1 — El método.** Contrato del explorer con el orden de búsqueda y las prohibiciones.
-- [ ] **U2 — El contexto que llega solo.** `AGENTS.md` inyectado en la misión, decidido y medido.
-- [ ] **U3 — El mapa.** `scripts/code-map.mjs`, `code-map.md` bajo `docs/` y el test de frescura.
-- [ ] **U4 — La medición.** La misma misión de tres preguntas, con mapa y sin mapa (la línea base ya
-      está: 21 llamadas, 5 turnos, sin reporte), para comparar turnos y créditos.
+- [x] **U1 — El contexto que llega solo.** La misión lleva las convenciones del proyecto (contenido del
+      `AGENTS.md` de la raíz, con techo de 16 KB y una línea que aclara que las reglas sobre delegar y
+      documentar no aplican a un hijo). Hecho: 375 tests en ese corte; este repo mide 7.8 KB, así que la
+      misión de un explorer queda en ~8 KB (D1).
+- [x] **U2 — El método.** Vive en `AGENTS.md` § «Buscar en este repo» y no en el contrato del rol: el
+      hijo recibe el `AGENTS.md` dentro de la misión, así que llega sin turno, y el método es de este
+      repo (mapa, forma del import, ventanas), no del rol. `prompts/subagents/explore.md` queda para lo
+      general. (D1)
+- [x] **U3 — El mapa.** `src/code-map.js` con `renderMap`, `scripts/code-map.mjs` como CLI, `po-shell
+      map` para regenerar, `docs/code-map.md` de 42 archivos y 93 aristas, y el test de frescura que
+      falla si el archivo no coincide. (D1)
+- [ ] **U4 — El contador en bytes.** `bumpDiscovery` tiene que sumar bytes desde `tool_result` y el aviso
+      dispararse a las 3 llamadas **o** a los 40 KB leídos, con los dos números en la línea. (D1)
 
 ## Out of scope
 
 - Implementar codegraph o cualquier dependencia nueva.
 - Cambiar las herramientas del explorer (sigue sin bash).
 - Comentarios de mapa en el código.
+
+## Decisions
+
+- D1 — Se aplican las cuatro recomendaciones del análisis: el AGENTS.md del proyecto viaja en la misión como convenciones (con techo y una aclaración de que las reglas de delegar no aplican al hijo), el método de búsqueda medido va al contrato del explorer, el mapa de código se genera con script propio y test de frescura, y el contador de descubrimiento pasa a medir bytes además de llamadas. Codegraph sigue fuera: etapa 2 con variable de entorno si el mapa no alcanza.

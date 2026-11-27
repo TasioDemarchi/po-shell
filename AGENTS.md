@@ -89,6 +89,20 @@ test/                           per-module tests
 docs/                           architecture, recovery, scratch, self-hosting, subagentes, features/
 ```
 
+## Buscar en este repo
+
+Esta sección viaja dentro de la misión de cada hijo (el orquestador la inyecta como convenciones), así
+que también la lee un explorer que nunca vio el repo.
+
+- **Empezá por `docs/code-map.md`.** Dice, por archivo, qué exporta y quién lo importa. Un `read`
+  contesta lo que `grep` contesta mal. Si está viejo: `po-shell map`.
+- **Para imports, buscá la forma** (`from "../src/kernel.js"`), nunca el nombre suelto: `kernel.js`
+  aparece en comentarios, docs y strings.
+- **Ventanas de 60 líneas.** Archivo entero solo si tiene menos de 150.
+- **No repitas un rango ya leído** ni abras lo que la misión declaró fuera de alcance.
+- **Cortá a la segunda.** Si dos intentos no cierran una pregunta, reportá lo que tenés y decí qué falta.
+- **El fallback no es el método.** Primero el mapa, después el símbolo, y `grep` al final.
+
 ## Change rules
 
 - **Do not rewrite Pi or its TUI.** Display changes go through `registerToolRenderer`/`ctx.ui`. The
@@ -104,9 +118,12 @@ docs/                           architecture, recovery, scratch, self-hosting, s
 - **Do not break the CLI without updating `README.md` and `PROJECT.md`.**
 - **Do not add features that are not in this file or approved in conversation.**
 - **Do not store secrets** in code, tests, memory or logs.
-- **The project documents are the orchestrator's.** `PROJECT.md`, `AGENTS.md`, `README.md` and
-  `docs/features/` are written by the parent in any profile; a child never writes `.md`. Code stays
-  delegated: `delegate-writes` bounds the mutations, not the documentation.
+- **The project documents are the orchestrator's.** `docs/`, `prompts/`, `PROJECT.md`, `AGENTS.md` and
+  `README.md` are prose and the parent writes them in any profile; `prompts/subagents/` is each role's
+  contract. The child never writes `.md`. Code stays delegated: `delegate-writes` bounds the mutations,
+  not the documentation.
+- **`docs/code-map.md` is generated.** Never edited by hand: `po-shell map` regenerates it and `npm test`
+  fails when it does not match the code.
 - **Temporary files stay out of the repo.** `PO_SHELL_TMP`/`TMPDIR`; the runtime cleans up.
 - **Promote durable tests.** A throwaway that must remain goes to `test/` or `scripts/`.
 - **Decisions are not ADRs.** They go to memory and to the feature doc with an id.

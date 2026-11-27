@@ -1191,18 +1191,23 @@ export default function poShellExtension(pi: ExtensionAPI) {
       }
       const isolation = activeTask(ctx.cwd)?.isolation === "worktree" ? "worktree" : "none";
 
-      // The child only learns conventions from AGENTS.md if the mission names it, and
-      // a file full of `<command>` teaches it nothing. Say so; do not block the work.
-      const agentsNote = (() => {
-        const file = path.join(ctx.cwd, "AGENTS.md");
+      // The child only learns the project's conventions if they travel in the
+      // mission: the child runs with --no-context-files and will not go hunting
+      // for an AGENTS.md. Read it here, once, and never fail the delegation for it.
+      const agentsMd = (() => {
         try {
-          if (!fs.existsSync(file)) return "AGENTS.md: missing (the mission's CONTEXT is the child's only instruction)";
-          return looksUnfilled(fs.readFileSync(file, "utf8"))
-            ? "AGENTS.md: still has placeholders"
-            : "";
+          return fs.readFileSync(path.join(ctx.cwd, "AGENTS.md"), "utf8");
         } catch {
           return "";
         }
+      })();
+
+      // A file full of `<command>` teaches the child nothing. Say so; do not block
+      // the work.
+      const agentsNote = (() => {
+        if (!fs.existsSync(path.join(ctx.cwd, "AGENTS.md")))
+          return "AGENTS.md: missing (the mission's CONTEXT is the child's only instruction)";
+        return looksUnfilled(agentsMd) ? "AGENTS.md: still has placeholders" : "";
       })();
 
       const readOutside = (params.read_outside ?? [])
@@ -1245,6 +1250,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
         role: params.role,
         task: params.task,
         contextFiles,
+        conventions: agentsMd,
         buildTest,
         surfaces,
         done,

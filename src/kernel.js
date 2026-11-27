@@ -1190,9 +1190,9 @@ export function renderContext(cwd = process.cwd(), env = process.env) {
 /* ------------------------------ policy API ------------------------------ */
 
 // In `delegate-writes` the parent keeps decisions, exploration, the project
-// documents and commits; code mutations belong to a bounded child. Only these
-// paths stay writable by the orchestrator itself.
-const PARENT_WRITE_SURFACES = ["docs/features/", "PROJECT.md", "AGENTS.md", "README.md"];
+// documents (prose in `docs/` and `prompts/`) and commits; code mutations belong
+// to a bounded child. Only these paths stay writable by the orchestrator itself.
+const PARENT_WRITE_SURFACES = ["docs/", "prompts/", "PROJECT.md", "AGENTS.md", "README.md"];
 
 export function contextPressurePath(cwd = process.cwd(), env = process.env) {
   return path.join(poShellPath(cwd, env), "context.json");
@@ -1267,14 +1267,14 @@ function parentWriteBlock(toolName, input = {}, cwd) {
     if (file == null) return null;
     if (outsideProject(file, cwd)) return null;
     if (withinSurfaces(file, PARENT_WRITE_SURFACES, cwd)) return null;
-    return `po-shell policy: delegate-writes. El padre no escribe código (${file}); delegá con po_shell_delegate role=worker y sus superficies. El orquestador solo escribe PROJECT.md, AGENTS.md, README.md y docs/features/.`;
+    return `po-shell policy: delegate-writes. El padre no escribe código (${file}); delegá con po_shell_delegate role=worker y sus superficies. El orquestador solo escribe PROJECT.md, AGENTS.md, README.md, docs/ y prompts/.`;
   }
   if (toolName === "bash" && typeof input.command === "string") {
     const outside = shellWriteTargets(input.command).find(
       (target) => !outsideProject(target, cwd) && !withinSurfaces(target, PARENT_WRITE_SURFACES, cwd),
     );
     if (!outside) return null;
-    return `po-shell policy: delegate-writes. El padre no muta archivos (${outside}); delegá esa escritura a un worker. Commit, checks y los documentos del orquestador (PROJECT.md, AGENTS.md, README.md, docs/features/) siguen permitidos.`;
+    return `po-shell policy: delegate-writes. El padre no muta archivos (${outside}); delegá esa escritura a un worker. Commit, checks y los documentos del orquestador (PROJECT.md, AGENTS.md, README.md, docs/, prompts/) siguen permitidos.`;
   }
   return null;
 }

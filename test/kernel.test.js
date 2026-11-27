@@ -617,13 +617,20 @@ test("a medium-risk task delegates without any approval", () => {
   assert.equal(checkPolicy(dir, "po_shell_delegate", {}).block ?? false, false);
 });
 
-test("the orchestrator writes PROJECT.md, AGENTS.md and README.md under delegate-writes", () => {
+test("the orchestrator writes the project documents under delegate-writes", () => {
   const dir = tempRepo();
   init(dir);
   createTask(dir, { title: "Documentos", risk: "medium", delegation: "delegate-writes" });
   assert.equal(delegationMode(dir), "delegate-writes");
 
-  const documents = ["PROJECT.md", "AGENTS.md", "README.md", "docs/features/anything.md"];
+  const documents = [
+    "PROJECT.md",
+    "AGENTS.md",
+    "README.md",
+    "docs/features/anything.md",
+    "docs/architecture.md",
+    "prompts/subagents/explore.md",
+  ];
   for (const file of documents) {
     assert.equal(
       checkPolicy(dir, "write", { path: file, content: "x" }).block ?? false,
@@ -638,12 +645,37 @@ test("the orchestrator writes PROJECT.md, AGENTS.md and README.md under delegate
   }
 });
 
+test("prose is prose: docs/ and prompts/ are writable, every code path stays delegated", () => {
+  const dir = tempRepo();
+  init(dir);
+  createTask(dir, { title: "Frontera", risk: "medium", delegation: "delegate-writes" });
+
+  for (const file of ["docs/architecture.md", "prompts/subagents/explore.md"]) {
+    assert.equal(checkPolicy(dir, "write", { path: file, content: "x" }).block ?? false, false, file);
+    assert.equal(
+      checkPolicy(dir, "bash", { command: `printf x > ${file}` }).block ?? false,
+      false,
+      `bash redirect to ${file}`,
+    );
+  }
+
+  for (const file of ["src/foo.js", "extensions/po-shell.ts"]) {
+    const verdict = checkPolicy(dir, "write", { path: file, content: "x" });
+    assert.equal(verdict.block, true, `${file} is still code`);
+    assert.match(verdict.reason, /delegate-writes/);
+    assert.match(verdict.reason, /role=worker/);
+    assert.ok(verdict.reason.includes(file), "the message names the file");
+    assert.match(verdict.reason, /docs\//, "the message names docs/");
+    assert.match(verdict.reason, /prompts\//, "the message names prompts/");
+  }
+});
+
 test("the parent still delegates code and every other path in the repo", () => {
   const dir = tempRepo();
   init(dir);
   createTask(dir, { title: "Código", risk: "medium", delegation: "delegate-writes" });
 
-  for (const file of ["src/kernel.js", "package.json", "AGENTS.md.bak", "docs/architecture.md"]) {
+  for (const file of ["src/kernel.js", "src/foo.js", "extensions/po-shell.ts", "package.json", "AGENTS.md.bak"]) {
     const verdict = checkPolicy(dir, "write", { path: file, content: "x" });
     assert.equal(verdict.block, true, `${file} stays delegated`);
     assert.match(verdict.reason, /delegate-writes/);

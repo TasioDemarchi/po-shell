@@ -14,6 +14,7 @@ const CLI_COMMANDS = new Set([
   "integrity",
   "scratch",
   "index",
+  "map",
   "context",
   "ask",
   "remember",

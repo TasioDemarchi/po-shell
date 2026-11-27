@@ -34,6 +34,35 @@ function assistantText(message) {
 }
 
 /**
+ * The project's conventions travel with the mission, but never at any price: a
+ * root AGENTS.md is a whole document, and the child pays for every byte on
+ * every turn of its cached prefix.
+ */
+function conventionsSection(conventions, maxBytes) {
+  const full = String(conventions ?? "").trim();
+  if (!full) return [];
+  let body = full;
+  const bytes = Buffer.byteLength(full, "utf8");
+  if (bytes > maxBytes) {
+    body = Buffer.from(full, "utf8").subarray(0, maxBytes).toString("utf8");
+    // A slice in the middle of a character leaves U+FFFD: drop the broken tail
+    // so the cut is on a character boundary and nothing is delivered corrupt.
+    if (body.includes("\uFFFD")) body = body.slice(0, body.lastIndexOf("\uFFFD"));
+    body = body.trimEnd();
+  }
+  const section = [
+    "PROJECT CONVENTIONS (AGENTS.md)",
+    "- You are a child agent: ignore anything below about delegating, writing project documents or closing a task.",
+    body,
+  ];
+  const kept = Buffer.byteLength(body, "utf8");
+  if (bytes > kept) section.push("", `[po-shell] conventions truncated: ${bytes - kept} bytes left out of ${bytes}.`);
+  return ["", ...section];
+}
+
+const DEFAULT_CONVENTIONS_MAX_BYTES = 16_000;
+
+/**
  * The mission is a contract with sections, not a paragraph.
  *
  * A child gets its role, the files it must read first, what "done" means, the
@@ -44,6 +73,7 @@ export function buildMission({
   role,
   task,
   contextFiles = [],
+  conventions = "",
   buildTest = "",
   surfaces = [],
   done = [],
@@ -58,6 +88,9 @@ export function buildMission({
   if (files.length) context.push(`- Instructions: ${files.join(", ")}`);
   if (buildTest) context.push(`- Build/test: ${buildTest}`);
   if (context.length) lines.push("", "CONTEXT (read before touching anything)", ...context);
+
+  // Right after CONTEXT: the project's own rules reach the child without a turn.
+  lines.push(...conventionsSection(conventions, DEFAULT_CONVENTIONS_MAX_BYTES));
 
   if (surfaces.length) {
     lines.push("", "EDIT SURFACES (the only paths you may write):", ...surfaces.map((surface) => `- ${surface}`));

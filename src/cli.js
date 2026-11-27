@@ -1,7 +1,9 @@
 import path from "node:path";
 import os from "node:os";
+import fs from "node:fs";
 import { spawnSync } from "node:child_process";
 import { applyChecks, suggestChecks } from "./checks.js";
+import { MAP_FILE, buildMap, firstDifference } from "./code-map.js";
 import { costSummary, formatCredits } from "./costs.js";
 import { formatCommand, installMethod, installReport, renderInstallReport, uninstallPlan, updatePlan } from "./install.js";
 import { checkIntegrity, createBackup, fixIntegrity, listBackups, restoreBackup } from "./backup.js";
@@ -120,6 +122,7 @@ Uso:
   po-shell integrity [--fix] [--json]
   po-shell scratch [list|clean] [--force] [--json]
   po-shell index [--rebuild] [--json]
+  po-shell map [--check] [--json]
   po-shell context search "<query>" [--kind spec|memory] [--type <tipo>] [--limit N] [--all-projects] [--json]
   po-shell context get "<spec:path#ordinal|mem:key>" [--json]
 
@@ -691,6 +694,52 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
       const status = item.live ? "live" : item.valid ? "ended" : "invalid";
       console.log(`${status.padEnd(7)} ${item.ledger.scratchDir}${size}`);
     }
+    return;
+  }
+
+  if (command === "map") {
+    const { options } = parseOptions(rest);
+    const built = buildMap(cwd);
+    const file = path.join(cwd, MAP_FILE);
+    const shown = MAP_FILE.split(path.sep).join("/");
+    const counts = `${built.files} archivos · ${built.edges} aristas`;
+
+    if (options.check) {
+      const committed = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : null;
+      if (committed === null) {
+        if (json) {
+          return console.log(
+            JSON.stringify({ path: shown, files: built.files, edges: built.edges, exists: false, fresh: false }, null, 2),
+          );
+        }
+        fail(`${shown} no existe. Corré: po-shell map`);
+      }
+      const difference = committed === built.text ? null : firstDifference(built.text, committed);
+      if (json) {
+        console.log(
+          JSON.stringify(
+            { path: shown, files: built.files, edges: built.edges, exists: true, fresh: !difference, difference },
+            null,
+            2,
+          ),
+        );
+        if (difference) process.exitCode = 1;
+        return;
+      }
+      if (!difference) return console.log(`mapa al día · ${shown} · ${counts}`);
+      console.error(`po-shell: ${shown}:${difference.line} está desactualizado. Corré: po-shell map`);
+      console.error(`  esperado:   ${difference.expected}`);
+      console.error(`  encontrado: ${difference.actual}`);
+      process.exitCode = 1;
+      return;
+    }
+
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, built.text);
+    if (json) {
+      return console.log(JSON.stringify({ path: shown, files: built.files, edges: built.edges, written: true }, null, 2));
+    }
+    console.log(`mapa: ${shown} · ${counts}`);
     return;
   }
 
