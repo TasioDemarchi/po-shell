@@ -172,9 +172,13 @@ que obliga al padre a destilar, y eso hoy funciona.
 Las tres primeras no compiten, se ordenan por costo:
 
 1. **Inyectar `AGENTS.md`** al explorer (y al worker) como contexto que llega sin turno: es la pieza que
-   ya está escrita y hoy se paga.
-2. **El método en el contrato del rol**, con las prohibiciones medidas.
+   ya está escrita y hoy se paga. Sería el **del proyecto**, filtrado si hace falta, como hace
+   gentle-shell; los documentos del harness (`prompts/po-shell-subagent.md` y el contrato del rol) ya
+   llegan por otro lado y no se mezclan.
+2. **El método en el contrato del rol**, con las prohibiciones medidas y la regla de cortar a la segunda.
 3. **El mapa generado**, con dependencias inversas y test que lo mantiene honesto.
+4. **El contador en bytes.** El nudge de descubrimiento cuenta llamadas; 21 `grep` de tres líneas no
+   pesan lo mismo que 40 KB leídos. Medir lo leído es el número honesto.
 
 Codegraph queda como etapa 2 con variable de entorno, sólo si el mapa demuestra quedarse corto.
 
