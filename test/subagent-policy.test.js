@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { subagentToolBlock } from "../src/subagent-policy.js";
+import { shellWriteTargets, subagentToolBlock } from "../src/subagent-policy.js";
 
 test("blocks po-shell orchestrator tools", () => {
   assert.ok(subagentToolBlock("po_shell_memory", {}));
@@ -53,6 +53,54 @@ test("shell writes outside the surfaces are refused too", () => {
 test("without surfaces nothing new is blocked", () => {
   assert.equal(subagentToolBlock("write", { path: "src/app.js" }, "/repo", {}), null);
   assert.equal(subagentToolBlock("bash", { command: "echo x > anywhere.txt" }, "/repo"), null);
+});
+
+/* --------------------------- shell write targets --------------------------- */
+
+test("arrows and comparisons are not redirects", () => {
+  assert.deepEqual(shellWriteTargets(`node -e 'lines.push(a + " -> " + b)'`), []);
+  assert.deepEqual(shellWriteTargets("node -e 'const f = (x) => x'"), []);
+  assert.deepEqual(shellWriteTargets(`printf '%s' "a -> b"`), []);
+  assert.deepEqual(shellWriteTargets("if [ $a -gt $b ]; then echo a >= b; fi"), []);
+  assert.deepEqual(
+    shellWriteTargets(`node -e 'for (const f of files) out.push(f); lines.push(f + " -> " + n + " | -> " + m);'`),
+    [],
+  );
+  assert.deepEqual(shellWriteTargets(`node --input-type=module -e 'const rows = files.map((_, i) => String(i + 1))'`), []);
+});
+
+test("a heredoc body with arrows is not a redirect", () => {
+  const command = ["python3 - <<'PY'", "for f in files:", "    print(f, '<-', '->', f)", "PY"].join("\n");
+  assert.deepEqual(shellWriteTargets(command), []);
+});
+
+test("real redirects and file-copying commands are still detected", () => {
+  assert.deepEqual(shellWriteTargets("echo hi > out.txt"), ["out.txt"]);
+  assert.deepEqual(shellWriteTargets("cat x >> log.txt"), ["log.txt"]);
+  assert.deepEqual(shellWriteTargets("cmd 2>err.log"), ["err.log"]);
+  assert.deepEqual(shellWriteTargets("tee -a notes.md"), ["notes.md"]);
+  assert.deepEqual(shellWriteTargets("cp a.js b.js"), ["b.js"]);
+  assert.deepEqual(shellWriteTargets('echo "my file.txt" > "out file.txt"'), ["out file.txt"]);
+});
+
+test("a target that is not path-like is dropped", () => {
+  assert.deepEqual(shellWriteTargets("echo x > (a, b)"), []);
+  assert.deepEqual(shellWriteTargets("echo x > out1.txt out2.txt"), ["out1.txt"]);
+});
+
+test("a real redirect survives an arrow in the same command", () => {
+  assert.deepEqual(shellWriteTargets(`node -e 'const f = (x) => x' > out.txt`), ["out.txt"]);
+  assert.deepEqual(shellWriteTargets(`node -e 'const f = (x) => x' >> out.txt; echo done > other.txt`), [
+    "out.txt",
+    "other.txt",
+  ]);
+});
+
+test("a read-only analysis command is not a surface violation", () => {
+  const surfaces = ["src/"];
+  const command = `node -e 'const f = (x) => x; lines.push(a + " -> " + b)'`;
+  assert.deepEqual(shellWriteTargets(command), []);
+  assert.equal(subagentToolBlock("bash", { command }, "/repo", { surfaces }), null);
 });
 
 /* --------------------------- role matrix --------------------------- */

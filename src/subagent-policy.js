@@ -52,15 +52,30 @@ export function withinSurfaces(file, surfaces, cwd = process.cwd()) {
   return false;
 }
 
+/**
+ * Punctuation that never appears in a path but does appear in the code children
+ * run through `-e`: parens, commas, quotes and operators. A token carrying any
+ * of it is a fragment of an expression, not a target.
+ */
+const NOT_A_PATH = /["'`()[\]{},;+=*|&<>]/;
+
 /** Paths a shell command would write, as far as a lexical read can tell. */
 export function shellWriteTargets(command) {
   const value = String(command ?? "");
   const targets = [];
   const push = (raw) => {
     const clean = String(raw ?? "").trim().replace(/^["']|["']$/g, "");
-    if (clean && !clean.startsWith("-") && !clean.includes("$") && clean !== "/dev/null") targets.push(clean);
+    if (!clean || clean.startsWith("-") || clean.includes("$") || clean === "/dev/null") return;
+    if (NOT_A_PATH.test(clean)) return;
+    targets.push(clean);
   };
-  for (const match of value.matchAll(/(?:^|[^0-9])>>?\s*([^\s;&|]+)/g)) push(match[1]);
+  // `>` and `>>` write; `=>`, `->`, `<-` and `>=` do not. A quoted target keeps
+  // its spaces, so the token is matched with its quotes on.
+  for (const match of value.matchAll(/(>>?)\s*("[^"]*"|'[^']*'|[^\s;&|]+)/g)) {
+    const before = match.index > 0 ? value[match.index - 1] : "";
+    if (before === "=" || before === "-" || before === "<" || before === ">") continue;
+    push(match[2]);
+  }
   for (const match of value.matchAll(/\btee\s+(?:-a\s+)?([^\s;&|]+)/g)) push(match[1]);
   for (const match of value.matchAll(/\bsed\s+-i[^\s]*\s+(?:-e\s+)?\S*\s*([^\s;&|]+)?/g)) push(match[1]);
   for (const match of value.matchAll(/\b(?:cp|mv|install|ln)\s+(?:-[a-zA-Z]+\s+)*[^\s;&|]+\s+([^\s;&|]+)/g)) push(match[1]);
