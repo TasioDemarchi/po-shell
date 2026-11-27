@@ -106,7 +106,7 @@ se muda a `docs/features/` o a memoria, nunca a otro archivo de estado.
   hijo nunca escribe `.md`.
 - **Riesgos abiertos:** el aislamiento por worktree todavía no se ejercitó en una sesión real; el
   índice se actualiza por búsqueda, no por escritura, así que un doc recién creado no aparece hasta
-  la primera consulta; seis tasks `high` no se pueden cerrar porque el gate de `delivered` exige que
+  la primera consulta; siete tasks `high` no se pueden cerrar porque el gate de `delivered` exige que
   la **última review del repo** sea de esa task, y hace días que la última es de otra.
 
 ### Hecho
@@ -123,6 +123,11 @@ La task activa es la que se nombra, y el estado muestra las otras en curso.
 
 | Item | Descripción |
 |---|---|
+| Eliminar `pi-violeta` y variantes | Borrar el harness anterior por completo. Antes: inventario (repos, symlinks del `PATH`, extensiones, skills, memorias, sesiones, alias de shell, referencias en `AGENTS.md` globales), `po-shell backup` + `integrity`, y confirmación del humano. **Destructivo**: nunca tocar `~/.po-shell` ni el estado central. |
+| Protocolo como `AGENTS.md` del arnés | Hoy `prompts/po-shell-protocol.md` se inyecta en todas las sesiones. Un `AGENTS.md` se lee del cwd, así que convertirlo en el `AGENTS.md` del repo **pierde cobertura** en otros proyectos. Decidir la relación: el protocolo manda y el `AGENTS.md` del repo agrega, o el protocolo deja de inyectarse. Evitar dos fuentes de verdad. |
+| Revisar el `AGENTS.md` y los `SKILL.md` del arnés | Pasar `agents-md-authoring` y `skill-md-authoring` sobre los propios, medir con `scripts/measure-context.mjs`, buscar duplicación entre protocolo, skill y `AGENTS.md`, y mover a código lo que sea regla de verdad (los dos avisos de estado salieron de este agujero). |
+| Modelos por rol: Qwen3.6 worker, GLM flash reviewer | Verificar disponibilidad real en el catálogo de Pi; si no está, elegir el más barato con tool-calling decente. Medir con una misión real (misma tarea, dos modelos): créditos, turnos, calidad. **El reviewer no puede ser más débil que el cambio que revisa.** |
+| Delegación: ¿opcional o siempre obligatoria? | Hoy el perfil sale del riesgo (`inline` en `low`). Pregunta: ¿`delegate-writes` obligatorio siempre? A favor: el padre deja de gastar contexto explorando (pasó hoy: 13 puntos). En contra: ceremonia y créditos en cambios triviales. Decidir con números de una semana de tasks (perfil, créditos, contexto), no con impresión. Ver si el contador de descubrimiento alcanza como aviso. |
 | Replanteo de delegación | Etapa 2 de la web, opcional: `web_search` con proveedor por env var. `web_fetch` ya está. Ver `docs/features/explorer-web.md`. |
 | Gate de memoria en `delivered` | Hoy el aviso de memoria es un nudge. Si no alcanza, `delivered` en `medium`/`high` exige una memoria o un `D#` posterior a `implementing`. Ver `docs/features/state-nudges.md`. |
 | Cierre de las tasks `high` | El gate de `delivered` exige que la última review del repo sea de esa task. Guardar la review en la task al congelar, y aceptar cualquier review de esa task al entregar. |
