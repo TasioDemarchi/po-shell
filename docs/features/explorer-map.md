@@ -112,6 +112,33 @@ El patrón ya existe en este repo para esto: `web_search` quedó como etapa 2 **
 entorno**, y sin la variable el arnés no pierde nada. Si el mapa generado no alcanza, el camino es el
 mismo: `PO_SHELL_CODEGRAPH` con un adaptador, y el mapa propio como piso. No al revés.
 
+### El mapa, medido sobre este repo
+
+Un prototipo de 60 líneas sobre `src/`, `extensions/` y `scripts/`:
+
+- **40 archivos, 91 aristas de import, 7 hojas.** Todo se relaciona con algo.
+- **`src/util.js` lo importan 12 archivos; `kernel.js` 5; `minimal-ui.js` 3.**
+- **`kernel.js` exporta 51 nombres** y `minimal-ui.js` 40: ahí está el costo real de `grep`, porque
+  «quién usa `knowledgeSince`» devuelve la definición y los usos mezclados.
+- El prototipo completo, con dependencias inversas y los nombres que cada uno importa, son **242 líneas
+  y 12 KiB**: un `read`, tres mil tokens, contra 21 llamadas y cinco turnos sin respuesta.
+
+242 líneas es más de las 150 que el contrato del rol permite leer enteras. Dos salidas: compactar la
+lista de importadores en una línea por archivo (queda en ~180), o decir en el contrato que el mapa se
+lee entero. La primera es mejor: menos tokens y el mismo dato.
+
+### Las tres formas de entregarlo
+
+| Forma | Turnos por pregunta | Se mantiene | Trabajo |
+|---|---|---|---|
+| **Archivo generado** (`code-map.md`) | 1 `read` contesta todas | test de frescura | script + test |
+| **Tool `code_map`** | 1 llamada por pregunta | siempre fresco | script + tool + matriz de roles + guard + contrato |
+| **Slice inyectado en la misión** | 0 | depende del padre | nada, pero el padre tiene que saber qué pedir |
+
+El archivo gana: contesta N preguntas con un turno, entra en un diff que se puede leer, y su riesgo de
+envejecer ya está resuelto por el test. La tool gana en frescura —que el test también resuelve— y pierde
+en que cada pregunta cuesta una llamada y en que agrega un verbo nuevo a un hijo que solo lee.
+
 ## Recommendation
 
 Las tres primeras no compiten, se ordenan por costo:
