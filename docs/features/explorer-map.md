@@ -139,6 +139,34 @@ El archivo gana: contesta N preguntas con un turno, entra en un diff que se pued
 envejecer ya está resuelto por el test. La tool gana en frescura —que el test también resuelve— y pierde
 en que cada pregunta cuesta una llamada y en que agrega un verbo nuevo a un hijo que solo lee.
 
+## Cómo lo ataca gentle-shell
+
+Comparación con el harness hermano (`/home/tachii/dev/gentle-shell`, mismo Pi, mismas piezas), leída
+en su código:
+
+| Pregunta | po-shell hoy | gentle-shell |
+|---|---|---|
+| **Contexto del hijo** | `--no-context-files`: el hijo no ve ningún `AGENTS.md` | El hijo carga los mismos context files que el orquestador y después un filtro quita los bloques que solo obligan al padre (`lib/child-context-files.ts:1-20`): son **~37k tokens de prefijo por hijo**, y le daban al worker reglas de orquestación que no le tocan |
+| **Buscar código** | `grep`/`find` y suerte | Tool `codegraph` con índice propio (`.codegraph/`), y el contrato manda usarlo **antes** de barrer el filesystem; `grep` es el fallback, no el método (`assets/agents/gentle-ai-explore.md`) |
+| **Presupuesto de búsqueda** | Contador de llamadas, visible a las 3 | `lib/exploration-budget.ts`: mide **lookups y bytes leídos** (3 lookups + 40 KB), e inyecta un aviso en runtime: «ongoing discovery needs one configured explorer» |
+| **Memoria del hijo** | Nadie escribe: solo el explorer puede leer | El **worker puede** `mem_save`; el explorer no lo tiene en su lista de tools. Lo durable lo escribe quien cambió algo |
+
+Tres lecciones que se pueden copiar sin traer la dependencia:
+
+1. **El contador tiene que medir bytes, no solo llamadas.** 21 `grep` de tres líneas no es lo mismo que
+   leer 40 KB. Nuestro nudge cuenta llamadas; el suyo pesa evidencia.
+2. **El fallback no es el método.** Ellos tienen grep y aun así el contrato dice «codegraph primero, y
+   solo si falla, grep». Nuestro contrato puede decir lo mismo sobre el mapa: leerlo primero, grep
+   después.
+3. **Al hijo se le quita lo que no le toca, no todo.** Nosotros apagamos AGENTS.md entero para no
+   pagar; ellos lo cargan y filtran. Filtrar es más caro de mantener pero no le esconde al hijo las
+   convenciones que sí debe respetar.
+
+Y una diferencia de criterio que vale discutir: allá el worker escribe memoria; acá el protocolo dice
+que un hijo nunca escribe `.md` ni memoria. La razón de ellos es razonable —quien cambió el código es
+el que tiene el hallazgo verificado— pero nosotros tenemos el nudge de `memoria: 0 desde implementing`
+que obliga al padre a destilar, y eso hoy funciona.
+
 ## Recommendation
 
 Las tres primeras no compiten, se ordenan por costo:
