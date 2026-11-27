@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   FOOTER_GAP,
+  FRAME_BODY_MAX,
+  FRAME_HINT,
   TOOL_STYLE,
   contextLabel,
   creditLabel,
@@ -236,10 +238,9 @@ test("formatCall truncates a very long command", () => {
 });
 
 test("formatResult says ok and fail in words, never a check mark", () => {
-  // A successful shell puts its verdict in its last lines: the last non-empty
-  // line is the one that says what happened, not the first.
+  // The output is the body's job: the footer is only the outcome and its cost.
   assert.deepEqual(formatResult("bash", {}, result("all good\nmany lines"), { durationMs: 6500 }), [
-    { tone: "success", text: "ok · 6.5s · many lines" },
+    { tone: "success", text: "ok · 6.5s" },
   ]);
   assert.deepEqual(formatResult("bash", {}, result(""), { durationMs: 6500 }), [
     { tone: "success", text: "ok · 6.5s" },
@@ -248,15 +249,62 @@ test("formatResult says ok and fail in words, never a check mark", () => {
   const failed = formatResult("bash", {}, result("boom\nline 2\nline 3\nline 4"), { isError: true });
   assert.equal(failed.length, 3);
   assert.equal(failed[0].tone, "error");
-  assert.equal(failed[0].text, "fail · boom");
-  assert.equal(failed[1].text, "  line 2");
+  assert.equal(failed[0].text, "fail");
+  assert.equal(failed[1].text, "  boom");
+  assert.equal(failed[2].text, "  line 2", "a failure keeps up to two reason lines below the frame");
 
-  const exit = formatResult("bash", {}, result("boom\nCommand exited with code 2"), { isError: true });
-  assert.equal(exit[0].text, "fail · exit 2 · boom");
+  const exit = formatResult("bash", {}, result("boom\nCommand exited with code 2"), {
+    isError: true,
+    durationMs: 1200,
+  });
+  assert.equal(exit[0].text, "fail · exit 2 · 1.2s");
+
+  // Without a duration the exit code still says which code.
+  const bare = formatResult("bash", {}, result("boom\nCommand exited with code 2"), { isError: true });
+  assert.equal(bare[0].text, "fail · exit 2");
+
+  // A failure with no exit code at least says how long it took.
+  const timed = formatResult("bash", {}, result("boom\nline 2"), { isError: true, durationMs: 1200 });
+  assert.equal(timed[0].text, "fail · 1.2s");
 
   assert.deepEqual(formatResult("bash", {}, result(""), { isError: true }), [
     { tone: "error", text: "fail" },
   ]);
+});
+
+test("formatResult keeps the memory key in the call row and the outcome in the footer", () => {
+  const saved = formatResult(
+    "po_shell_memory",
+    { action: "save", title: "lesson/x" },
+    result("Memoria guardada: lesson/x"),
+    {},
+  );
+  assert.deepEqual(saved, [{ tone: "success", text: "saved" }]);
+  assert.ok(!saved[0].text.includes("Memoria"), "the footer never repeats the tool's line");
+  assert.ok(!saved[0].text.includes("lesson/x"), "the key already rides the call row");
+
+  assert.deepEqual(
+    formatResult("po_shell_memory", { action: "save" }, result("po-shell error: sin espacio"), {
+      isError: true,
+    }),
+    [{ tone: "error", text: "not saved" }],
+  );
+
+  // A search reports hits or the absence of them, never the raw text.
+  const found = formatResult(
+    "po_shell_memory",
+    { action: "search", query: "x" },
+    result("## mem:1 · lesson\nsnippet"),
+    {},
+  );
+  assert.deepEqual(found, [{ tone: "success", text: "found" }]);
+  const none = formatResult(
+    "po_shell_memory",
+    { action: "search", query: "x" },
+    result("(sin resultados)"),
+    {},
+  );
+  assert.deepEqual(none, [{ tone: "muted", text: "none" }]);
 });
 
 test("formatResult gives every tool a useful bottom line", () => {
@@ -324,6 +372,22 @@ test("formatResult reads a delegation's role, status and turns", () => {
     isError: true,
   });
   assert.deepEqual(refused, [{ tone: "error", text: "po_shell_delegate: falta surfaces" }]);
+});
+
+test("formatResult puts a settled delegation's credits in the footer, before the turns", () => {
+  const settled = formatResult("po_shell_delegate", { role: "worker" }, delegateResult(), {});
+  assert.deepEqual(settled, [{ tone: "success", text: "ok · 1.39cr · 29 turns · 2m19s" }]);
+
+  const unknown = formatResult("po_shell_delegate", { role: "worker" }, delegateResult({ credits: null }), {});
+  assert.deepEqual(unknown, [{ tone: "success", text: "ok · no cost · 29 turns · 2m19s" }]);
+
+  const failed = formatResult(
+    "po_shell_delegate",
+    { role: "worker" },
+    delegateResult({ status: "timeout" }),
+    { isError: true },
+  );
+  assert.deepEqual(failed, [{ tone: "error", text: "timeout · 1.39cr · 29 turns · 2m19s" }]);
 });
 
 test("formatResult while streaming shows the last line", () => {
@@ -582,25 +646,29 @@ test("formatFrame draws a two-line frame whose lines are the same width", () => 
 
 test("formatFrame puts the result in the bottom rule, not in a third line", () => {
   const frame = frameOf("bash", { command: "npm test" }, result("ok"), { durationMs: 12_000 });
-  assert.equal(frame.meta, "ok · 12.0s · ok");
+  // The output is the body's job: the footer is only the outcome and its cost.
+  assert.equal(frame.meta, "ok · 12.0s");
   assert.ok(frame.bottom.text.startsWith("╰─ ok · 12.0s "));
+  assert.ok(!frame.bottom.text.includes("· ok"));
   assert.deepEqual(frame.extra, []);
   assert.equal(frame.body.length, 0);
   assert.equal(textWidth(frame.bottom.text), 60);
 });
 
-test("the hint flips with expanded and only the expanded frame carries a body", () => {
+test("the hint is ctrl+o in both modes and only the expanded frame carries a body", () => {
   const collapsed = frameOf("bash", { command: "npm test" }, result("one\ntwo\nthree\nfour"));
-  assert.ok(collapsed.top.text.includes("ctrl+o expand"));
-  assert.ok(!collapsed.top.text.includes("ctrl+o collapse"));
+  assert.ok(collapsed.top.text.includes(FRAME_HINT), "the collapsed frame names the key");
+  assert.ok(!collapsed.top.text.includes("expand"), "the hint does not name the action");
+  assert.ok(!collapsed.top.text.includes("collapse"));
   assert.deepEqual(collapsed.body, []);
   assert.equal(collapsed.overflow, 0);
 
   const expanded = frameOf("bash", { command: "npm test" }, result("one\ntwo\nthree\nfour"), {
     expanded: true,
   });
-  assert.ok(expanded.top.text.includes("ctrl+o collapse"));
-  assert.ok(!expanded.top.text.includes("ctrl+o expand"));
+  assert.ok(expanded.top.text.includes(FRAME_HINT), "the expanded frame names the same key");
+  assert.ok(!expanded.top.text.includes("expand"));
+  assert.ok(!expanded.top.text.includes("collapse"));
   assert.equal(textWidth(expanded.top.text), 60);
   assert.equal(textWidth(expanded.bottom.text), 60);
 });
@@ -616,22 +684,21 @@ test("formatFrame keeps the width exact in both modes", () => {
   }
 });
 
-test("the expanded body is three lines, cut to the inner width, with the count of the rest", () => {
+test("the expanded body is every result line, cut to the inner width", () => {
   const ten = Array.from({ length: 10 }, (_, index) => `line ${index + 1}`).join("\n");
   const ok = frameOf("bash", { command: "npm test" }, result(ten), { expanded: true });
-  assert.equal(ok.body.length, 3);
-  assert.equal(ok.overflow, 7);
+  assert.equal(ok.body.length, 10, "expanded does not stop at three lines");
+  assert.equal(ok.overflow, 0);
   assert.deepEqual(
     ok.body.map((row) => row.text),
-    ["  line 8", "  line 9", "  line 10"],
+    Array.from({ length: 10 }, (_, index) => `  line ${index + 1}`),
   );
 
+  // A failure shows the whole result too, head first, not only the tail.
   const failed = frameOf("bash", { command: "npm test" }, result(ten), { expanded: true, isError: true });
-  assert.deepEqual(
-    failed.body.map((row) => row.text),
-    ["  line 1", "  line 2", "  line 3"],
-  );
-  assert.equal(failed.overflow, 7);
+  assert.equal(failed.body.length, 10);
+  assert.equal(failed.body[0].text, "  line 1");
+  assert.equal(failed.overflow, 0);
 
   const short = frameOf("read", { path: "a.js" }, result("one\ntwo"), { expanded: true });
   assert.equal(short.body.length, 2);
@@ -648,7 +715,16 @@ test("the expanded body is three lines, cut to the inner width, with the count o
   assert.ok(wide.body[1].text.endsWith("…"), "a line wider than the frame is cut, not wrapped");
 });
 
-test("the edit body shows the first changed lines with - and +, totals in the bottom", () => {
+test("the expanded body stops at FRAME_BODY_MAX and counts the rest as +N lines", () => {
+  const many = Array.from({ length: FRAME_BODY_MAX + 50 }, (_, index) => `l${index + 1}`).join("\n");
+  const capped = frameOf("bash", { command: "cat big.log" }, result(many), { expanded: true });
+  assert.equal(capped.body.length, FRAME_BODY_MAX);
+  assert.equal(capped.overflow, 50, "the rest is what the renderer shows as … +50 lines");
+  assert.equal(capped.body[0].text, "  l1");
+  assert.equal(capped.body.at(-1).text, `  l${FRAME_BODY_MAX}`);
+});
+
+test("the expanded edit body walks every hunk, not the first six source lines", () => {
   const frame = frameOf(
     "edit",
     {
@@ -663,15 +739,30 @@ test("the edit body shows the first changed lines with - and +, totals in the bo
   );
   assert.deepEqual(
     frame.body.map((row) => row.text),
-    ["  - one", "  - two", "  + one"],
+    ["  - one", "  - two", "  + one", "  + two", "  + three", "  - four", "  + five"],
   );
   assert.equal(frame.meta, "applied");
   assert.ok(frame.bottom.text.includes("applied"));
   assert.ok(frame.top.text.includes("+4 −3"), "the totals stay in the top meta");
   assert.ok(!frame.bottom.text.includes("+4 −3"), "the bottom does not repeat the totals");
-  assert.equal(frame.overflow, 4, "7 total lines minus the 3 that fit");
+  assert.equal(frame.overflow, 0, "7 lines and nothing left out");
   assert.ok(frame.body[0].text.startsWith("  - "));
   assert.ok(frame.body[2].text.startsWith("  + "));
+
+  // Four hunks: the collapsed scrape would stop at six lines; expanded shows them all.
+  const hunks = Array.from({ length: 4 }, (_, index) => ({
+    oldText: `old ${index + 1}`,
+    newText: `new ${index + 1}`,
+  }));
+  const whole = frameOf("edit", { path: "src/a.js", edits: hunks }, result("Applied 4 edit block(s)."), {
+    expanded: true,
+  });
+  assert.equal(whole.body.length, 8, "two lines per hunk, all four hunks");
+  assert.deepEqual(
+    whole.body.map((row) => row.text),
+    hunks.flatMap((hunk) => [`  - ${hunk.oldText}`, `  + ${hunk.newText}`]),
+  );
+  assert.equal(whole.overflow, 0);
 });
 
 function everyToolResult() {
@@ -708,20 +799,22 @@ test("formatFrame drops the hint before cutting the subject, and still closes", 
   const long = { command: `sed -n 158,182p ${"docs/features/x.md".repeat(4)}` };
   const frame = frameOf("bash", long, null);
   const withHint = frameOf("bash", { command: "npm test" }, null);
-  assert.ok(withHint.top.text.includes("ctrl+o expand"), "a short row keeps the hint");
-  assert.ok(!frame.top.text.includes("ctrl+o expand"), "a long row loses the hint first");
+  assert.ok(withHint.top.text.includes(FRAME_HINT), "a short row keeps the hint");
+  assert.ok(!frame.top.text.includes(FRAME_HINT), "a long row loses the hint first");
   assert.ok(frame.top.text.includes("…"), "the subject is what gets cut");
   assert.equal(textWidth(frame.top.text), 60);
   assert.ok(frame.top.text.endsWith("─╮"));
 });
 
-test("formatFrame keeps the first error in the frame and the rest below it", () => {
+test("formatFrame lists a failing bash's reasons from the top, below the frame", () => {
   const frame = frameOf("bash", { command: "npm test" }, result("boom\nline 2\nline 3"), { isError: true });
-  assert.equal(frame.meta, "fail · boom");
-  assert.ok(frame.bottom.text.includes("fail · boom"));
+  // The reason lines are below the frame; the footer is only the outcome.
+  assert.equal(frame.meta, "fail");
+  assert.ok(frame.bottom.text.includes("fail"));
+  assert.ok(!frame.bottom.text.includes("boom"));
   assert.deepEqual(
     frame.extra.map((row) => row.text),
-    ["  line 2", "  line 3"],
+    ["  boom", "  line 2"],
   );
 });
 
@@ -731,29 +824,30 @@ test("formatFrame summarizes po-shell tools the same way formatResult did", () =
   assert.ok(frame.top.text.includes("# task · new · Un título"));
 });
 
-test("a finished delegation shows its credits in the top rule and turns and time in the bottom", () => {
+test("a finished delegation shows its credits in the footer, never in the top rule", () => {
   const frame = formatFrame("po_shell_delegate", { role: "worker", task: "Implementar U1" }, delegateResult(), {
     cwd,
     width: 100,
   });
-  // The cost is content and rides the top rule, immediately before the hint.
-  const right = frame.top.segments.at(-2);
-  assert.equal(right.kind, "hint", "the cost note is painted dim, like the hint");
-  assert.equal(right.text, " 1.39cr · ctrl+o expand ");
-  assert.equal(frame.note, "1.39cr");
-  assert.equal(frame.meta, "ok · 29 turns · 2m19s");
-  assert.ok(frame.bottom.text.startsWith("╰─ ok · 29 turns · 2m19s "));
+  // The cost is a result: it rides the footer with the turns and the time.
+  assert.equal(frame.meta, "ok · 1.39cr · 29 turns · 2m19s");
+  assert.ok(frame.bottom.text.startsWith("╰─ ok · 1.39cr · 29 turns · 2m19s "));
+  assert.ok(!frame.top.text.includes("cr"), "the top rule carries the call, not the cost");
+  assert.ok(!("note" in frame), "the frame has no note field to carry a cost");
+  const hint = frame.top.segments.at(-2);
+  assert.equal(hint.kind, "hint");
+  assert.equal(hint.text, ` ${FRAME_HINT} `);
   assert.equal(textWidth(frame.top.text), 100);
   assert.equal(textWidth(frame.bottom.text), 100);
 
-  // Under pressure the note leaves first: the hint and the subject survive.
+  // The row no longer competes with a cost note, so the hint survives even narrow.
   const narrow = formatFrame("po_shell_delegate", { role: "worker", task: "Implementar U1" }, delegateResult(), {
     cwd,
     width: 60,
   });
-  assert.ok(!narrow.top.text.includes("1.39cr"), "the note drops before anything else");
-  assert.ok(narrow.top.text.includes("ctrl+o expand"));
+  assert.ok(narrow.top.text.includes(FRAME_HINT));
   assert.ok(narrow.top.text.includes("Implementar U1"));
+  assert.ok(!narrow.top.text.includes("1.39cr"));
   assert.equal(textWidth(narrow.top.text), 60);
 });
 
@@ -765,24 +859,24 @@ test("a running delegation says running and invents no credits", () => {
     });
     assert.equal(frame.meta, "running…");
     assert.ok(frame.bottom.text.startsWith("╰─ running… "));
-    assert.equal(frame.note, "");
+    assert.ok(!("note" in frame));
     assert.ok(!frame.top.text.includes("cr"), "no credits while it runs");
-    assert.ok(frame.top.text.includes("ctrl+o expand"));
+    assert.ok(frame.top.text.includes(FRAME_HINT));
     assert.equal(textWidth(frame.top.text), 100);
     assert.equal(textWidth(frame.bottom.text), 100);
   }
 });
 
-test("a delegation without a calculable cost says no cost, not a fake number", () => {
+test("a delegation without a calculable cost says no cost in the footer, not a fake number", () => {
   const frame = formatFrame(
     "po_shell_delegate",
     { role: "worker", task: "Implementar U1" },
     delegateResult({ credits: null }),
     { cwd, width: 100 },
   );
-  assert.equal(frame.note, "no cost");
-  assert.ok(frame.top.text.includes("no cost · ctrl+o expand"));
-  assert.equal(frame.meta, "ok · 29 turns · 2m19s");
+  assert.equal(frame.meta, "ok · no cost · 29 turns · 2m19s");
+  assert.ok(frame.bottom.text.includes("no cost"));
+  assert.ok(!frame.top.text.includes("no cost"));
   assert.equal(textWidth(frame.top.text), 100);
   assert.equal(textWidth(frame.bottom.text), 100);
 });

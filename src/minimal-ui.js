@@ -244,16 +244,27 @@ function summarize(name, args = {}, text = "", lines = [], options = {}) {
 
   switch (name) {
     case "bash": {
+      // The output is the body's job; the footer is only the outcome and its
+      // cost. The exit code is state, not output, so a failure keeps it.
       const code = EXIT_CODE.exec(text)?.[1] ?? "";
       const parts = [status];
-      if (code) parts.push(`exit ${code}`);
-      else if (duration) parts.push(duration);
-      const content = lines.filter((line) => !EXIT_LINE.test(line));
-      // The verdict of a shell command lives in its last lines; a failure opens
-      // with its reason.
-      const picked = options.isError ? content[0] ?? "" : content[content.length - 1] ?? "";
-      if (picked) parts.push(picked);
+      if (options.isError && code) parts.push(`exit ${code}`);
+      if (duration) parts.push(duration);
       return { text: oneLine(parts.join(" · "), MAX_RESULT), tone: options.isError ? "error" : "success" };
+    }
+    case "po_shell_memory": {
+      // The key already rides the call row; the footer says only whether it
+      // landed. A search says whether it found anything, never the raw text.
+      const action = oneLine(args.action, 10);
+      if (action === "search" || (!action && args.query)) {
+        if (options.isError) return { text: "none", tone: "error" };
+        const found =
+          lines.some((line) => line.trim().startsWith("## ")) || /global memory found/i.test(text);
+        return found ? { text: "found", tone: "success" } : { text: "none", tone: "muted" };
+      }
+      if (options.isError) return { text: "not saved", tone: "error" };
+      const saved = /Memoria guardada/i.test(text) || lines.length > 0;
+      return saved ? { text: "saved", tone: "success" } : { text: "not saved", tone: "error" };
     }
     case "read": {
       const count = lineCount(String(text ?? "").replace(/\s+$/, ""));
@@ -298,7 +309,9 @@ function summarize(name, args = {}, text = "", lines = [], options = {}) {
       const details = options.details;
       if (details) {
         const state = oneLine(details.status, 16) || (options.isError ? "fail" : "ok");
-        const parts = [state];
+        // The cost is a result, so it belongs in the footer, never in the call row.
+        const credits = Number.isFinite(details.credits) ? creditLabel(details.credits) : "no cost";
+        const parts = [state, credits];
         const turns = details.turns;
         if (Number.isFinite(turns) && turns >= 0) {
           parts.push(`${turns} ${turns === 1 ? "turn" : "turns"}`);
@@ -369,7 +382,12 @@ export function formatResult(name, args = {}, result, options = {}) {
   const rows = [{ tone: summary.tone, text: summary.text }];
   const ownsError = name === "po_shell_check" || name === "po_shell_delegate";
   if (options.isError && !ownsError) {
-    for (const line of lines.filter((value) => !EXIT_LINE.test(value)).slice(1, 3)) {
+    // The bash footer carries no output text any more, so its first line is not
+    // spent above the frame and the reasons start at the top. Other tools keep
+    // the head in the summary, and repeating it below would be the dead rule.
+    const reasons = lines.filter((value) => !EXIT_LINE.test(value));
+    const start = name === "bash" ? 0 : 1;
+    for (const line of reasons.slice(start, start + 2)) {
       rows.push({ tone: "error", text: `  ${oneLine(line, MAX_RESULT)}` });
     }
   }
@@ -386,16 +404,6 @@ function delegationDetails(result) {
   return String(details.status ?? "").trim() === "running" ? null : details;
 }
 
-/** The cost of a finished delegation: the credits, or `no cost` when unknown. */
-function delegationNote(name, result) {
-  if (name !== "po_shell_delegate") return "";
-  const details = delegationDetails(result);
-  if (!details) return "";
-  return typeof details.credits === "number" && Number.isFinite(details.credits)
-    ? creditLabel(details.credits)
-    : "no cost";
-}
-
 /* --------------------------------- frame --------------------------------- */
 
 /**
@@ -403,15 +411,17 @@ function delegationNote(name, result) {
  * rule and the result meta the bottom one, so the whole thing reads as one
  * block instead of two flat lines.
  */
-export const FRAME_HINT = "ctrl+o expand";
-export const FRAME_HINT_EXPANDED = "ctrl+o collapse";
+/** The one key that expands the body, named the same in both modes. */
+export const FRAME_HINT = "ctrl+o";
 /** What the bottom rule says while a delegation has not settled yet. */
 export const DELEGATE_RUNNING = "running…";
 /** Below this the frame is a stamp: the extension clamps the terminal width here. */
 export const FRAME_MIN_WIDTH = 40;
-/** The expanded body never grows past three lines: the rest is a count. */
+/** The collapsed body never grows past three lines: the rest is a count. */
 export const FRAME_BODY_LINES = 3;
-/** Source lines an edit body reads before it stops scraping its hunks. */
+/** The expanded body's ceiling: past this a dump would freeze the TUI. */
+export const FRAME_BODY_MAX = 400;
+/** Source lines a collapsed edit body reads before it stops scraping its hunks. */
 const FRAME_EDIT_SOURCE = 6;
 
 const FRAME_CORNER = { topLeft: "╭", topRight: "╮", bottomLeft: "╰", bottomRight: "╯" };
@@ -463,12 +473,9 @@ function fitRowSegments(call, budget) {
   return rowSegments({ ...call, meta }, subject);
 }
 
-/** The top-rule right side: the cost note (content) then the hint (chrome). */
-function rightSide(note, hint, withNote, withHint) {
-  const parts = [];
-  if (withNote && note) parts.push(note);
-  if (withHint && hint) parts.push(hint);
-  return parts.join(" · ");
+/** The top-rule right side: only the hint. The outcome lives in the footer. */
+function rightSide(hint, withHint) {
+  return withHint && hint ? hint : "";
 }
 
 /** The drawn top rule: the row, the fill, and the right side flush against it. */
@@ -482,31 +489,20 @@ function topSegments(row, budget, right) {
 }
 
 /**
- * `╭─ $ shell · npm test ───── 1.39cr · ctrl+o expand ─╮`: the row in the top
- * rule, the cost note and the hint flush right. The note is content and leaves
- * before the hint; the hint leaves before the subject is cut.
+ * `╭─ $ shell · npm test ───── ctrl+o ─╮`: the row in the top rule and the hint
+ * flush right. The hint leaves before the subject is cut; nothing else rides it.
  */
-function topLine(call, width, hint, note = "") {
+function topLine(call, width, hint) {
   const plainBudget = Math.max(0, width - FRAME_CHROME);
   const full = rowSegments(call, call.text);
   const fullWidth = segmentsWidth(full);
-  const sides = note
-    ? [
-        [true, true],
-        [false, true],
-        [false, false],
-      ]
-    : [
-        [false, true],
-        [false, false],
-      ];
 
-  for (const [withNote, withHint] of sides) {
-    const right = rightSide(note, hint, withNote, withHint);
+  for (const withHint of [true, false]) {
+    const right = rightSide(hint, withHint);
     const budget = Math.max(0, plainBudget - (right ? textWidth(right) + 2 : 0));
     if (fullWidth <= budget) return topSegments(full, budget, right);
   }
-  // Nothing fits whole: the subject is what gets cut, and the note goes with the hint.
+  // Nothing fits whole: the subject is what gets cut, and the hint goes with it.
   return topSegments(fitRowSegments(call, plainBudget), plainBudget, "");
 }
 
@@ -549,35 +545,45 @@ function resultFrame(rows) {
 }
 
 /**
- * The expanded body: up to three lines, chosen by tool, plus what did not fit.
+ * The body, chosen by tool, plus what did not fit: every non-empty result line
+ * when expanded, the collapsed three otherwise.
  *
- * The verdict of a successful shell lives in its last lines, so it shows the
- * tail; a failure shows the head. An edit shows its first changed lines with
- * `-`/`+`; every other tool shows the first lines of its result.
+ * Collapsed, the verdict of a successful shell lives in its last lines, so it
+ * shows the tail; a failure shows the head. An edit shows its first changed
+ * lines with `-`/`+`; every other tool shows the first lines of its result.
+ * Expanded, the body is the whole result — every hunk of an edit — up to
+ * `FRAME_BODY_MAX`, because a cut body is the one thing `ctrl+o` is for.
  */
 function bodySource(name, args, result, options) {
   if (!result || options.isPartial) return { lines: [], overflow: 0 };
   const lines = nonEmptyLines(resultText(result));
+  const expanded = Boolean(options.expanded);
 
   if (name === "edit") {
     const source = [];
+    const scrape = expanded ? FRAME_BODY_MAX : FRAME_EDIT_SOURCE;
     for (const edit of Array.isArray(args.edits) ? args.edits : []) {
       for (const [prefix, value] of [
         ["-", edit?.oldText],
         ["+", edit?.newText],
       ]) {
         for (const line of String(value ?? "").split("\n")) {
-          if (source.length >= FRAME_EDIT_SOURCE) break;
+          if (source.length >= scrape) break;
           if (!line.trim()) continue;
           source.push(`${prefix} ${line}`);
         }
       }
-      if (source.length >= FRAME_EDIT_SOURCE) break;
+      if (source.length >= scrape) break;
     }
     const { added, removed } = editStats(args.edits);
-    const body = source.slice(0, FRAME_BODY_LINES);
+    const body = source.slice(0, expanded ? FRAME_BODY_MAX : FRAME_BODY_LINES);
     // The totals are the whole change, not the slice that fit in the frame.
     return { lines: body, overflow: Math.max(0, added + removed - body.length) };
+  }
+
+  if (expanded) {
+    const body = lines.slice(0, FRAME_BODY_MAX);
+    return { lines: body, overflow: Math.max(0, lines.length - body.length) };
   }
 
   const tail = name === "bash" && !options.isError;
@@ -615,21 +621,16 @@ export function formatFrame(name, args = {}, result = null, options = {}) {
       ? [{ tone: "dim", text: DELEGATE_RUNNING }]
       : [];
   const { meta, tone, extra } = resultFrame(rows);
-  const picked = expanded ? bodySource(name, args, result, options) : { lines: [], overflow: 0 };
+  const picked = expanded
+    ? bodySource(name, args, result, { ...options, expanded })
+    : { lines: [], overflow: 0 };
   const bodyWidth = Math.max(1, width - FRAME_CHROME);
-  // The renderer builds the top rule before the result exists, so it may hand
-  // over the note it already learned; otherwise the result is the only source.
-  const note =
-    typeof options.note === "string" && options.note
-      ? options.note
-      : delegationNote(name, result);
   return {
     tone: call.tone,
-    top: topLine(call, width, expanded ? FRAME_HINT_EXPANDED : FRAME_HINT, note),
+    top: topLine(call, width, FRAME_HINT),
     bottom: bottomLine(meta, tone, width),
     body: picked.lines.map((text) => ({ text: cutWidth(`  ${text}`, bodyWidth) })),
     meta,
-    note,
     extra,
     overflow: picked.overflow,
   };

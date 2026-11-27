@@ -436,8 +436,9 @@ export default function poShellExtension(pi: ExtensionAPI) {
           return new Text(lines.join("\n"), 0, 0);
         }
         // Expanded is the same frame with the prepared body inside: no side
-        // bars, at most three lines, and the count of what stayed out. The top
-        // rule already came from the call slot, so it is not repeated here.
+        // bars, every line the result had up to the ceiling, and the count of
+        // what stayed out. The top rule already came from the call slot, so it
+        // is not repeated here.
         const lines: string[] = [];
         for (const row of frame.body ?? []) lines.push(theme.fg("toolOutput", row.text));
         if (frame.overflow > 0) lines.push(theme.fg("dim", `  … +${frame.overflow} lines`));
