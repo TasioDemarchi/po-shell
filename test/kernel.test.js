@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   activeTask,
   activeTaskId,
+  addDecision,
   attributableTask,
   checkPolicy,
   createTask,
@@ -17,6 +18,7 @@ import {
   getTask,
   init,
   isInitialized,
+  knowledgeSince,
   latestReview,
   listTasks,
   memoryIndex,
@@ -34,6 +36,7 @@ import {
 import { poShellPath } from "../src/kernel.js";
 import { evaluateToolCall } from "../src/policy.js";
 import { DEFAULT_POLICY } from "../src/policy.js";
+import { bumpDiscovery, discoveryNote } from "../src/discovery.js";
 
 process.env.PO_SHELL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-home-"));
 
@@ -48,6 +51,10 @@ function tempRepo() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "po-shell-test-"));
   return dir;
 }
+
+// Timestamps land in the same millisecond when a test runs fast, and both the
+// discovery key and `knowledgeSince` compare instants: give them room.
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function git(dir, args) {
   const proc = spawnSync("git", args, { cwd: dir, encoding: "utf8" });
@@ -727,4 +734,140 @@ test("init scaffolds the two documents and never overwrites them", () => {
   fs.writeFileSync(path.join(dir, "PROJECT.md"), "# propio\n");
   init(dir);
   assert.equal(fs.readFileSync(path.join(dir, "PROJECT.md"), "utf8"), "# propio\n");
+});
+
+test("the discovery counter shows from the third call and resets with implementing", async () => {
+  const dir = tempRepo();
+  init(dir);
+  const task = createTask(dir, { title: "Descubrir", risk: "low" });
+  const working = updateTask(dir, task.id, { phase: "implementing" });
+
+  bumpDiscovery(dir, "read", working);
+  bumpDiscovery(dir, "grep", working);
+  assert.equal(discoveryNote(dir, working).count, 2);
+  assert.equal(discoveryNote(dir, working).text, null, "two calls are not a nudge yet");
+  assert.ok(!renderContext(dir).includes("discovery:"), "no line below the threshold");
+  assert.ok(!renderStatus(dir).includes("Descubrimiento:"), "no line below the threshold");
+
+  bumpDiscovery(dir, "ls", working);
+  assert.equal(discoveryNote(dir, working).count, 3);
+  assert.equal(discoveryNote(dir, working).text, "3 llamadas sin delegar — el skill pide un explorer");
+  assert.match(renderContext(dir), /discovery: 3 calls · delegate an explorer/);
+  const shown = renderStatus(dir).split("\n");
+  const line = shown.find((l) => l.startsWith("Descubrimiento:"));
+  assert.equal(line, "Descubrimiento: 3 llamadas sin delegar — el skill pide un explorer");
+  assert.ok(
+    shown.indexOf(line) < shown.findIndex((l) => l.startsWith("Checks:")),
+    "the line sits before the checks",
+  );
+  assert.ok(
+    fs.existsSync(path.join(poShellPath(dir), "discovery.json")),
+    "the counter lives in the central state",
+  );
+  assert.ok(!fs.existsSync(path.join(dir, "discovery.json")), "and never in the repo");
+
+  // Outside implementing/checking the count is kept but nobody is nudged.
+  const paused = updateTask(dir, task.id, { phase: "exploring" });
+  assert.equal(discoveryNote(dir, paused).count, 3, "the count survives the pause");
+  assert.equal(discoveryNote(dir, paused).text, null, "but the work is paused");
+  assert.ok(!renderContext(dir).includes("discovery:"));
+  assert.ok(!renderStatus(dir).includes("Descubrimiento:"));
+
+  // A new move to implementing is a new clock: the count starts over at one.
+  await sleep(5);
+  const reentered = updateTask(dir, task.id, { phase: "implementing" });
+  assert.notEqual(reentered.implementingAt, working.implementingAt);
+  assert.deepEqual(discoveryNote(dir, reentered), { count: 0, text: null });
+  bumpDiscovery(dir, "read", reentered);
+  assert.equal(discoveryNote(dir, reentered).count, 1, "the calls of the previous round are gone");
+});
+
+test("edits, writes and delegation do not count as discovery", () => {
+  const dir = tempRepo();
+  init(dir);
+  const task = createTask(dir, { title: "No suma", risk: "low" });
+  const working = updateTask(dir, task.id, { phase: "implementing" });
+
+  for (const tool of ["edit", "write", "po_shell_delegate", "po_shell_task", "po_shell_check", "web_fetch"]) {
+    assert.equal(bumpDiscovery(dir, tool, working), null, `${tool} is not discovery`);
+  }
+  assert.equal(discoveryNote(dir, working).count, 0);
+  assert.equal(bumpDiscovery(dir, "read", null), null, "no task, nothing to attribute");
+});
+
+test("knowledgeSince counts what was saved after implementing", async () => {
+  const dir = tempRepo();
+  init(dir);
+  const task = createTask(dir, { title: "Conocimiento", risk: "low" });
+
+  const zeros = { memories: 0, decisions: 0, total: 0 };
+  assert.deepEqual(knowledgeSince(dir, null), zeros, "no task, no knowledge");
+  assert.deepEqual(knowledgeSince(dir, task), zeros, "no implementingAt, no clock");
+
+  const working = updateTask(dir, task.id, { phase: "implementing" });
+  assert.deepEqual(knowledgeSince(dir, working), zeros, "nothing captured yet: the line would show");
+
+  await sleep(5);
+  saveMemory(dir, {
+    title: "La causa era el hint del índice",
+    what: "El hint apuntaba a la tabla vieja.",
+    why: "La migración renombró la tabla.",
+    learned: "Revisar el hint al migrar.",
+  });
+  const withMemory = knowledgeSince(dir, getTask(dir, task.id));
+  assert.equal(withMemory.memories, 1);
+  assert.equal(withMemory.decisions, 0);
+  assert.equal(withMemory.total, 1, "with a memory the line has nothing to say");
+
+  await sleep(5);
+  addDecision(dir, { text: "el contrato público usa unitPriceCents" });
+  const both = knowledgeSince(dir, getTask(dir, task.id));
+  assert.equal(both.decisions, 1);
+  assert.equal(both.memories, 1);
+  assert.equal(both.total, 2);
+});
+
+test("knowledgeSince ignores the automatic state snapshot", async () => {
+  const dir = tempRepo();
+  init(dir);
+  const task = createTask(dir, { title: "Snapshot", risk: "low" });
+  const working = updateTask(dir, task.id, { phase: "implementing" });
+
+  await sleep(5);
+  // The snapshot the kernel writes on every phase change and every check:
+  // same shape `snapshotTask` uses (type=state, topic=state/<task-id>).
+  saveMemory(dir, {
+    title: `Task state: ${working.id}`,
+    what: `${working.title} · ${working.phase} · risk ${working.risk}`,
+    why: "Automatic state snapshot for fast resume.",
+    type: "state",
+    scope: "project",
+    topic: `state/${working.id}`,
+    status: "active",
+  });
+  saveMemory(dir, {
+    title: "Session snapshot",
+    what: "Automatic session snapshot.",
+    type: "session",
+    scope: "project",
+    topic: "session/current",
+    status: "active",
+  });
+
+  const afterSnapshot = knowledgeSince(dir, getTask(dir, task.id));
+  assert.equal(afterSnapshot.memories, 0, "the automatic snapshot is not knowledge");
+  assert.equal(afterSnapshot.decisions, 0);
+  assert.equal(afterSnapshot.total, 0, "0 since implementing: the line would show");
+
+  await sleep(5);
+  saveMemory(dir, {
+    title: "La causa era el hint del índice",
+    what: "El hint apuntaba a la tabla vieja.",
+    learned: "Revisar el hint al migrar.",
+    type: "lesson",
+  });
+  const withLesson = knowledgeSince(dir, getTask(dir, task.id));
+  assert.equal(withLesson.memories, 1);
+  assert.equal(withLesson.decisions, 0);
+  assert.equal(withLesson.total, 1, "a lesson still counts");
 });

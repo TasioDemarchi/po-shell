@@ -58,6 +58,7 @@ import {
   getTask,
   init,
   isInitialized,
+  knowledgeSince,
   listTasks,
   loadConfig,
   latestReview,
@@ -75,6 +76,7 @@ import {
   saveMemory,
   updateTask,
 } from "../src/kernel.js";
+import { bumpDiscovery } from "../src/discovery.js";
 
 function text(value: string) {
   return { content: [{ type: "text" as const, text: value }], details: undefined };
@@ -97,6 +99,26 @@ function snapshotTask(cwd: string, task: any) {
   } catch {
     // A snapshot must never block the task operation.
   }
+}
+
+// Informational, never a gate: the closing of a task names the memory it lacks
+// and moves on. `snapshotTask` runs after this read, so the automatic state
+// memory cannot mask the line it is meant to trigger.
+const MEMORY_NUDGE = "memoria: 0 desde implementing — si aprendiste la causa, guardala";
+
+function memoryNudge(cwd: string, task: any) {
+  if (!task?.implementingAt) return "";
+  try {
+    return knowledgeSince(cwd, task).total === 0 ? MEMORY_NUDGE : "";
+  } catch {
+    return "";
+  }
+}
+
+/** The echo of a phase: closing a task that passed through implementing. */
+function closingNudge(cwd: string, task: any) {
+  if (!["ready", "delivered"].includes(String(task?.phase ?? ""))) return "";
+  return memoryNudge(cwd, task);
 }
 
 function taskSummary(task: any) {
@@ -721,8 +743,9 @@ export default function poShellExtension(pi: ExtensionAPI) {
             phase: params.phase,
             next: params.next,
           });
+          const memory = closingNudge(cwd, task);
           snapshotTask(cwd, task);
-          return text(`Fase actualizada.\n${taskSummary(task)}`);
+          return text(`Fase actualizada.\n${taskSummary(task)}${memory ? `\n${memory}` : ""}`);
         }
         if (action === "update") {
           const task = updateTask(cwd, params.id, {
@@ -734,8 +757,9 @@ export default function poShellExtension(pi: ExtensionAPI) {
             delegation: params.delegation,
             next: params.next,
           });
+          const memory = closingNudge(cwd, task);
           snapshotTask(cwd, task);
-          return text(taskSummary(task));
+          return text(`${taskSummary(task)}${memory ? `\n${memory}` : ""}`);
         }
         if (action === "decision") {
           try {
@@ -963,13 +987,17 @@ export default function poShellExtension(pi: ExtensionAPI) {
     async execute(_id, params, _signal, _onUpdate, ctx) {
       try {
         const result = runChecks(ctx.cwd, params.commands ?? null);
-        snapshotTask(ctx.cwd, activeTask(ctx.cwd));
+        const checked = activeTask(ctx.cwd);
+        snapshotTask(ctx.cwd, checked);
         const lines = result.results.map(
           (r: any) => `${r.ok ? "PASS" : "FAIL"} ${r.command} (exit ${r.exitCode}, ${r.ms}ms)`,
         );
         // The evidence belongs to one task: say which one, or a misattributed check
         // stays invisible until a gate rejects it for being old.
         if (result.task) lines.push(`Tarea: ${taskLabelOf(result.task)} · ${result.task.phase}`);
+        if (result.discovery?.text) lines.push(`Descubrimiento: ${result.discovery.text}`);
+        // Zero captured knowledge with a clock running is the moment to say it.
+        if (result.knowledge?.total === 0 && checked?.implementingAt) lines.push(MEMORY_NUDGE);
         const failed = result.results.filter((r: any) => !r.ok);
         if (failed.length) {
           lines.push("", "Salida del primer fallo:", failed[0].output);
@@ -1420,6 +1448,12 @@ export default function poShellExtension(pi: ExtensionAPI) {
   pi.on("tool_call", async (event, ctx) => {
     if (!isInitialized(ctx.cwd)) return undefined;
     try {
+      // Counting is bookkeeping: a counter that fails must never block a tool call.
+      try {
+        bumpDiscovery(ctx.cwd, event.toolName, activeTask(ctx.cwd));
+      } catch {
+        // Ignored on purpose.
+      }
       const verdict = checkPolicy(ctx.cwd, event.toolName, event.input ?? {});
       if (verdict.block) return { block: true, reason: verdict.reason };
       if (verdict.confirm) {

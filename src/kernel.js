@@ -32,6 +32,7 @@ import {
   promptTokens,
 } from "./context-guard.js";
 import { GLOBAL_PROJECT_ID, contextDbPath, openContextDb } from "./indexer.js";
+import { discoveryNote } from "./discovery.js";
 import { costSummary, formatCredits } from "./costs.js";
 import {
   legacyStateDir,
@@ -628,6 +629,43 @@ export function globalMemoryIndex(env = process.env) {
   }
 }
 
+/**
+ * What was learned since the work started: project memories indexed after
+ * `implementingAt` plus the decisions registered on the task after that instant.
+ * The bookkeeping types (`state`, `session`) are written on every phase change
+ * and every check, so they never count as knowledge.
+ * No clock means no measurement, so the answer is zero.
+ */
+export function knowledgeSince(cwd, task, env = process.env) {
+  const since = Date.parse(String(task?.implementingAt ?? ""));
+  if (!task || !Number.isFinite(since)) return { memories: 0, decisions: 0, total: 0 };
+  const decisions = (Array.isArray(task.decisions) ? task.decisions : []).filter((item) => {
+    const at = Date.parse(String(item?.at ?? ""));
+    return Number.isFinite(at) && at > since;
+  }).length;
+  let memories = 0;
+  const dbPath = contextDbPath(env);
+  if (fs.existsSync(dbPath)) {
+    try {
+      const db = openContextDb(dbPath);
+      try {
+        const row = db
+          .prepare(
+            `SELECT COUNT(*) AS n FROM memories WHERE project_id = ? AND updated_at > ? AND type NOT IN ('state', 'session')`,
+          )
+          .get(projectIdentity(cwd, env).id, new Date(since).toISOString());
+        memories = Number(row?.n) || 0;
+      } finally {
+        db.close();
+      }
+    } catch {
+      // A nudge that cannot be measured says nothing; it never blocks a check.
+      memories = 0;
+    }
+  }
+  return { memories, decisions, total: memories + decisions };
+}
+
 export function saveMemory(
   cwd,
   {
@@ -841,6 +879,10 @@ export function runChecks(cwd, commands = null, env = process.env) {
   // A check on a task that is not being worked on is a preflight: it records
   // evidence but moves no phase, because there is no `implementingAt` to prove.
   const working = Boolean(task) && ["implementing", "checking"].includes(task.phase);
+  // Read before the check moves the phase: the nudge describes the discovery and
+  // the knowledge of the work, not the phase the check leaves behind.
+  const discovery = discoveryNote(cwd, task, env);
+  const knowledge = knowledgeSince(cwd, task, env);
   if (working) updateTask(cwd, task.id, { phase: "checking" }, env);
   const results = list.map((command) => {
     const started = Date.now();
@@ -872,6 +914,8 @@ export function runChecks(cwd, commands = null, env = process.env) {
     task: recorded
       ? { id: recorded.id, number: taskNumber(recorded), phase: recorded.phase, title: recorded.title }
       : null,
+    discovery,
+    knowledge,
   };
 }
 
@@ -1064,6 +1108,10 @@ export function renderStatus(cwd = process.cwd(), env = process.env) {
   // task while there is still time to move it.
   const others = otherInProgress(cwd, s.activeTask?.id ?? null, env);
   if (others.length) lines.push(`Otras en curso: ${others.join(" · ")}`);
+  // Informational and just before the checks: past three discovery calls the skill
+  // wants an explorer, and the parent decides whether to send one.
+  const discovery = s.activeTask ? discoveryNote(cwd, s.activeTask, env) : null;
+  if (discovery?.text) lines.push(`Descubrimiento: ${discovery.text}`);
   lines.push(
     `Checks: ${s.checks.length ? s.checks.join(" | ") : "(sin configurar)"}`,
     `Review: ${
@@ -1095,6 +1143,10 @@ export function renderContext(cwd = process.cwd(), env = process.env) {
       `evidence_count: ${(t.evidence ?? []).length}`,
       `delegation: ${t.delegation ?? "inline"}`,
     );
+    // Informational, next to the delegation line: three discovery calls without a
+    // child is the moment the skill asks for an explorer.
+    const discovery = discoveryNote(cwd, t, env);
+    if (discovery.text) lines.push(`discovery: ${discovery.count} calls · delegate an explorer`);
     const others = otherInProgress(cwd, t.id, env);
     if (others.length) lines.push(`other_in_progress: ${others.join(" · ")}`);
     if (t.risk === "high") {
