@@ -90,15 +90,15 @@ docs/
 El estado vive acá. No hay un documento de estado paralelo: cuando este archivo crezca, lo que sobre
 se muda a `docs/features/` o a memoria, nunca a otro archivo de estado.
 
-- **Fase:** v0.18 — el explorer tiene ventana a la web. El arnés es usable de punta a punta:
+- **Fase:** v0.19 — el marco de las tools y el estado que avisa. El arnés es usable de punta a punta:
   tareas, memoria, checks, review congelado, backup y subagentes con `memory_search` y `web_fetch`.
-- **Próximo paso:** mergear la rama (ver *Estado del árbol*). Después, si hace falta, la etapa 2 de la
-  web: `web_search` con proveedor por `PO_SHELL_SEARCH_PROVIDER`/`PO_SHELL_SEARCH_KEY`, sin clave =
-  «no configurado». Diseño en `docs/features/explorer-web.md`.
-- **Estado del árbol:** el trabajo vive en la rama `feat/delegacion-real`, decenas de commits por
-  delante de `origin/main`, sin push ni merge. `main` local está en `59b7253` y `origin/main` en
-  `53db6f8`. Hasta que eso se mergee, el `po-shell` del `PATH` (worktree de `main`) corre el código
-  viejo; este checkout se usa con `node bin/po-shell.js`.
+- **Próximo paso:** pushear `main` (7 commits, ver *Estado del árbol*) y desbloquear las tasks `high`
+  con la mejora del gate de `delivered` (ver § Pendiente). Después, si hace falta, la etapa 2 de la
+  web: `web_search` con proveedor por env var.
+- **Estado del árbol:** la rama ya se mergeó a `main` (fast-forward, sin merge commit) y `main` es lo
+  que corre el `po-shell` del `PATH` por el symlink del worktree. Queda **sin pushear**: los commits
+  posteriores a `origin/main`. El trabajo se hace en `/home/tachii/dev/po-shell-delegation` y
+  `main` está checkouteado en `/home/tachii/dev/po-shell`.
 - **Semántica de `delivered`:** una task entregada es una task **commiteada y lista para merge**, no
   mergeada. El merge, el push y el deploy siguen siendo del humano.
 - **Documentos:** son del orquestador. `PROJECT.md`, `AGENTS.md`, `README.md` y `docs/features/`
@@ -124,6 +124,7 @@ La task activa es la que se nombra, y el estado muestra las otras en curso.
 | Item | Descripción |
 |---|---|
 | Replanteo de delegación | Etapa 2 de la web, opcional: `web_search` con proveedor por env var. `web_fetch` ya está. Ver `docs/features/explorer-web.md`. |
+| Gate de memoria en `delivered` | Hoy el aviso de memoria es un nudge. Si no alcanza, `delivered` en `medium`/`high` exige una memoria o un `D#` posterior a `implementing`. Ver `docs/features/state-nudges.md`. |
 | Cierre de las tasks `high` | El gate de `delivered` exige que la última review del repo sea de esa task. Guardar la review en la task al congelar, y aceptar cualquier review de esa task al entregar. |
 | Servidor MCP | Exponer el kernel a Claude Code/Codex y otros clientes. |
 | Sandbox del SO | bubblewrap/seatbelt/contenedor + egress allowlist. |

@@ -806,6 +806,18 @@ activo (`contextWindow`), no de un número fijo: el 15 % de 1M son 157k, el 15 %
 La presión vive en `~/.po-shell/projects/<id>/context.json`, así que el gate del kernel y
 `po-shell status` leen el mismo número que vio el modelo.
 
+### Los dos avisos del bloque de estado
+
+Dos reglas que estaban solo en prosa ahora se ven cuando importan, sin bloquear nada:
+
+- **Descubrimiento:** `read`, `grep`, `find`, `ls` y `bash` desde el último `implementing` cuentan en
+  `discovery.json`. A partir de tres, el bloque suma `discovery: 3 calls · delegate an explorer` y
+  `po-shell status` lo dice en español: el skill pide un `explorer` y el padre lo estaba haciendo a
+  mano. `edit`, `write` y las `po_shell_*` no suman, y volver a `implementing` resetea el contador.
+- **Memoria:** antes de cerrar, `po_shell_check` y el eco de fase dicen cuántas memorias y decisiones
+  se capturaron desde `implementing`. Si son cero: `memoria: 0 desde implementing — si aprendiste la
+  causa, guardala`. Los snapshots automáticos de estado no cuentan como conocimiento.
+
 ### Perfil de delegación
 
 La tarea lleva un perfil en su campo `delegation`, y el bloque `<po_shell_state>` muestra cuál está
