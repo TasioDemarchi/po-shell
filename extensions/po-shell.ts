@@ -1249,6 +1249,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
         surfaces,
         done,
         outOfScope: String(params.out_of_scope ?? ""),
+        maxTurns: budgets.maxTurns,
       });
       const args = buildSubagentArgs({
         guardPath: subagentGuard,
@@ -1416,7 +1417,7 @@ export default function poShellExtension(pi: ExtensionAPI) {
               agentsNote,
               worktree ? `worktree: ${worktree.path} (branch ${worktree.branch})` : "",
               worktree ? `changes: ${worktreeChanges(worktree.path).files.length} files — revisá el diff antes de mergear o descartar` : "",
-              `budget: max_tokens=${params.max_tokens ?? 0} (output acumulado) max_turns=${params.max_turns ?? 0}`,
+              `budget: max_tokens=${params.max_tokens ?? 0} (output acumulado) max_turns=${budgets.maxTurns}`,
               `output: ${result.outputTokens ?? 0} tokens`,
               capped.truncated ? `report: ${capped.deliveredBytes} of ${capped.bytes} bytes (full text in the artifact)` : "",
               `artifact: ${artifact ? artifact.resultPath : artifactError ? `fallo (${artifactError})` : "(no guardado)"}`,

@@ -203,6 +203,57 @@ test("runPiJson stops when max_turns is reached", async () => {
   assert.equal(result.turnsExceeded, true);
 });
 
+test("runPiJson grants one closing turn past the ceiling", async () => {
+  const dir = tempDir("po-shell-delegate-");
+  const fake = fakePi(
+    dir,
+    [
+      `printf '%s\\n' '{"type":"turn_end"}'`,
+      "sleep 0.3",
+      `printf '%s\\n' '{"type":"turn_end"}'`,
+      "sleep 0.3",
+      `printf '%s\\n' '{"type":"turn_end"}'`,
+      "sleep 2",
+      "exit 0",
+    ].join("\n"),
+  );
+
+  const result = await runPiJson(dir, [], {
+    env: envFor(fake),
+    maxTurns: 2,
+    timeoutMs: 5000,
+  });
+  // The ceiling was reached on turn two and did not kill: the third turn_end is
+  // the extra one, and that is where the axe falls.
+  assert.equal(result.turns, 3);
+  assert.equal(result.turnsExceeded, true);
+  assert.equal(result.status, "turns_exceeded");
+  assert.equal(result.code, 1);
+});
+
+test("runPiJson keeps the closing text the last turn produces", async () => {
+  const dir = tempDir("po-shell-delegate-");
+  const fake = fakePi(
+    dir,
+    [
+      `printf '%s\\n' '{"type":"turn_end"}'`,
+      `printf '%s\\n' '{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"cierre: todo verde"}],"usage":{"input":10,"output":2,"totalTokens":12}}}'`,
+      "sleep 0.3",
+      "exit 0",
+    ].join("\n"),
+  );
+
+  const result = await runPiJson(dir, [], {
+    env: envFor(fake),
+    maxTurns: 1,
+    timeoutMs: 5000,
+  });
+  assert.equal(result.turnsExceeded, true);
+  assert.equal(result.status, "turns_exceeded");
+  assert.match(result.text, /cierre: todo verde/);
+  assert.equal(result.code, 0);
+});
+
 test("saveAgentArtifact writes meta, result and events", () => {
   const dir = tempDir("po-shell-agent-");
   init(dir);
@@ -303,6 +354,29 @@ test("buildMission omits the sections a mission does not carry", () => {
   const withDone = buildMission({ role: "worker", task: "x", done: ["  ", "y"] });
   assert.ok(withDone.includes("DONE WHEN\n- y"));
   assert.ok(!withDone.includes("CONTEXT"));
+});
+
+test("buildMission writes the turn budget when it has one", () => {
+  const mission = buildMission({ role: "worker", task: "x", maxTurns: 6 });
+  assert.ok(mission.includes("BUDGET (turns)"));
+  assert.ok(mission.includes("6 turns"));
+  assert.ok(mission.includes("plain text"));
+  assert.equal(
+    buildMission({ role: "worker", task: "x", maxTurns: 6, done: ["y"] }),
+    [
+      "MISSION (role: worker):",
+      "x",
+      "",
+      "BUDGET (turns)",
+      "- You have 6 turns in total. Spend the last one answering in plain text: no tool calls after turn 5.",
+      "",
+      "DONE WHEN",
+      "- y",
+    ].join("\n"),
+  );
+  assert.ok(!buildMission({ role: "worker", task: "x" }).includes("BUDGET"));
+  assert.ok(!buildMission({ role: "worker", task: "x", maxTurns: 0 }).includes("BUDGET"));
+  assert.ok(!buildMission({ role: "worker", task: "x", maxTurns: "nope" }).includes("BUDGET"));
 });
 
 test("partialReport says what the child did, not only what it was saying", () => {

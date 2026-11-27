@@ -48,6 +48,7 @@ export function buildMission({
   surfaces = [],
   done = [],
   outOfScope = "",
+  maxTurns,
 } = {}) {
   const files = (Array.isArray(contextFiles) ? contextFiles : []).map((file) => String(file).trim()).filter(Boolean);
   const items = (Array.isArray(done) ? done : []).map((item) => String(item).trim()).filter(Boolean);
@@ -60,6 +61,16 @@ export function buildMission({
 
   if (surfaces.length) {
     lines.push("", "EDIT SURFACES (the only paths you may write):", ...surfaces.map((surface) => `- ${surface}`));
+  }
+  // A child cannot administer a budget it does not see, so the ceiling is
+  // written down and the final turn is reserved for the plain-text report.
+  const turnBudget = Math.trunc(Number(maxTurns) || 0);
+  if (turnBudget > 0) {
+    lines.push(
+      "",
+      "BUDGET (turns)",
+      `- You have ${turnBudget} turns in total. Spend the last one answering in plain text: no tool calls after turn ${turnBudget - 1}.`,
+    );
   }
   if (items.length) lines.push("", "DONE WHEN", ...items.map((item) => `- ${item}`));
   if (outOfScope) lines.push("", "OUT OF SCOPE", String(outOfScope).trim());
@@ -408,6 +419,10 @@ export function runPiJson(cwd, args, options = {}) {
         }
         if (maxTurns && turns >= maxTurns) {
           turnsExceeded = true;
+        }
+        // The child was told in its mission to spend the last turn reporting, so
+        // the axe waits one turn instead of throwing away a finished tree.
+        if (maxTurns && turns > maxTurns) {
           kill();
         }
       }
