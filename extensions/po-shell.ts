@@ -15,8 +15,10 @@ import {
   contextLabel,
   creditLabel,
   dirtyCount,
+  FRAME_MIN_WIDTH,
   footerLine,
   formatCall,
+  formatFrame,
   formatResult,
   gitLabel,
   homePath,
@@ -370,8 +372,11 @@ export default function poShellExtension(pi: ExtensionAPI) {
   }
 
   pi.registerToolRenderer((toolName: string, next: any) => {
-    const base = next();
+    // The resolver has to hand back the whole definition, not only the renderers:
+    // Pi rejects a partial object and silently falls back to its native rows.
+    const base = next() ?? {};
     return {
+      ...base,
       // `self` takes the row out of Pi's Box, and that Box is what paints
       // toolPendingBg / toolSuccessBg / toolErrorBg behind every call: the green
       // and red blocks. We draw plain text lines instead.

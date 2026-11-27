@@ -810,3 +810,21 @@ test("the isolation dialog explains itself or refuses to open", () => {
   assert.throws(() => isolationPrompt({ handle: "#12", reason: "porque sí" }), /at least 20 characters/);
   assert.throws(() => isolationPrompt({ handle: "#12" }), /at least 20 characters/);
 });
+
+// The adapter is TypeScript and cannot be imported here (pi-tui lives in Pi's
+// runtime), so a missing import only shows up at render time, where Pi swallows
+// the exception and silently draws its own rows. This is the cheap guard: every
+// name the extension takes from this module has to be imported.
+test("the extension imports every minimal-ui name it uses", async () => {
+  const fs = await import("node:fs");
+  const read = (rel) => fs.readFileSync(new URL(rel, import.meta.url), "utf8");
+  const extension = read("../extensions/po-shell.ts");
+  const moduleText = read("../src/minimal-ui.js");
+  const exported = [...moduleText.matchAll(/^export (?:function|const) (\w+)/gm)].map((m) => m[1]);
+  const block = /import \{([^}]*)\} from "\.\.\/src\/minimal-ui\.js"/.exec(extension)?.[1] ?? "";
+  const imported = new Set(block.split(",").map((name) => name.trim()).filter(Boolean));
+  const missing = exported.filter(
+    (name) => new RegExp(`\\b${name}\\b`).test(extension) && !imported.has(name),
+  );
+  assert.deepEqual(missing, [], `po-shell.ts uses ${missing.join(", ")} without importing it`);
+});
